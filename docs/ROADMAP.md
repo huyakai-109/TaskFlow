@@ -23,7 +23,7 @@ One thin, independently verifiable path each. One `feature/<slice>` branch per s
 
 | # | Slice | Branch | Owner | Status | Covers |
 |---|---|---|---|---|---|
-| 0.1 | Roles & permission claims seeded | `feature/unit0-roles-seed` | backend-lead | Ready for Review — applied to local MySQL 2026-10-25, rows verified | R2 — `Manager`/`Member` rows in `RoleConfiguration`, their `RoleClaim` rows · R2b — a first migration aligning the drifted scaffold seed data. Two `MyDbContext` migrations |
+| 0.1 | Roles & permission claims seeded | `feature/unit0-roles-seed` | backend-lead | **Done** — accepted by the user 2026-10-25 | R2 — `Manager`/`Member` rows in `RoleConfiguration`, their `RoleClaim` rows · R2b — a first migration aligning the drifted scaffold seed data. Two `MyDbContext` migrations |
 | 0.2 | Backend test project | `feature/unit0-test-project` | backend-lead | Planned | `BE/TaskFlow.Tests` (xUnit, real MySQL), first tests proving 0.1 |
 | 0.3 | Envelope + soft-delete defects | `feature/unit0-envelope-softdelete` | backend-lead | Planned | R1 `InvalidModelStateResponseFactory` · R4 `SaveChangesInternal` early return · tests for both |
 | 0.4 | Auth hardening + dev users | `feature/unit0-auth-hardening` | backend-lead | Planned | R3 — `RolePolicy` claims survive refresh, httpOnly refresh cookie, `UserToken` found by user + device · Development-only seeding of `member1`, `member2`, `manager1` |
@@ -96,7 +96,7 @@ Found by reading the scaffold against the specs.
 
 - R7 `Logger.LogError("… {ex}", ex)` in `AuthController` and `ExampleController` → `Logger.LogError(ex, "…")`.
 - R8 `/healthz` registers no checks — add a database check when `/ship setup` defines the deployment.
-- R9 Dev compose pins MinIO, Redis, Loki, Grafana and Prometheus to `latest` and defines no health checks for them. **The MySQL half is Done** (2026-10-25, below); the rest stands. `taskflow.api`'s `depends_on` still waits only for the container to start, not for MySQL to be healthy — `condition: service_healthy` is the follow-up.
+- R9 Dev compose pins MinIO, Redis, Loki, Grafana and Prometheus to `latest` and defines no health checks for them. **The MySQL half is Done** (2026-10-25, below), including `taskflow.api` → `taskflow.mysql` `condition: service_healthy`. The `latest` tags and the other services' health checks still stand.
 
 ## Known follow-ups, not yet scheduled
 

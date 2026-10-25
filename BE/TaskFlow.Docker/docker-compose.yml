@@ -11,9 +11,14 @@ services:
       context: ../
       dockerfile: TaskFlow.Api/Dockerfile
     depends_on:
-      - taskflow.mysql
-      - taskflow.minio
-      - taskflow.redis
+      taskflow.mysql:
+        # AutoMigration runs at startup, so the API must not start before MySQL
+        # accepts connections.
+        condition: service_healthy
+      taskflow.minio:
+        condition: service_started
+      taskflow.redis:
+        condition: service_started
 
   taskflow.mysql:
     container_name: TaskFlow.MySql
