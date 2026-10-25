@@ -31,7 +31,19 @@ One thin, independently verifiable path each. One `feature/<slice>` branch per s
 
 ### Units 1–2 — F01 + F04
 
-Slices are listed once the architect's design and the API contract are approved.
+Contract: `docs/features/f01-workflow.md` → *Technical contract* (shared) and `docs/features/f04-audit.md` → *Technical contract*. **Nothing below starts until the user signs off the open items marked [SIGN-OFF] there.** Riskiest assumptions first: the MySQL concurrency token actually refusing a stale or concurrent write, the time-zone lookup resolving at all (R-TZ), and one-commit atomicity of task + history + notification. All three are retired by the end of slice 1.2.
+
+| # | Slice | Branch | Owner | Status | Closes |
+|---|---|---|---|---|---|
+| 1.1 | Model, permissions, create + read one | `feature/f01-model-create` | backend-lead | Planned | Entities, configurations, two migrations, enums, `TaskTransitions`, `TaskControllerMS`, `JsonStringEnumConverter`, `Pagination<T>.CreateAsync`, zone key + R-TZ fix, `POST /tasks`, `GET /tasks/{id}`. F04 AC1, AC17, AC21; F01 AC18 (Backlog), AC24, AC26 |
+| 1.2 | Move + history + concurrency | `feature/f01-move` | backend-lead | Planned | The gate slice. F01 AC1–AC5, AC7–AC16, AC20, AC25, AC27–AC31; F04 AC2, AC7, AC10–AC14, AC18. Includes the two-connection AC29 test against real MySQL |
+| 1.3 | Reopen + notification store | `feature/f01-reopen-notify` | backend-lead | Planned | F01 AC6, AC21–AC23, D7; F04 AC6 |
+| 1.4 | Reads, edits, delete, history read | `feature/f01-reads-edits` | backend-lead | Planned | F04 AC3–AC5, AC9, AC15–AC21, AC23; F03's shape but not its order; the remaining F01 primitives |
+| 1.5 | Board, read-only | `feature/f01-board` | frontend-lead | Planned | Five columns, cards, priority/due/overdue chips, drop targets derived from `allowedTransitions`, one error-code→copy map. Starts on contract approval alone |
+| 1.6 | Drag-and-drop + detail | `feature/f01-dnd` | frontend-lead | Planned | `@dnd-kit/core`, refusal dialogs per error code, optimistic rollback, history timeline, reopen dialog, notification inbox |
+| 1.7 | Create / edit / assign UI | `feature/f01-task-forms` | frontend-lead | Planned | New-task dialog, edit, priority, due date, assignee picker; `GET /users` if approved |
+
+Slice 1.5 may run beside the backend slices once the contract is approved; one working tree keeps the backend slices sequential. Slice 1.2 is the gate — nothing else starts before its concurrency test passes against real MySQL.
 
 ## Order and parallelism
 
