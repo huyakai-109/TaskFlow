@@ -1,0 +1,76 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34330.188
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaskFlow.Api", "TaskFlow.Api\TaskFlow.Api.csproj", "{0D6DB2F9-75B2-4B00-B47D-14BA788FEA8E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "1_Presentation", "1_Presentation", "{C3B38B4E-BAB9-4EA9-9C9E-499B1683E7F5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "2_BusinessLogic", "2_BusinessLogic", "{55E24C41-A89D-4438-BE97-C79FB2324D5E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "3_DataAccess", "3_DataAccess", "{F155FDBB-10E6-41D0-939B-1010EDF9ED8A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4_Docker", "4_Docker", "{F334DFF8-E83B-4CDF-99A8-103BC61AAFFE}"
+	ProjectSection(SolutionItems) = preProject
+		TaskFlow.Api\Dockerfile = TaskFlow.Api\Dockerfile
+		TaskFlow.Docker\docker-compose.override.yml = TaskFlow.Docker\docker-compose.override.yml
+		TaskFlow.Docker\docker-compose.yml = TaskFlow.Docker\docker-compose.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "5_SolutionItems", "5_SolutionItems", "{567142F6-C3DB-4A28-97BB-BD8B247B1197}"
+	ProjectSection(SolutionItems) = preProject
+		.dockerignore = .dockerignore
+		.editorconfig = .editorconfig
+		.gitignore = ..\.gitignore
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaskFlow.BusinessLogic", "TaskFlow.BusinessLogic\TaskFlow.BusinessLogic.csproj", "{F2A400BC-E8DA-4519-946E-5FD79CBB9A2D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaskFlow.Common", "TaskFlow.Common\TaskFlow.Common.csproj", "{AE9EA193-1C3E-4AD3-8780-F98105BE6DF7}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaskFlow.Repositories", "TaskFlow.Repositories\TaskFlow.Repositories.csproj", "{AF8961C8-46DE-44EF-87D8-D3547853F3A3}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TaskFlow.DataAccess", "TaskFlow.DataAccess\TaskFlow.DataAccess.csproj", "{D44FD516-6EA9-4D9F-BC38-98322A277869}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0D6DB2F9-75B2-4B00-B47D-14BA788FEA8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0D6DB2F9-75B2-4B00-B47D-14BA788FEA8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0D6DB2F9-75B2-4B00-B47D-14BA788FEA8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0D6DB2F9-75B2-4B00-B47D-14BA788FEA8E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F2A400BC-E8DA-4519-946E-5FD79CBB9A2D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F2A400BC-E8DA-4519-946E-5FD79CBB9A2D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F2A400BC-E8DA-4519-946E-5FD79CBB9A2D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F2A400BC-E8DA-4519-946E-5FD79CBB9A2D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AE9EA193-1C3E-4AD3-8780-F98105BE6DF7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AE9EA193-1C3E-4AD3-8780-F98105BE6DF7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AE9EA193-1C3E-4AD3-8780-F98105BE6DF7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AE9EA193-1C3E-4AD3-8780-F98105BE6DF7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AF8961C8-46DE-44EF-87D8-D3547853F3A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AF8961C8-46DE-44EF-87D8-D3547853F3A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AF8961C8-46DE-44EF-87D8-D3547853F3A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AF8961C8-46DE-44EF-87D8-D3547853F3A3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D44FD516-6EA9-4D9F-BC38-98322A277869}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D44FD516-6EA9-4D9F-BC38-98322A277869}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D44FD516-6EA9-4D9F-BC38-98322A277869}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D44FD516-6EA9-4D9F-BC38-98322A277869}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{0D6DB2F9-75B2-4B00-B47D-14BA788FEA8E} = {C3B38B4E-BAB9-4EA9-9C9E-499B1683E7F5}
+		{F2A400BC-E8DA-4519-946E-5FD79CBB9A2D} = {55E24C41-A89D-4438-BE97-C79FB2324D5E}
+		{AE9EA193-1C3E-4AD3-8780-F98105BE6DF7} = {55E24C41-A89D-4438-BE97-C79FB2324D5E}
+		{AF8961C8-46DE-44EF-87D8-D3547853F3A3} = {55E24C41-A89D-4438-BE97-C79FB2324D5E}
+		{D44FD516-6EA9-4D9F-BC38-98322A277869} = {F155FDBB-10E6-41D0-939B-1010EDF9ED8A}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {48CB81AC-1BD1-4E2F-86EC-6805FA1F1434}
+	EndGlobalSection
+EndGlobal

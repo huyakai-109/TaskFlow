@@ -1,0 +1,94 @@
+services:
+  taskflow.api:
+    image: ${DOCKER_REGISTRY-}taskflowapi
+    environment:
+      - ConnectionStrings__MyDatabase=server=host.docker.internal;user id=root;password=Password@1234;database=mydb
+      - ConnectionStrings__QuartzDatabase=server=host.docker.internal;port=3307;user id=root;password=Password@1234;database=quartz
+      - ConnectionStrings__RedisDatabase=host.docker.internal:6379
+      - EnableSwagger=true
+      - AutoMigration=true
+    build:
+      context: ../
+      dockerfile: TaskFlow.Api/Dockerfile
+    depends_on:
+      - taskflow.mariadb
+      - taskflow.mysql
+      - taskflow.minio
+      - taskflow.redis
+
+  taskflow.mariadb:
+    container_name: TaskFlow.MariaDb
+    restart: always
+    environment:
+      - MARIADB_ROOT_PASSWORD=Password@1234
+    volumes:
+      - "./data/db:/var/lib/mysql"
+    image: mariadb:10.11.6
+    ports:
+      - "3306:3306"
+
+  taskflow.mysql:
+    container_name: TaskFlow.MySql
+    image: mysql:8.4.0
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=Password@1234
+    volumes:
+      - "./data/job-store:/var/lib/mysql"
+    ports:
+      - "3307:3306"
+
+  taskflow.minio:
+    container_name: TaskFlow.MinIO
+    image: minio/minio:latest
+    ports:
+      - 9000:9000
+      - 9001:9001
+    volumes:
+      - ./data/minio:/data
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=Password@1234
+    command: server --console-address ":9001" /data
+
+  taskflow.redis:
+    container_name: TaskFlow.Redis
+    image: redis/redis-stack:latest
+    restart: always
+    ports:
+      - 6379:6379
+      - 8001:8001
+    volumes:
+      - ./data/redis:/data
+
+  taskflow.loki:
+    image: grafana/loki:latest
+    container_name: "TaskFlow.Loki"
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+
+  taskflow.grafana:
+    image: grafana/grafana:latest
+    container_name: "TaskFlow.Grafana"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=Password@1234
+    volumes:
+      - "./data/grafana/config:/etc/grafana"
+      - "./data/grafana/data:/var/lib/grafana"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - taskflow.loki
+      - taskflow.prometheus
+
+  taskflow.prometheus:
+    image: prom/prometheus:latest
+    container_name: "TaskFlow.Prometheus"
+    volumes:
+      - "./data/prometheus/:/etc/prometheus/"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - "9090:9090"
+
