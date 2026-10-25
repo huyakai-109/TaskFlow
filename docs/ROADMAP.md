@@ -69,6 +69,7 @@ Tests, users, the drag-and-drop library, CI and the git rule were decided on 202
 
 - **CORS allow-list** (2026-10-20) — `Cors:AllowedOrigins` per environment, startup fails when none is configured. Replaced `SetIsOriginAllowed(_ => true)` combined with `AllowCredentials()`.
 - **UI reference** (2026-10-25) — `docs/ui.md` and the wireframe snapshot in `docs/ui/screens/`.
+- **R10 — MySQL data directory and health check** (2026-10-25) — `taskflow.mysql` bind-mounted `./data/mysql` into the repository. On Windows that puts the InnoDB data directory on drvfs, which made first start slow enough to look like a connection failure and, more seriously, forced `lower_case_table_names=2`, so table names compared case-insensitively here and case-sensitively on the Linux filesystem CI will run against. Replaced with the named volume `taskflow-mysql-data` and given a `mysqladmin ping` health check (`start_period: 60s`). The old data directory held only system schemas and was deleted with the user's approval. This also closes the MySQL half of R9.
 
 ## Found in review (2026-10-25)
 
@@ -95,7 +96,7 @@ Found by reading the scaffold against the specs.
 
 - R7 `Logger.LogError("… {ex}", ex)` in `AuthController` and `ExampleController` → `Logger.LogError(ex, "…")`.
 - R8 `/healthz` registers no checks — add a database check when `/ship setup` defines the deployment.
-- R9 Dev compose pins MinIO, Redis, Loki, Grafana and Prometheus to `latest` and defines no health checks.
+- R9 Dev compose pins MinIO, Redis, Loki, Grafana and Prometheus to `latest` and defines no health checks for them. **The MySQL half is Done** (2026-10-25, below); the rest stands. `taskflow.api`'s `depends_on` still waits only for the container to start, not for MySQL to be healthy — `condition: service_healthy` is the follow-up.
 
 ## Known follow-ups, not yet scheduled
 
