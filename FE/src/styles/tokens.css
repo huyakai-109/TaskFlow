@@ -2,43 +2,73 @@
  * Design tokens. Every colour, space and radius in the app comes from here —
  * components reference `var(--…)` and never a literal colour.
  *
+ * Values follow the TaskFlow wireframe (docs/ui.md, docs/ui/screens/).
+ *
  * Light is the default. Dark follows the OS under `prefers-color-scheme`, and
  * `data-theme` on <html> overrides either way, so a future theme switch needs no
  * change to any component.
  */
 
 :root {
-  /* Surfaces and text */
-  --color-bg: #f6f7f9;
+  /* Surfaces and text — each layer a step lighter (light) or darker (dark) than the one under it */
+  --color-bg: #fbfbfc;
+  --color-sidebar: #f2f2f5;
+  --color-column: #f3f3f6;
   --color-surface: #ffffff;
   --color-surface-raised: #ffffff;
-  --color-border: #dfe3e8;
-  --color-border-strong: #c2c8d0;
-  --color-text: #1a1d21;
-  --color-text-muted: #5b6673;
+  --color-border: #e3e3e8;
+  --color-border-strong: #cfcfd6;
+  --color-text: #18181d;
+  --color-text-muted: #5e5f69;
   --color-text-inverse: #ffffff;
+  --color-kbd: #f2f2f5;
 
   /* Interaction */
-  --color-accent: #2f6feb;
-  --color-accent-hover: #255ac4;
-  --color-focus: #2f6feb;
+  --color-accent: #4f4fcc;
+  --color-accent-hover: #4343b3;
+  --color-accent-soft: #ebebfa;
+  --color-accent-ink: #3a3aa6;
+  --color-on-accent: #ffffff;
+  --color-focus: #4f4fcc;
 
   /* Status feedback */
-  --color-danger: #c62828;
-  --color-danger-surface: #fdeceb;
-  --color-warning: #b26a00;
-  --color-warning-surface: #fdf3e2;
-  --color-success: #1f7a43;
-  --color-success-surface: #e8f5ec;
+  --color-danger: #c42b33;
+  --color-danger-surface: #fff3f3;
+  --color-danger-border: #f2c3c5;
+  --color-warning: #c85a14;
+  --color-warning-surface: #fff6ec;
+  --color-success: #1f7a4d;
+  --color-success-surface: #e6f4ec;
 
   /* Priority — F03 ranks Urgent above High above Normal */
-  --color-priority-urgent: #c62828;
-  --color-priority-high: #b26a00;
-  --color-priority-normal: #5b6673;
+  --color-priority-urgent: #d92f37;
+  --color-priority-high: #c85a14;
+  --color-priority-normal: #8a8b96;
 
   /* Overdue — the red indicator F05 calls for */
   --color-overdue: var(--color-danger);
   --color-overdue-surface: var(--color-danger-surface);
+  --color-overdue-border: var(--color-danger-border);
+
+  /* Capacity meter (F02): filled segments use --color-accent, a full meter --color-priority-urgent */
+  --color-meter-empty: #dedee4;
+
+  /* Avatars — one background/ink pair per person, assigned by a stable index */
+  --avatar-1-bg: #fde8f1;
+  --avatar-1-ink: #8e1f52;
+  --avatar-2-bg: #ddf3ee;
+  --avatar-2-ink: #11604e;
+  --avatar-3-bg: #fdf0d5;
+  --avatar-3-ink: #7a4b07;
+  --avatar-4-bg: #e3ebfd;
+  --avatar-4-ink: #1e3a8a;
+  --avatar-5-bg: #efe7fb;
+  --avatar-5-ink: #5b2a86;
+  --avatar-6-bg: #e2f2dc;
+  --avatar-6-ink: #2f5e1b;
+
+  --shadow-card: 0 1px 2px rgb(16 16 24 / 6%);
+  --shadow-raised: 0 16px 40px rgb(16 16 24 / 16%);
 
   /* Spacing */
   --space-1: 0.25rem;
@@ -48,17 +78,19 @@
   --space-5: 1.5rem;
   --space-6: 2rem;
 
-  /* Shape and depth */
-  --radius-sm: 4px;
-  --radius-md: 8px;
+  /* Shape — chip · card · column · popover/dialog */
+  --radius-sm: 6px;
+  --radius-md: 10px;
   --radius-lg: 12px;
-  --shadow-card: 0 1px 2px rgb(16 24 40 / 8%);
-  --shadow-raised: 0 4px 12px rgb(16 24 40 / 12%);
+  --radius-xl: 16px;
+  --radius-pill: 999px;
 
-  /* Type */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Type — Geist / Geist Mono are self-hosted, see global.css */
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --font-size-xs: 0.75rem;
   --font-size-sm: 0.8125rem;
-  --font-size-base: 0.9375rem;
+  --font-size-base: 0.875rem;
   --font-size-lg: 1.125rem;
   --font-size-xl: 1.5rem;
   --line-height: 1.5;
@@ -69,60 +101,104 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --color-bg: #15181d;
-    --color-surface: #1d2127;
-    --color-surface-raised: #242931;
-    --color-border: #313841;
-    --color-border-strong: #475062;
-    --color-text: #e9edf2;
-    --color-text-muted: #9aa5b2;
-    --color-text-inverse: #15181d;
+    --color-bg: #111114;
+    --color-sidebar: #0c0c0e;
+    --color-column: #17171b;
+    --color-surface: #202026;
+    --color-surface-raised: #26262d;
+    --color-border: #2d2d35;
+    --color-border-strong: #3f3f49;
+    --color-text: #ededf0;
+    --color-text-muted: #a3a4ae;
+    --color-text-inverse: #111114;
+    --color-kbd: #2a2a31;
 
-    --color-accent: #7aa2f7;
-    --color-accent-hover: #93b4ff;
-    --color-focus: #7aa2f7;
+    --color-accent: #8b8bf5;
+    --color-accent-hover: #a3a3f8;
+    --color-accent-soft: #25253d;
+    --color-accent-ink: #c4c4fa;
+    --color-on-accent: #0e0e14;
+    --color-focus: #8b8bf5;
 
-    --color-danger: #ff6b6b;
-    --color-danger-surface: #3a1f21;
-    --color-warning: #e3a008;
-    --color-warning-surface: #3a2e1a;
-    --color-success: #5cc98b;
-    --color-success-surface: #1b3326;
+    --color-danger: #ff8c8c;
+    --color-danger-surface: #2b1a1d;
+    --color-danger-border: #5a2a30;
+    --color-warning: #ff9f5a;
+    --color-warning-surface: #3a2a1a;
+    --color-success: #5fd39a;
+    --color-success-surface: #17301f;
 
     --color-priority-urgent: #ff6b6b;
-    --color-priority-high: #e3a008;
-    --color-priority-normal: #9aa5b2;
+    --color-priority-high: #ff9f5a;
+    --color-priority-normal: #80818b;
 
-    --shadow-card: 0 1px 2px rgb(0 0 0 / 40%);
-    --shadow-raised: 0 4px 12px rgb(0 0 0 / 50%);
+    --color-meter-empty: #33333b;
+
+    --avatar-1-bg: #3a1d2b;
+    --avatar-1-ink: #f7a8cb;
+    --avatar-2-bg: #133229;
+    --avatar-2-ink: #7fdcc2;
+    --avatar-3-bg: #3a2c12;
+    --avatar-3-ink: #f3c77a;
+    --avatar-4-bg: #1a2540;
+    --avatar-4-ink: #a9c1fa;
+    --avatar-5-bg: #2b2140;
+    --avatar-5-ink: #d3b8f7;
+    --avatar-6-bg: #1c2e17;
+    --avatar-6-ink: #a8db93;
+
+    --shadow-card: none;
+    --shadow-raised: 0 16px 40px rgb(0 0 0 / 55%);
   }
 }
 
 :root[data-theme='dark'] {
-  --color-bg: #15181d;
-  --color-surface: #1d2127;
-  --color-surface-raised: #242931;
-  --color-border: #313841;
-  --color-border-strong: #475062;
-  --color-text: #e9edf2;
-  --color-text-muted: #9aa5b2;
-  --color-text-inverse: #15181d;
+  --color-bg: #111114;
+  --color-sidebar: #0c0c0e;
+  --color-column: #17171b;
+  --color-surface: #202026;
+  --color-surface-raised: #26262d;
+  --color-border: #2d2d35;
+  --color-border-strong: #3f3f49;
+  --color-text: #ededf0;
+  --color-text-muted: #a3a4ae;
+  --color-text-inverse: #111114;
+  --color-kbd: #2a2a31;
 
-  --color-accent: #7aa2f7;
-  --color-accent-hover: #93b4ff;
-  --color-focus: #7aa2f7;
+  --color-accent: #8b8bf5;
+  --color-accent-hover: #a3a3f8;
+  --color-accent-soft: #25253d;
+  --color-accent-ink: #c4c4fa;
+  --color-on-accent: #0e0e14;
+  --color-focus: #8b8bf5;
 
-  --color-danger: #ff6b6b;
-  --color-danger-surface: #3a1f21;
-  --color-warning: #e3a008;
-  --color-warning-surface: #3a2e1a;
-  --color-success: #5cc98b;
-  --color-success-surface: #1b3326;
+  --color-danger: #ff8c8c;
+  --color-danger-surface: #2b1a1d;
+  --color-danger-border: #5a2a30;
+  --color-warning: #ff9f5a;
+  --color-warning-surface: #3a2a1a;
+  --color-success: #5fd39a;
+  --color-success-surface: #17301f;
 
   --color-priority-urgent: #ff6b6b;
-  --color-priority-high: #e3a008;
-  --color-priority-normal: #9aa5b2;
+  --color-priority-high: #ff9f5a;
+  --color-priority-normal: #80818b;
 
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 40%);
-  --shadow-raised: 0 4px 12px rgb(0 0 0 / 50%);
+  --color-meter-empty: #33333b;
+
+  --avatar-1-bg: #3a1d2b;
+  --avatar-1-ink: #f7a8cb;
+  --avatar-2-bg: #133229;
+  --avatar-2-ink: #7fdcc2;
+  --avatar-3-bg: #3a2c12;
+  --avatar-3-ink: #f3c77a;
+  --avatar-4-bg: #1a2540;
+  --avatar-4-ink: #a9c1fa;
+  --avatar-5-bg: #2b2140;
+  --avatar-5-ink: #d3b8f7;
+  --avatar-6-bg: #1c2e17;
+  --avatar-6-ink: #a8db93;
+
+  --shadow-card: none;
+  --shadow-raised: 0 16px 40px rgb(0 0 0 / 55%);
 }

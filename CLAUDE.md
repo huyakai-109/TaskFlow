@@ -21,11 +21,11 @@
 | **Project type** | Full-stack: API + React SPA, developed in parallel. The API contract is the only coupling. |
 | **Backend** | ASP.NET Core controllers on `net10.0` (no `global.json` pin). Asp.Versioning 10.2.1 · AutoMapper 16.2.0 (licence key read from `LuckyPennyLicense`) · Swashbuckle 10.3.1 · Serilog 10.0.0 · Quartz 3.22.7 (clustered ADO job store) · Minio 7.0.0 · ASP.NET Identity + JWT bearer. `TaskFlow.Api` sets `InvariantGlobalization=true`. |
 | **Frontend** | `FE/` — React ^19.3.1, TypeScript ~6.0.3 strict, Vite ^8.3.4, TanStack Query ^5.104.5 (server state), React Router ^7.18.4. Lint: oxlint. One API client (`FE/src/api/client.ts`) unwraps the envelope into `ApiError` with `errorCode`; the access token lives in memory only. |
-| **UI conventions** | CSS Modules over design tokens in `FE/src/styles/tokens.css` (light + dark; priority and overdue colours defined there). No component library. Widths: kit default 390 / 768 / 1440 until decided otherwise. |
-| **Database** | MariaDB 10.11.6 — `MyDbContext`, migrations in `BE/TaskFlow.DataAccess/Migrations/`. MySQL 8.4.0 — `QuartzContext` (Quartz tables only), `BE/TaskFlow.DataAccess/Quartz-Migrations/`, port 3307. EF Core 9.0.21 + Pomelo 9.0.0, so EF Core 10 features (named query filters) are unavailable. Redis (distributed cache), MinIO (objects). MariaDB has no filtered indexes; default collations compare case-insensitively. |
+| **UI conventions** | CSS Modules over design tokens in `FE/src/styles/tokens.css` (light + dark; priority and overdue colours defined there). No component library. Widths: kit default 390 / 768 / 1440 until decided otherwise. Screens, UI rules and copy: `docs/ui.md` (wireframe snapshot in `docs/ui/screens/`). The specs win where they differ. |
+| **Database** | MySQL 8.4.0 — one server (port 3306), two databases: `mydb` for `MyDbContext` (migrations in `BE/TaskFlow.DataAccess/Migrations/`) and `quartz` for `QuartzContext` (Quartz tables only, `BE/TaskFlow.DataAccess/Quartz-Migrations/`). EF Core 9.0.21 + Pomelo 9.0.0, so EF Core 10 features (named query filters) are unavailable. Redis (distributed cache), MinIO (objects). MySQL has no filtered indexes; default collations compare case-insensitively. |
 | **Architecture** | `BE/` layered, one project per layer, one-way references: `TaskFlow.Api` → `TaskFlow.BusinessLogic` → `TaskFlow.Repositories` → `TaskFlow.DataAccess` → `TaskFlow.Common` (leaf). `FE/` is a separate app. `.claude/` and `docs/` at the root serve both. |
-| **Tests** | None — no test project in `BE/`, no runner in `FE/`. Whether to add them is open (below). |
-| **Infrastructure** | Dev only: `BE/TaskFlow.Docker/docker-compose.yml` (API, MariaDB, MySQL, MinIO, Redis, Loki, Grafana, Prometheus — several images on `latest`, no health checks) and `BE/TaskFlow.Api/Dockerfile` (`aspnet:10.0`, non-root `app`). Serilog → console / file / Loki; OpenTelemetry → Prometheus `/metrics` + OTLP; `/healthz` (no checks registered). No CI. |
+| **Tests** | None yet. Decided 2026-10-25: a backend xUnit project that runs against a real MySQL is added in slice 0, before F01; a frontend runner (Vitest) is added later. |
+| **Infrastructure** | Dev only: `BE/TaskFlow.Docker/docker-compose.yml` (API, MySQL, MinIO, Redis, Loki, Grafana, Prometheus — several images on `latest`, no health checks) and `BE/TaskFlow.Api/Dockerfile` (`aspnet:10.0`, non-root `app`). Serilog → console / file / Loki; OpenTelemetry → Prometheus `/metrics` + OTLP; `/healthz` (no checks registered). No CI. |
 | **Status** | Bootstrapping. The API scaffold builds and runs; `Example*` is placeholder code; the task domain is not started. The client is scaffolded and fetches nothing — its board waits on the F01 contract. |
 
 ## How this codebase works — read before the first task
@@ -53,7 +53,7 @@ Complements `.claude/rules/backend.md`. Where this section and a kit rule differ
 |---|---|
 | Build | `dotnet build BE/TaskFlow.sln -c Debug` |
 | Run API | `dotnet run --project BE/TaskFlow.Api` → http://localhost:5198, Swagger at `/swagger`. **`AutoMigration` is `true`: running the API applies pending migrations to both databases** — ask before running it with a new migration (`workflow.md` §3) |
-| Run dependencies | `docker compose -f BE/TaskFlow.Docker/docker-compose.yml up -d taskflow.mariadb taskflow.mysql taskflow.redis taskflow.minio` |
+| Run dependencies | `docker compose -f BE/TaskFlow.Docker/docker-compose.yml up -d taskflow.mysql taskflow.redis taskflow.minio` |
 | Test | `n/a` — no test project |
 | Lint / format | `dotnet format BE/TaskFlow.sln --verify-no-changes` — currently fails on pre-existing `ApiVerioningConfiguration.cs` (AV0013); severities in `BE/.editorconfig` |
 | Add migration | `dotnet ef migrations add <Name> --project BE/TaskFlow.DataAccess --startup-project BE/TaskFlow.Api --context MyDbContext` |
@@ -73,7 +73,7 @@ One target. Written by `/ship setup` after approval; read by `/ship`. **Names an
 | **Target** | TBD |
 | **Deploy command** | TBD |
 | **Migration step** | TBD — today migrations run at startup (`AutoMigration=true`) |
-| **Backup / restore** | TBD — MariaDB (`MyDbContext`) and MySQL (Quartz) |
+| **Backup / restore** | TBD — MySQL: `mydb` (`MyDbContext`) and `quartz` (Quartz) |
 | **Health check** | TBD — `/healthz` exists but is liveness only (no database or dependency check) |
 | **Rollback command** | TBD |
 | **Smoke checks** | TBD |
@@ -87,7 +87,10 @@ One target. Written by `/ship setup` after approval; read by `/ship`. **Names an
 - One shared board: no team entity and no row-level filtering — kit `backend.md` §9's row-visibility rule is satisfied by design. Card order is always computed (F03); no position is stored.
 - The single notification is in-app (F01 D7). No email, no generic event bus.
 
-## Open questions (not answered by the BRS or the specs)
+## Decided before F01 (2026-10-25)
 
-- **Q-T Tests** — add a backend test project (and a frontend runner) before F01? Several criteria (F01 AC29–31, F02 AC18, F05 AC17/AC24) need tests against a real MariaDB to be verifiable at all.
-- **Q-U Users** — how do Members and Managers exist for development and use: seeded per role, or a user-management endpoint (currently out of scope)? F02 and the board's assignee picker need real users.
+- **Q-T Tests** — yes: backend xUnit against a real MySQL, from slice 0. Frontend runner (Vitest) later.
+- **Q-U Users** — roles `Manager`/`Member` and their `RoleClaim` rows are seeded by migration. Users `member1`, `member2`, `manager1` are seeded **only in the Development environment**, never by migration. User management stays out of scope.
+- **Drag and drop** — `@dnd-kit/core` (approved dependency).
+- **CI** — GitHub Actions on every push and pull request: build + test the backend with a MySQL service, typecheck + lint + build the frontend. No deploy job; deployment is decided later with `/ship setup`.
+- **Git** — one `feature/<slice>` branch per slice; agents may commit on it, never push. The user pushes and opens the pull request.

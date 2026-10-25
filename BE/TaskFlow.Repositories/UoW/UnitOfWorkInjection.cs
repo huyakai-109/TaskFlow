@@ -16,7 +16,7 @@ namespace TaskFlow.Repositories.UoW
                 throw new ArgumentNullException(nameof(connectionString), "Database connection string is null");
             }
 
-            var serverVersion = new MariaDbServerVersion(new Version(10, 11, 6));
+            var serverVersion = new MySqlServerVersion(new Version(8, 4, 0));
 
             collection.AddDbContext<MyDbContext>(options =>
                 options.UseMySql(connectionString, serverVersion));

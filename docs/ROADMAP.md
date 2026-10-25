@@ -6,6 +6,7 @@ Behaviour comes from `docs/brs/taskflow-brs.md`; the acceptance criteria that im
 
 | # | Unit | Spec | Status | Notes |
 |---|---|---|---|---|
+| 0 | **Foundation before F01** | — | Planned | Backend test project (xUnit, real MySQL) · Development-only seed users · fix R1, R2, R3 (with the httpOnly refresh cookie), R4 below · GitHub Actions CI (build + test BE, typecheck + lint + build FE, no deploy) |
 | 1 | **F01 — Strict workflow state machine** | [f01-workflow.md](features/f01-workflow.md) | Planned | Owns the task model, the `Tasks` permission set and the transition table. Includes reopen, the "someone else moves it out of Review" rule, `CompletedAt`, and the allowed-move list the drag-and-drop board needs |
 | 2 | **F04 — Task audit & history trail** | [f04-audit.md](features/f04-audit.md) | Planned | Build with F01, not after it: F01, F02 and F05 all write entries, so retrofitting the trail means reopening all three |
 | 3 | **F02 — Resource capacity guard** | [f02-capacity.md](features/f02-capacity.md) | Planned | A rule on F01's move and assign operations. Needs the concurrency token, not just a `Count()` |
@@ -17,7 +18,7 @@ Supporting work, in scope but not a BRS feature: task CRUD (create, edit, assign
 ## Order and parallelism
 
 1. **Agree the API contract for a unit before either side starts it.** API and client are built in parallel, so route, verb, request fields, response shape, error codes and auth policy are written down first — see the constraint in `CLAUDE.md`.
-2. F01 + F04 together as one unit, then F02, then F03, then F05.
+2. Unit 0 first, then F01 + F04 together as one unit, then F02, then F03, then F05.
 3. The client can start against the agreed contract while F01 is in progress; it does not wait for the API to be finished.
 
 ## Decisions already locked (2026-10-20)
@@ -60,7 +61,7 @@ Found by reading the scaffold against the specs; nothing below has been changed 
 - R7 `Logger.LogError("… {ex}", ex)` in `AuthController` and `ExampleController` → `Logger.LogError(ex, "…")`.
 - R8 `/healthz` registers no checks — add a database check when `/ship setup` defines the deployment.
 - R9 Dev compose pins MinIO, Redis, Loki, Grafana and Prometheus to `latest` and defines no health checks.
-- Decide the open questions in `CLAUDE.md`: **Q-T** tests (several F01/F02/F05 criteria need a real MariaDB to verify) and **Q-U** how Member and Manager users exist.
+- ~~Decide Q-T and Q-U~~ — decided 2026-10-25, see `CLAUDE.md` → *Decided before F01*; the work is unit 0.
 
 ## Known follow-ups, not yet scheduled
 

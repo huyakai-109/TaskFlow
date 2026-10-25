@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TaskFlow board</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; box-sizing: border-box; display: flex; flex-wrap: wrap; background: {{t.bg}}; color: {{t.text}}; font-family: Geist, Inter, system-ui, sans-serif; font-size: 14px">
+
+  <!-- Sidebar: dimmer than content so the board stands out -->
+  <nav aria-label="Workspace" style="flex: 1 1 232px; max-width: 260px; box-sizing: border-box; background: {{t.side}}; border-right: 1px solid {{t.border}}; padding: 16px 12px; display: flex; flex-direction: column; gap: 20px">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px">
+      <span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 7px; background: {{t.accent}}; color: {{t.onAccent}}; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px">T</span>
+      <span style="font-weight: 600">Team Alpha</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <a href="#" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; color: {{t.muted}}; text-decoration: none">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13l3.5 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></svg>
+        <span style="flex-grow: 1">Inbox</span><span style="font-size: 12px">3</span>
+      </a>
+      <a href="MyTasks.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; color: {{t.muted}}; text-decoration: none">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+        My tasks
+      </a>
+      <a href="#" aria-current="page" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; background: {{t.accentSoft}}; color: {{t.accentInk}}; font-weight: 500; text-decoration: none">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/></svg>
+        Board
+      </a>
+      <a href="#" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; color: {{t.muted}}; text-decoration: none">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9.5" r="2.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M15 20a5 5 0 0 1 7 0"/></svg>
+        Team capacity
+      </a>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <span style="padding: 0 10px 6px; font-size: 12px; color: {{t.muted}}">Views</span>
+      <a href="OverdueList.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; color: {{t.muted}}; text-decoration: none">
+        <span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: {{t.urgent}}"></span>
+        <span style="flex-grow: 1">Overdue</span><span style="font-size: 12px">2</span>
+      </a>
+      <a href="#" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; color: {{t.muted}}; text-decoration: none">
+        <span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: {{t.high}}"></span>
+        <span style="flex-grow: 1">Due this week</span><span style="font-size: 12px">5</span>
+      </a>
+    </div>
+    <div style="margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-top: 1px solid {{t.border}}">
+      <span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 50%; background: {{t.huyBg}}; color: {{t.huyInk}}; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600">HT</span>
+      <span style="display: flex; flex-direction: column"><span style="font-weight: 500">Huy Truong</span><span style="font-size: 12px; color: {{t.muted}}">Manager</span></span>
+    </div>
+  </nav>
+
+  <!-- Content -->
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 28px; border-bottom: 1px solid {{t.border}}">
+      <h1 style="margin: 0; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px"><span style="color: {{t.muted}}; font-weight: 400">Team Alpha /</span> Board</h1>
+      <button type="button" style="margin-left: auto; display: inline-flex; align-items: center; gap: 10px; min-width: 260px; min-height: 36px; padding: 0 10px 0 12px; border: 1px solid {{t.border}}; border-radius: 9px; background: {{t.card}}; color: {{t.muted}}; font: 400 13px Geist, system-ui, sans-serif">
+        <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span style="flex-grow: 1; text-align: left">Search or jump to…</span>
+        <kbd style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; padding: 2px 6px; border-radius: 5px; background: {{t.kbd}}; border: 1px solid {{t.border}}; color: {{t.muted}}">⌘K</kbd>
+      </button>
+      <button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px 0 14px; border: 0; border-radius: 9px; background: {{t.accent}}; color: {{t.onAccent}}; font: 600 13px Geist, system-ui, sans-serif">
+        New task
+        <kbd style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; padding: 1px 6px; border-radius: 5px; background: {{t.kbdOnAccent}}; color: {{t.onAccent}}">C</kbd>
+      </button>
+    </header>
+
+    <!-- Toolbar: view controls left, exceptions + team right. Only exceptions show; detail lives in the popover. -->
+    <div style="position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 28px 0; font-size: 13px">
+      <div role="group" aria-label="View" style="display: inline-flex; padding: 3px; border-radius: 9px; background: {{t.col}}; border: 1px solid {{t.border}}">
+        <button type="button" aria-pressed="true" style="min-height: 28px; padding: 0 12px; border: 0; border-radius: 6px; background: {{t.card}}; color: {{t.text}}; font: 500 13px Geist, system-ui, sans-serif; box-shadow: {{t.shadow}}">Board</button>
+        <button type="button" aria-pressed="false" style="min-height: 28px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; color: {{t.muted}}; font: 500 13px Geist, system-ui, sans-serif">List</button>
+      </div>
+      <button type="button" title="Urgent → High → Normal, then earliest due date. Tasks with no date go last." style="display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; border: 1px solid {{t.border}}; border-radius: 9px; background: transparent; color: {{t.muted}}; font: 400 13px Geist, system-ui, sans-serif">
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>
+        Sort: <span style="color: {{t.text}}; font-weight: 500">Priority</span>
+      </button>
+
+      <a href="OverdueList.dc.html" style="margin-left: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px; border-radius: 999px; background: {{t.dangerSoft}}; color: {{t.danger}}; font-weight: 600; text-decoration: none">
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        2 overdue
+      </a>
+      <button type="button" onClick="{{toggleTeam}}" style="display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px; border: 1px solid {{t.dangerBorder}}; border-radius: 999px; background: transparent; color: {{t.danger}}; font: 600 13px Geist, system-ui, sans-serif">
+        <span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: {{t.urgent}}"></span>
+        1 at capacity
+      </button>
+      <span aria-hidden="true" style="width: 1px; height: 20px; background: {{t.border}}; margin: 0 4px"></span>
+      <button type="button" onClick="{{toggleTeam}}" aria-expanded="{{teamOpen}}" aria-label="Team capacity, 11 people" style="display: inline-flex; align-items: center; min-height: 36px; padding: 0 6px; border: 0; border-radius: 999px; background: {{stackBg}}">
+        <sc-for list="{{stack}}" as="a" hint-placeholder-count="5">
+          <span style="width: 26px; height: 26px; margin-left: {{a.ml}}; border-radius: 50%; box-sizing: border-box; border: 2px solid {{a.ring}}; background: {{a.avBg}}; color: {{a.avInk}}; display: inline-flex; align-items: center; justify-content: center; font: 600 9px Geist, system-ui, sans-serif">{{a.i}}</span>
+        </sc-for>
+        <span style="height: 26px; min-width: 26px; margin-left: -6px; padding: 0 6px; box-sizing: border-box; border-radius: 13px; border: 2px solid {{t.bg}}; background: {{t.kbd}}; color: {{t.muted}}; display: inline-flex; align-items: center; justify-content: center; font: 600 11px Geist, system-ui, sans-serif">+{{more}}</span>
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="2" stroke-linecap="round" style="margin-left: 6px"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+
+      <sc-if value="{{teamOpen}}" hint-placeholder-val="{{false}}">
+        <div role="dialog" aria-label="Team capacity" style="position: absolute; top: calc(100% + 8px); right: 28px; z-index: 20; width: 340px; box-sizing: border-box; background: {{t.card}}; border: 1px solid {{t.border}}; border-radius: 14px; box-shadow: {{t.popShadow}}; display: flex; flex-direction: column">
+          <div style="padding: 14px 14px 10px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid {{t.border}}">
+            <div style="display: flex; align-items: baseline; justify-content: space-between">
+              <span style="font-weight: 600">Team capacity</span>
+              <span style="font-size: 12px; color: {{t.muted}}">In progress · max 3</span>
+            </div>
+            <label style="display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 10px; border: 1px solid {{t.border}}; border-radius: 8px; color: {{t.muted}}">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <input type="search" placeholder="Find a teammate" aria-label="Find a teammate" style="flex-grow: 1; min-width: 0; border: 0; outline: none; background: transparent; color: {{t.text}}; font: 400 13px Geist, system-ui, sans-serif">
+            </label>
+            <div style="display: flex; gap: 12px; font-size: 12px; color: {{t.muted}}"><span><strong style="color: {{t.danger}}">1</strong> full</span><span><strong style="color: {{t.text}}">2</strong> almost full</span><span><strong style="color: {{t.text}}">8</strong> have room</span></div>
+          </div>
+          <ul style="margin: 0; padding: 6px; list-style: none; max-height: 300px; overflow-y: auto">
+            <sc-for list="{{people}}" as="p" hint-placeholder-count="8">
+              <li style="display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 8px; border-radius: 8px; background: {{p.rowBg}}">
+                <span aria-hidden="true" style="width: 22px; height: 22px; border-radius: 50%; background: {{p.avBg}}; color: {{p.avInk}}; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">{{p.i}}</span>
+                <span style="flex-grow: 1">{{p.n}}</span>
+                <span aria-hidden="true" style="display: inline-flex; gap: 3px">
+                  <sc-for list="{{p.segs}}" as="s" hint-placeholder-count="3"><span style="width: 14px; height: 6px; border-radius: 3px; background: {{s.bg}}"></span></sc-for>
+                </span>
+                <span style="width: 36px; text-align: right; font-size: 12px; color: {{p.lc}}; font-weight: {{p.lw}}">{{p.label}}</span>
+              </li>
+            </sc-for>
+          </ul>
+          <a href="#" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-top: 1px solid {{t.border}}; color: {{t.accentInk}}; font-weight: 500; text-decoration: none">Open Team capacity <span aria-hidden="true">→</span></a>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- Board -->
+    <div style="flex-grow: 1; overflow-x: auto; padding: 16px 28px 28px">
+      <div style="display: grid; grid-template-columns: repeat(5, minmax(232px, 1fr)); gap: 14px; min-width: 1220px; align-items: start">
+
+        <!-- Backlog -->
+        <section aria-label="Backlog" style="background: {{t.col}}; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px">
+          <h2 style="margin: 0; padding: 4px 4px 6px; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="{{t.muted}}" stroke-width="1.6" stroke-dasharray="2.2 2.2"><circle cx="8" cy="8" r="6"/></svg>
+            Backlog <span style="color: {{t.muted}}; font-weight: 400">2</span>
+          </h2>
+          <article style="background: {{t.card}}; border: 1px solid {{t.border}}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: {{t.shadow}}">
+            <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: {{t.muted}}">TF-21</span>
+            <div style="font-weight: 500; line-height: 20px">Export weekly report</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: {{t.muted}}">
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16"><rect x="1.5" y="9" width="3" height="5" rx="1" fill="{{t.normal}}"/><rect x="6.5" y="5.5" width="3" height="8.5" rx="1" fill="{{t.normal}}"/><rect x="11.5" y="2" width="3" height="12" rx="1" fill="{{t.meterOff}}"/></svg>Normal</span>
+              <span style="display: inline-flex; align-items: center; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px">14 Nov</span>
+            </div>
+          </article>
+          <article style="background: {{t.card}}; border: 1px solid {{t.border}}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: {{t.shadow}}">
+            <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: {{t.muted}}">TF-22</span>
+            <div style="font-weight: 500; line-height: 20px">Dark mode for board</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: {{t.muted}}">
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16"><rect x="1.5" y="9" width="3" height="5" rx="1" fill="{{t.normal}}"/><rect x="6.5" y="5.5" width="3" height="8.5" rx="1" fill="{{t.normal}}"/><rect x="11.5" y="2" width="3" height="12" rx="1" fill="{{t.meterOff}}"/></svg>Normal</span>
+              <span style="display: inline-flex; align-items: center; padding: 2px 8px; border: 1px dashed {{t.border}}; border-radius: 6px">No due date</span>
+            </div>
+          </article>
+        </section>
+
+        <!-- Todo -->
+        <section aria-label="Todo" style="background: {{t.col}}; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px">
+          <h2 style="margin: 0; padding: 4px 4px 6px; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="{{t.muted}}" stroke-width="1.6"><circle cx="8" cy="8" r="6"/></svg>
+            Todo <span style="color: {{t.muted}}; font-weight: 400">3</span>
+          </h2>
+          <article style="background: {{t.card}}; border: 1px solid {{t.border}}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: {{t.shadow}}">
+            <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: {{t.muted}}">TF-18</span>
+            <div style="font-weight: 500; line-height: 20px">Payment timeout on checkout</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: {{t.muted}}">
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="3.5" fill="{{t.urgent}}"/><path d="M8 4.5v4.5M8 11.5v.2" stroke="{{t.card}}" stroke-width="1.9" stroke-linecap="round"/></svg>Urgent</span>
+              <span style="display: inline-flex; align-items: center; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px">22 Oct</span>
+            </div>
+          </article>
+          <article style="background: {{t.card}}; border: 1px solid {{t.border}}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: {{t.shadow}}">
+            <div style="display: flex; justify-content: space-between; align-items: center"><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: {{t.muted}}">TF-15</span><span aria-label="Assigned to Minh" style="width: 20px; height: 20px; border-radius: 50%; background: {{t.minhBg}}; color: {{t.minhInk}}; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">MH</span></div>
+            <div style="font-weight: 500; line-height: 20px">Password reset email</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: {{t.muted}}">
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16"><rect x="1.5" y="9" width="3" height="5" rx="1" fill="{{t.high}}"/><rect x="6.5" y="5.5" width="3" height="8.5" rx="1" fill="{{t.high}}"/><rect x="11.5" y="2" width="3" height="12" rx="1" fill="{{t.high}}"/></svg>High</span>
+              <span style="display: inline-flex; align-items: center; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px">24 Oct</span>
+            </div>
+          </article>
+          <article style="background: {{t.card}}; border: 1px solid {{t.border}}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: {{t.shadow}}">
+            <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: {{t.muted}}">TF-19</span>
+            <div style="font-weight: 500; line-height: 20px">Update onboarding copy</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: {{t.muted}}">
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16"><rect x="1.5" y="9" width="3" height="5" rx="1" fill="{{t.normal}}"/><rect x="6.5" y="5.5" width="3" height="8.5" rx="1" fill="{{t.normal}}"/><rect x="11.5" y="2" width="3" height="12" rx="1" fill="{{t.meterOff}}"/></svg>Normal</span>
+              <span style="display: inline-flex; align-items: center; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px">30 Oct</span>
+            </div>
+          </article>
+        </section>
+
+        <!-- In Progress -->
+        <section aria-label="In Progress" style="background: {{t.col}}; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px">
+          <h2 style="margin: 0; padding: 4px 4px 6px; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="{{t.accent}}" stroke-width="1.6"/><path d="M8 4a4 4 0 0 1 0 8z" fill="{{t.accent}}"/></svg>
+            In Progress <span style="color: {{t.muted}}; font-weight: 400">4</span>
+          </h2>
+          <article style="background: {{t.card}}; border: 1px solid {{t.dangerBorder}}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: {{t.shadow}}">
+            <div style="display: flex; justify-content: space-between; align-items: center"><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: {{t.muted}}">TF-7</span><span aria-label="Assigned to Lan" style="width: 20px; height: 20px; border-radius: 50%; background: {{t.lanBg}}; color: {{t.lanInk}}; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">LN</span></div>
+            <div style="font-weight: 500; line-height: 20px">Fix login bug</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: {{t.muted}}">
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="3.5" fill="{{t.urgent}}"/><path d="M8 4.5v4.5M8 11.5v.2" stroke="{{t.card}}" stroke-width="1.9" stroke-linecap="round"/></svg>Urgent</span>
+              <span style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 6px; background: {{t.dangerSoft}}; color: {{t.danger}}; font-weight: 600"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Overdue 1d</span>
+            </div>
+          </article>
+          <article style="background: {{t.card}}; border: 1px solid {{t.border}}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: {{t.shadow}}">
+            <div style="display: flex; justify-content: space-between; align-items: center"><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: {{t.muted}}">TF-11</span><span aria-label="Assigned to Lan" style="width: 20px; height: 20px; border-radius: 50%; background: {{t.lanBg}}; color: {{t.lanInk}}; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">LN</span></div>
+            <div style="font-weight: 500; line-height: 20px">API rate limiting</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: {{t.muted}}">
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16"><rect x="1.5" y="9" width="3" height="5" rx="1" fill="{{t.high}}"/><rect x="6.5" y="5.5" width="3" height="8.5" rx="1" fill="{{t.high}}"/><rect x="11.5" y="2" width="3" height="12" rx="1" fill="{{t.high}}"/></svg>High</span>
+              <span style="display: inline-flex; align-items: center; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px; color: {{t.text}}; font-weight: 500">Due today</span>
+            </div>
+          </article>
+          <article style="background: {{t.card}}; border: 1px solid {{t.border}}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: {{t.shadow}}">
+            <div style="display: flex; justify-content: space-between; align-items: center"><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: {{t.muted}}">TF-13</span><span aria-label="Assigned to Minh" style="width: 20px; height: 20px; border-radius: 50%; background: {{t.minhBg}}; color: {{t.minhInk}}; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">MH</span></div>
+            <div style="font-weight: 500; line-height: 20px">Audit log export</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: {{t.muted}}">
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16"><rect x="1.5" y="9" width="3" height="5" rx="1" fill="{{t.high}}"/><rect x="6.5" y="5.5" width="3" height="8.5" rx="1" fill="{{t.high}}"/><rect x="11.5" y="2" width="3" height="12" rx="1" fill="{{t.high}}"/></svg>High</span>
+              <span style="display: inline-flex; align-items: center; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px">28 Oct</span>
+            </div>
+          </article>
+          <article style="background: {{t.card}}; border: 1px solid {{t.border}}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: {{t.shadow}}">
+            <div style="display: flex; justify-content: space-between; align-items: center"><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: {{t.muted}}">TF-16</span><span aria-label="Assigned to Lan" style="width: 20px; height: 20px; border-radius: 50%; background: {{t.lanBg}}; color: {{t.lanInk}}; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">LN</span></div>
+            <div style="font-weight: 500; line-height: 20px">Search tasks by assignee</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: {{t.muted}}">
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16"><rect x="1.5" y="9" width="3" height="5" rx="1" fill="{{t.normal}}"/><rect x="6.5" y="5.5" width="3" height="8.5" rx="1" fill="{{t.normal}}"/><rect x="11.5" y="2" width="3" height="12" rx="1" fill="{{t.meterOff}}"/></svg>Normal</span>
+              <span style="display: inline-flex; align-items: center; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px">25 Oct</span>
+            </div>
+          </article>
+        </section>
+
+        <!-- Review -->
+        <section aria-label="Review" style="background: {{t.col}}; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px">
+          <h2 style="margin: 0; padding: 4px 4px 6px; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="{{t.high}}" stroke-width="1.6"/><path d="M8 2a6 6 0 1 1-6 6h6z" fill="{{t.high}}"/></svg>
+            Review <span style="color: {{t.muted}}; font-weight: 400">2</span>
+          </h2>
+          <article style="background: {{t.card}}; border: 1px solid {{t.dangerBorder}}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: {{t.shadow}}">
+            <div style="display: flex; justify-content: space-between; align-items: center"><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: {{t.muted}}">TF-9 · reviewer Minh</span><span aria-label="Assigned to Huy" style="width: 20px; height: 20px; border-radius: 50%; background: {{t.huyBg}}; color: {{t.huyInk}}; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">HT</span></div>
+            <div style="font-weight: 500; line-height: 20px">Session refresh token</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: {{t.muted}}">
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16"><rect x="1.5" y="9" width="3" height="5" rx="1" fill="{{t.high}}"/><rect x="6.5" y="5.5" width="3" height="8.5" rx="1" fill="{{t.high}}"/><rect x="11.5" y="2" width="3" height="12" rx="1" fill="{{t.high}}"/></svg>High</span>
+              <span style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 6px; background: {{t.dangerSoft}}; color: {{t.danger}}; font-weight: 600"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Overdue 2d</span>
+            </div>
+          </article>
+          <article style="background: {{t.card}}; border: 1px solid {{t.border}}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: {{t.shadow}}">
+            <div style="display: flex; justify-content: space-between; align-items: center"><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: {{t.muted}}">TF-12 · reviewer Minh</span><span aria-label="Assigned to Huy" style="width: 20px; height: 20px; border-radius: 50%; background: {{t.huyBg}}; color: {{t.huyInk}}; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">HT</span></div>
+            <div style="font-weight: 500; line-height: 20px">Profile avatar upload</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: {{t.muted}}">
+              <span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid {{t.border}}; border-radius: 6px"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16"><rect x="1.5" y="9" width="3" height="5" rx="1" fill="{{t.normal}}"/><rect x="6.5" y="5.5" width="3" height="8.5" rx="1" fill="{{t.normal}}"/><rect x="11.5" y="2" width="3" height="12" rx="1" fill="{{t.meterOff}}"/></svg>Normal</span>
+              <span style="display: inline-flex; align-items: center; padding: 2px 8px; border: 1px dashed {{t.border}}; border-radius: 6px">No due date</span>
+            </div>
+          </article>
+        </section>
+
+        <!-- Done -->
+        <section aria-label="Done" style="background: {{t.col}}; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px">
+          <h2 style="margin: 0; padding: 4px 4px 6px; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="{{t.success}}"/><path d="m5 8.2 2 2 4-4.2" fill="none" stroke="{{t.card}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Done <span style="color: {{t.muted}}; font-weight: 400">2</span>
+          </h2>
+          <article style="background: {{t.card}}; border: 1px solid {{t.border}}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; opacity: 0.85">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {{t.muted}}"><span style="font-family: 'Geist Mono', ui-monospace, monospace">TF-4</span><span style="display: inline-flex; align-items: center; gap: 4px"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Locked</span></div>
+            <div style="font-weight: 500; line-height: 20px; color: {{t.muted}}">Seed demo users</div>
+            <span style="font-size: 12px; color: {{t.muted}}">Approved by Minh · 16 Oct</span>
+          </article>
+          <article style="background: {{t.card}}; border: 1px solid {{t.border}}; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; opacity: 0.85">
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {{t.muted}}"><span style="font-family: 'Geist Mono', ui-monospace, monospace">TF-2</span><span style="display: inline-flex; align-items: center; gap: 4px"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Locked</span></div>
+            <div style="font-weight: 500; line-height: 20px; color: {{t.muted}}">Board column layout</div>
+            <span style="font-size: 12px; color: {{t.muted}}">Approved by Huy · 12 Oct</span>
+          </article>
+        </section>
+
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"teamOpen":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+const light = {
+bg: '#FBFBFC', side: '#F2F2F5', col: '#F3F3F6', card: '#FFFFFF', border: '#E3E3E8',
+text: '#18181D', muted: '#5E5F69', kbd: '#F2F2F5',
+accent: '#4F4FCC', onAccent: '#FFFFFF', kbdOnAccent: 'rgba(255,255,255,0.18)',
+accentSoft: '#EBEBFA', accentInk: '#3A3AA6',
+danger: '#C42B33', dangerSoft: '#FFF3F3', dangerBorder: '#F2C3C5',
+urgent: '#D92F37', high: '#C85A14', normal: '#8A8B96', meterOff: '#DEDEE4', success: '#1F7A4D',
+lanBg: '#FDE8F1', lanInk: '#8E1F52', minhBg: '#DDF3EE', minhInk: '#11604E', huyBg: '#FDF0D5', huyInk: '#7A4B07',
+shadow: '0 1px 2px rgba(16,16,24,0.06)', popShadow: '0 16px 40px rgba(16,16,24,0.16)'
+};
+const dark = {
+bg: '#111114', side: '#0C0C0E', col: '#17171B', card: '#202026', border: '#2D2D35',
+text: '#EDEDF0', muted: '#A3A4AE', kbd: '#2A2A31',
+accent: '#8B8BF5', onAccent: '#0E0E14', kbdOnAccent: 'rgba(14,14,20,0.16)',
+accentSoft: '#25253D', accentInk: '#C4C4FA',
+danger: '#FF8C8C', dangerSoft: '#2B1A1D', dangerBorder: '#5A2A30',
+urgent: '#FF6B6B', high: '#FF9F5A', normal: '#80818B', meterOff: '#33333B', success: '#5FD39A',
+lanBg: '#3A1D2B', lanInk: '#F7A8CB', minhBg: '#133229', minhInk: '#7FDCC2', huyBg: '#3A2C12', huyInk: '#F3C77A',
+shadow: 'none', popShadow: '0 16px 40px rgba(0,0,0,0.55)'
+};
+const isDark = this.props.dark ?? false;
+const t = isDark ? dark : light;
+const pal = isDark
+  ? [['#3A1D2B','#F7A8CB'],['#133229','#7FDCC2'],['#3A2C12','#F3C77A'],['#1A2540','#A9C1FA'],['#2B2140','#D3B8F7'],['#1C2E17','#A8DB93']]
+  : [['#FDE8F1','#8E1F52'],['#DDF3EE','#11604E'],['#FDF0D5','#7A4B07'],['#E3EBFD','#1E3A8A'],['#EFE7FB','#5B2A86'],['#E2F2DC','#2F5E1B']];
+const raw = [
+  { n: 'Lan', i: 'LN', c: 3, p: 0 }, { n: 'Tuấn', i: 'TA', c: 2, p: 3 }, { n: 'Mai', i: 'MA', c: 2, p: 4 },
+  { n: 'Minh', i: 'MH', c: 1, p: 1 }, { n: 'Phương', i: 'PH', c: 1, p: 5 }, { n: 'Huy', i: 'HT', c: 0, p: 2 },
+  { n: 'Đức', i: 'ĐC', c: 0, p: 3 }, { n: 'Thảo', i: 'TH', c: 0, p: 4 }, { n: 'Nam', i: 'NA', c: 0, p: 5 },
+  { n: 'Vy', i: 'VY', c: 0, p: 0 }, { n: 'Long', i: 'LO', c: 0, p: 1 }
+];
+const people = raw.map((r) => {
+  const full = r.c >= 3;
+  return {
+    n: r.n, i: r.i, avBg: pal[r.p][0], avInk: pal[r.p][1],
+    segs: [0, 1, 2].map((k) => ({ bg: k < r.c ? (full ? t.urgent : t.accent) : t.meterOff })),
+    label: full ? 'Full' : r.c + '/3', lc: full ? t.danger : t.muted, lw: full ? 600 : 400,
+    rowBg: full ? t.dangerSoft : 'transparent'
+  };
+});
+const stack = people.slice(0, 5).map((p, k) => ({
+  i: p.i, avBg: p.avBg, avInk: p.avInk, ml: k === 0 ? '0' : '-6px',
+  ring: p.label === 'Full' ? t.urgent : t.bg
+}));
+const teamOpen = (this.state && this.state.teamOpen !== undefined) ? this.state.teamOpen : (this.props.teamOpen ?? false);
+return {
+  t, people, stack, more: people.length - 5, teamOpen,
+  stackBg: teamOpen ? t.col : 'transparent',
+  toggleTeam: () => this.setState({ teamOpen: !teamOpen })
+};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Capacity at the moment of assigning</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1320px; height: 640px; box-sizing: border-box; padding: 48px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; background: #F3F3F6; color: #18181D; font-family: Geist, Inter, system-ui, sans-serif; font-size: 14px">
+
+  <!-- 1. Assignee picker, sorted by room -->
+  <section aria-labelledby="ap-h" style="display: flex; flex-direction: column; gap: 14px">
+    <h2 id="ap-h" style="margin: 0; font-size: 13px; font-weight: 600; color: #5E5F69">Reassigning a task that is In Progress</h2>
+
+    <div style="background: #FFFFFF; border: 1px solid #E3E3E8; border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 12px">
+      <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #5E5F69">TF-13</span>
+      <span style="font-weight: 500; flex-grow: 1">Audit log export</span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #5E5F69"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#4F4FCC" stroke-width="1.6"/><path d="M8 4a4 4 0 0 1 0 8z" fill="#4F4FCC"/></svg>In Progress</span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1.5px solid #4F4FCC; border-radius: 8px; background: #F7F7FE; font-size: 13px"><span aria-hidden="true" style="width: 18px; height: 18px; border-radius: 50%; background: #DDF3EE; color: #11604E; display: inline-flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 600">MH</span>Minh</span>
+    </div>
+
+    <div role="listbox" aria-label="Assign to" style="margin-left: auto; width: 360px; background: #FFFFFF; border: 1px solid #E3E3E8; border-radius: 14px; box-shadow: 0 16px 40px rgba(16,16,24,0.16); display: flex; flex-direction: column">
+      <label style="display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 14px; border-bottom: 1px solid #EEEEF2; color: #5E5F69">
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" placeholder="Assign to…" aria-label="Assign to" style="flex-grow: 1; min-width: 0; border: 0; outline: none; background: transparent; font: 400 13px Geist, system-ui, sans-serif; color: #18181D">
+      </label>
+      <div style="padding: 6px; display: flex; flex-direction: column">
+        <span style="padding: 6px 8px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #5E5F69">HAS ROOM · MOST FIRST</span>
+        <div role="option" aria-selected="true" style="display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 8px; border-radius: 8px; background: #EBEBFA">
+          <span aria-hidden="true" style="width: 22px; height: 22px; border-radius: 50%; background: #FDF0D5; color: #7A4B07; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">HT</span>
+          <span style="flex-grow: 1">Huy</span>
+          <span aria-hidden="true" style="display: inline-flex; gap: 3px"><span style="width: 14px; height: 6px; border-radius: 3px; background: #DEDEE4"></span><span style="width: 14px; height: 6px; border-radius: 3px; background: #DEDEE4"></span><span style="width: 14px; height: 6px; border-radius: 3px; background: #DEDEE4"></span></span>
+          <span style="width: 30px; text-align: right; font-size: 12px; color: #5E5F69">0/3</span>
+        </div>
+        <div role="option" aria-selected="false" style="display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 8px; border-radius: 8px">
+          <span aria-hidden="true" style="width: 22px; height: 22px; border-radius: 50%; background: #FDF0D5; color: #7A4B07; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">ĐC</span>
+          <span style="flex-grow: 1">Đức</span>
+          <span aria-hidden="true" style="display: inline-flex; gap: 3px"><span style="width: 14px; height: 6px; border-radius: 3px; background: #DEDEE4"></span><span style="width: 14px; height: 6px; border-radius: 3px; background: #DEDEE4"></span><span style="width: 14px; height: 6px; border-radius: 3px; background: #DEDEE4"></span></span>
+          <span style="width: 30px; text-align: right; font-size: 12px; color: #5E5F69">0/3</span>
+        </div>
+        <div role="option" aria-selected="false" style="display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 8px; border-radius: 8px">
+          <span aria-hidden="true" style="width: 22px; height: 22px; border-radius: 50%; background: #E3EBFD; color: #1E3A8A; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">PH</span>
+          <span style="flex-grow: 1">Phương</span>
+          <span aria-hidden="true" style="display: inline-flex; gap: 3px"><span style="width: 14px; height: 6px; border-radius: 3px; background: #4F4FCC"></span><span style="width: 14px; height: 6px; border-radius: 3px; background: #DEDEE4"></span><span style="width: 14px; height: 6px; border-radius: 3px; background: #DEDEE4"></span></span>
+          <span style="width: 30px; text-align: right; font-size: 12px; color: #5E5F69">1/3</span>
+        </div>
+        <div role="option" aria-selected="false" style="display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 8px; border-radius: 8px">
+          <span aria-hidden="true" style="width: 22px; height: 22px; border-radius: 50%; background: #E3EBFD; color: #1E3A8A; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">TA</span>
+          <span style="flex-grow: 1">Tuấn</span>
+          <span aria-hidden="true" style="display: inline-flex; gap: 3px"><span style="width: 14px; height: 6px; border-radius: 3px; background: #4F4FCC"></span><span style="width: 14px; height: 6px; border-radius: 3px; background: #4F4FCC"></span><span style="width: 14px; height: 6px; border-radius: 3px; background: #DEDEE4"></span></span>
+          <span style="width: 30px; text-align: right; font-size: 12px; color: #5E5F69">2/3</span>
+        </div>
+        <span style="padding: 2px 8px 6px; font-size: 12px; color: #5E5F69">+ 5 more with room</span>
+        <span style="padding: 8px 8px 4px; border-top: 1px solid #EEEEF2; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #5E5F69">AT CAPACITY</span>
+        <div role="option" aria-disabled="true" aria-selected="false" style="display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 8px; border-radius: 8px; color: #5E5F69">
+          <span aria-hidden="true" style="width: 22px; height: 22px; border-radius: 50%; background: #FDE8F1; color: #8E1F52; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; opacity: 0.6">LN</span>
+          <span style="flex-grow: 1">Lan <span style="font-size: 12px">· can't take more active work</span></span>
+          <span style="width: 30px; text-align: right; font-size: 12px; font-weight: 600; color: #C42B33">Full</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Dragging into In Progress -->
+  <section aria-labelledby="dg-h" style="display: flex; flex-direction: column; gap: 14px">
+    <h2 id="dg-h" style="margin: 0; font-size: 13px; font-weight: 600; color: #5E5F69">Dragging a card into In Progress</h2>
+
+    <div style="position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+      <div style="background: #EAEAEE; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 440px">
+        <span style="padding: 4px; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#5E5F69" stroke-width="1.6"><circle cx="8" cy="8" r="6"/></svg>Todo</span>
+        <div aria-hidden="true" style="height: 108px; border: 1.5px dashed #CFCFD6; border-radius: 10px"></div>
+      </div>
+      <div style="background: #FFF3F3; border: 1.5px dashed #F2C3C5; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 440px; box-sizing: border-box">
+        <span style="padding: 4px; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#4F4FCC" stroke-width="1.6"/><path d="M8 4a4 4 0 0 1 0 8z" fill="#4F4FCC"/></svg>In Progress</span>
+        <div role="status" style="margin-top: 140px; align-self: center; max-width: 230px; display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; background: #18181D; color: #FFFFFF; box-shadow: 0 8px 24px rgba(16,16,24,0.2); font-size: 13px; line-height: 18px">
+          <strong style="font-weight: 600">Lan is full (3/3)</strong>
+          <span style="color: #D7D7DE">Drop to pick someone with room — Huy is free.</span>
+        </div>
+      </div>
+
+      <article aria-label="Card being dragged" style="position: absolute; left: 44%; top: 70px; width: 236px; transform: rotate(-3deg); background: #FFFFFF; border: 1px solid #E3E3E8; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 20px 40px rgba(16,16,24,0.22)">
+        <div style="display: flex; justify-content: space-between; align-items: center"><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #5E5F69">TF-18</span><span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 50%; background: #FDE8F1; color: #8E1F52; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">LN</span></div>
+        <div style="font-weight: 500; line-height: 20px">Payment timeout on checkout</div>
+        <div style="display: flex; gap: 6px; font-size: 12px; color: #5E5F69">
+          <span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid #E3E3E8; border-radius: 6px"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="3.5" fill="#D92F37"/><path d="M8 4.5v4.5M8 11.5v.2" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round"/></svg>Urgent</span>
+          <span style="display: inline-flex; align-items: center; padding: 2px 8px; border: 1px solid #E3E3E8; border-radius: 6px">22 Oct</span>
+        </div>
+      </article>
+    </div>
+  </section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1320,"height":640}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

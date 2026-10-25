@@ -74,7 +74,7 @@ For `Done`: `CompletedAt` descending, 20 rows (D4).
 ## Technical notes
 
 - The ordering must be expressed in SQL, not applied in memory after materialising rows, or AC13 cannot hold.
-- "Undated last" needs an explicit expression: MySQL/MariaDB sort `NULL` **first** on ascending order, so a plain `ORDER BY DueDate` puts undated tasks at the top — the opposite of rule 3. Order by "has no due date" first, then by the date.
+- "Undated last" needs an explicit expression: MySQL sorts `NULL` **first** on ascending order, so a plain `ORDER BY DueDate` puts undated tasks at the top — the opposite of rule 3. Order by "has no due date" first, then by the date.
 - `DueDate` is a `DateOnly`, so the comparison is a plain date comparison with no timezone arithmetic; only [F05](f05-overdue.md)'s "is it past?" question needs the configured zone.
 - Composite indexes covering the sort keys per column: `(Status, Priority, DueDate)` for the active columns and `(Status, CompletedAt)` for `Done`.
 - The scaffold's `Pagination<T>` executes its query in the constructor; the ordering must be on the `IQueryable` *before* it is handed over. Five columns means five paged queries — keep them to one round trip each, and do not fetch a column the caller did not ask for.
