@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TF-7 Fix login bug</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#3A3AA6}a:hover{color:#2B2B85}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; box-sizing: border-box; display: flex; flex-wrap: wrap; background: #FBFBFC; color: #18181D; font-family: Geist, Inter, system-ui, sans-serif; font-size: 14px">
+
+  <nav aria-label="Workspace" style="flex: 1 1 232px; max-width: 260px; box-sizing: border-box; background: #F2F2F5; border-right: 1px solid #E3E3E8; padding: 16px 12px; display: flex; flex-direction: column; gap: 20px">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px">
+      <span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 7px; background: #4F4FCC; color: #FFFFFF; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px">T</span>
+      <span style="font-weight: 600">Team Alpha</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <a href="#" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; color: #5E5F69; text-decoration: none">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13l3.5 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></svg>
+        <span style="flex-grow: 1">Inbox</span><span style="font-size: 12px">3</span>
+      </a>
+      <a href="MyTasks.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; color: #5E5F69; text-decoration: none">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+        My tasks
+      </a>
+      <a href="Main.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; background: #EBEBFA; color: #3A3AA6; font-weight: 500; text-decoration: none">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/></svg>
+        Board
+      </a>
+      <a href="#" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; color: #5E5F69; text-decoration: none">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9.5" r="2.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M15 20a5 5 0 0 1 7 0"/></svg>
+        Team capacity
+      </a>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <span style="padding: 0 10px 6px; font-size: 12px; color: #5E5F69">Views</span>
+      <a href="OverdueList.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; color: #5E5F69; text-decoration: none">
+        <span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #D92F37"></span>
+        <span style="flex-grow: 1">Overdue</span><span style="font-size: 12px">2</span>
+      </a>
+      <a href="#" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; color: #5E5F69; text-decoration: none">
+        <span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #C85A14"></span>
+        <span style="flex-grow: 1">Due this week</span><span style="font-size: 12px">5</span>
+      </a>
+    </div>
+    <div style="margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-top: 1px solid #E3E3E8">
+      <span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 50%; background: #FDF0D5; color: #7A4B07; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600">HT</span>
+      <span style="display: flex; flex-direction: column"><span style="font-weight: 500">Huy Truong</span><span style="font-size: 12px; color: #5E5F69">Manager</span></span>
+    </div>
+  </nav>
+
+  <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 28px; border-bottom: 1px solid #E3E3E8">
+    <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; text-decoration: none">
+      <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg>
+      Board
+    </a>
+    <span style="color: #5E5F69; font-size: 13px">/</span>
+    <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 13px; color: #5E5F69">TF-7</span>
+    <span style="margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: #5E5F69">
+      <kbd style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; padding: 2px 6px; border-radius: 5px; background: #F2F2F5; border: 1px solid #E3E3E8">J</kbd><kbd style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; padding: 2px 6px; border-radius: 5px; background: #F2F2F5; border: 1px solid #E3E3E8">K</kbd> next / previous task
+    </span>
+  </header>
+
+  <div style="flex-grow: 1; display: flex; flex-wrap: wrap">
+
+    <main style="flex: 999 1 560px; min-width: 0; padding: 40px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 32px; max-width: 920px">
+
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <h1 style="margin: 0; font-size: 30px; font-weight: 600; letter-spacing: -0.02em">Fix login bug</h1>
+        <p style="margin: 0; font-size: 15px; line-height: 24px; color: #3D3E46; max-width: 640px">Users with an expired session are sent back to the login page in a loop instead of being asked to sign in again. Reproduce on staging with a session older than 24 hours.</p>
+      </div>
+
+      <!-- Next step: only the legal move is offered -->
+      <section aria-labelledby="next-h" style="background: #FFFFFF; border: 1px solid #E3E3E8; border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 1px 2px rgba(16,16,24,0.06)">
+        <h2 id="next-h" style="margin: 0; font-size: 13px; font-weight: 600; color: #5E5F69">Workflow</h2>
+        <ol aria-label="Workflow stages" style="margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px">
+          <li style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: #F2F2F5; color: #5E5F69"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16"><path d="m3.5 8.2 3 3 6-6.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Backlog</li>
+          <li aria-hidden="true" style="color: #A3A4AE">—</li>
+          <li style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: #F2F2F5; color: #5E5F69"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16"><path d="m3.5 8.2 3 3 6-6.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Todo</li>
+          <li aria-hidden="true" style="color: #A3A4AE">—</li>
+          <li aria-current="step" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: #EBEBFA; color: #3A3AA6; font-weight: 600">In Progress</li>
+          <li aria-hidden="true" style="color: #A3A4AE">—</li>
+          <li style="padding: 4px 10px; border-radius: 999px; border: 1px dashed #CFCFD6; color: #5E5F69">Review</li>
+          <li aria-hidden="true" style="color: #A3A4AE">—</li>
+          <li style="padding: 4px 10px; border-radius: 999px; border: 1px dashed #CFCFD6; color: #5E5F69">Done</li>
+        </ol>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+          <button type="button" style="display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px 0 18px; border: 0; border-radius: 10px; background: #4F4FCC; color: #FFFFFF; font: 600 14px Geist, system-ui, sans-serif">
+            Submit for review
+            <kbd style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; padding: 2px 6px; border-radius: 5px; background: rgba(255,255,255,0.18); color: #FFFFFF">⌘↵</kbd>
+          </button>
+          <span style="font-size: 13px; color: #5E5F69">The only next step from In Progress. A reviewer can send it back here for rework.</span>
+        </div>
+      </section>
+
+      <!-- Activity timeline (F04) -->
+      <section aria-labelledby="act-h" style="display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px">
+          <h2 id="act-h" style="margin: 0; font-size: 15px; font-weight: 600">Activity</h2>
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #5E5F69">
+            <svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+            Permanent — entries can't be edited or deleted
+          </span>
+        </div>
+        <ol style="margin: 0; padding: 0 0 0 4px; list-style: none; display: flex; flex-direction: column; border-left: 1px solid #E3E3E8">
+          <li style="display: flex; align-items: center; gap: 12px; padding: 10px 0 10px 18px; margin-left: -11px">
+            <span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 50%; background: #FDF0D5; color: #7A4B07; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; flex-shrink: 0">HT</span>
+            <span style="flex-grow: 1"><strong style="font-weight: 600">Huy</strong> moved from Backlog to Todo</span>
+            <span style="font-size: 12px; color: #5E5F69; white-space: nowrap">14 Oct, 17:20</span>
+          </li>
+          <li style="display: flex; align-items: center; gap: 12px; padding: 10px 0 10px 18px; margin-left: -11px">
+            <span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 50%; background: #FDF0D5; color: #7A4B07; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; flex-shrink: 0">HT</span>
+            <span style="flex-grow: 1"><strong style="font-weight: 600">Huy</strong> reassigned from Minh to Lan</span>
+            <span style="font-size: 12px; color: #5E5F69; white-space: nowrap">15 Oct, 09:12</span>
+          </li>
+          <li style="display: flex; align-items: center; gap: 12px; padding: 10px 0 10px 18px; margin-left: -11px">
+            <span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 50%; background: #FDE8F1; color: #8E1F52; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; flex-shrink: 0">LN</span>
+            <span style="flex-grow: 1"><strong style="font-weight: 600">Lan</strong> moved from Todo to In Progress</span>
+            <span style="font-size: 12px; color: #5E5F69; white-space: nowrap">15 Oct, 09:30</span>
+          </li>
+          <li style="display: flex; align-items: center; gap: 12px; padding: 10px 0 10px 18px; margin-left: -11px">
+            <span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 50%; background: #FDE8F1; color: #8E1F52; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; flex-shrink: 0">LN</span>
+            <span style="flex-grow: 1"><strong style="font-weight: 600">Lan</strong> moved from In Progress to Review</span>
+            <span style="font-size: 12px; color: #5E5F69; white-space: nowrap">18 Oct, 11:02</span>
+          </li>
+          <li style="display: flex; align-items: center; gap: 12px; padding: 10px 0 10px 18px; margin-left: -11px">
+            <span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 50%; background: #DDF3EE; color: #11604E; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; flex-shrink: 0">MH</span>
+            <span style="flex-grow: 1"><strong style="font-weight: 600">Minh</strong> sent it back from Review to In Progress for rework</span>
+            <span style="font-size: 12px; color: #5E5F69; white-space: nowrap">18 Oct, 16:40</span>
+          </li>
+          <li style="display: flex; align-items: center; gap: 12px; padding: 10px 0 10px 18px; margin-left: -11px">
+            <span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 50%; background: #FFF3F3; color: #C42B33; border: 1px solid #F2C3C5; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            <span style="flex-grow: 1"><strong style="font-weight: 600">System</strong> marked it <span style="color: #C42B33; font-weight: 600">Overdue</span></span>
+            <span style="font-size: 12px; color: #5E5F69; white-space: nowrap">20 Oct, 00:05</span>
+          </li>
+        </ol>
+      </section>
+    </main>
+
+    <!-- Properties panel: quieter surface -->
+    <aside aria-label="Properties" style="flex: 1 1 300px; max-width: 360px; box-sizing: border-box; background: #F5F5F8; border-left: 1px solid #E3E3E8; padding: 28px 24px; display: flex; flex-direction: column; gap: 4px">
+      <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 40px">
+        <span style="font-size: 13px; color: #5E5F69">Status</span>
+        <span style="display: inline-flex; align-items: center; gap: 8px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#4F4FCC" stroke-width="1.6"/><path d="M8 4a4 4 0 0 1 0 8z" fill="#4F4FCC"/></svg>In Progress</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 40px">
+        <span style="font-size: 13px; color: #5E5F69">Priority</span>
+        <span style="display: inline-flex; align-items: center; gap: 8px"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="3.5" fill="#D92F37"/><path d="M8 4.5v4.5M8 11.5v.2" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round"/></svg>Urgent</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 40px">
+        <span style="font-size: 13px; color: #5E5F69">Assignee</span>
+        <span style="display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px"><span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 50%; background: #FDE8F1; color: #8E1F52; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">LN</span>Lan <span style="font-size: 12px; font-weight: 600; color: #C42B33">3/3 full</span></span>
+      </div>
+      <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 40px">
+        <span style="font-size: 13px; color: #5E5F69">Reviewer</span>
+        <span style="display: inline-flex; align-items: center; gap: 8px"><span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 50%; background: #DDF3EE; color: #11604E; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">MH</span>Minh</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: start; gap: 8px; padding: 10px 0">
+        <span style="font-size: 13px; color: #5E5F69">Due date</span>
+        <span style="display: flex; flex-direction: column; gap: 4px"><span style="color: #C42B33; font-weight: 600">19 Oct · 1 day overdue</span><span style="font-size: 12px; line-height: 18px; color: #5E5F69">Moving the date into the future clears the overdue flag.</span></span>
+      </div>
+      <div style="display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 40px; border-top: 1px solid #E3E3E8; margin-top: 8px; padding-top: 8px">
+        <span style="font-size: 13px; color: #5E5F69">Created</span>
+        <span style="font-size: 13px">14 Oct by Huy</span>
+      </div>
+    </aside>
+
+  </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

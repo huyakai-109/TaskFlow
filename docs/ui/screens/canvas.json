@@ -1,0 +1,21 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-10-20T08:00:00Z"},
+  "title": "TaskFlow Wireframe",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 900, "title": "Board — light (F01 F02 F03 F05)", "expand": "fill", "is_interactive": true},
+    "BoardDark.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 900, "title": "Board — dark", "expand": "fill", "is_interactive": true},
+    "MyTasks.dc.html": {"x": 3040, "y": 0, "w": 1440, "h": 900, "title": "My tasks — as Lan, Member (F01 F02 F03 F05)", "expand": "fill"},
+    "BoardTeam.dc.html": {"x": 0, "y": 1020, "w": 1440, "h": 900, "title": "Board — team capacity popover open (F02)", "expand": "fill", "is_interactive": true},
+    "AssignPicker.dc.html": {"x": 1520, "y": 1020, "w": 1320, "h": 640, "title": "Capacity at the moment of assigning (F02)"},
+    "TaskDetail.dc.html": {"x": 0, "y": 2040, "w": 1440, "h": 900, "title": "Task detail — next step + history (F01 F04)", "expand": "fill"},
+    "OverdueList.dc.html": {"x": 1520, "y": 2040, "w": 1440, "h": 900, "title": "Overdue view — list (F05 F03)", "expand": "fill"},
+    "NewTask.dc.html": {"x": 0, "y": 3060, "w": 1440, "h": 900, "title": "New task — priority, due date, assignee", "expand": "fill"},
+    "BlockedActions.dc.html": {"x": 1520, "y": 3060, "w": 1320, "h": 460, "title": "When the system says no (F01 F02)"}
+  },
+  "order": ["Main.dc.html", "BoardDark.dc.html", "MyTasks.dc.html","BoardTeam.dc.html", "AssignPicker.dc.html", "TaskDetail.dc.html", "OverdueList.dc.html", "NewTask.dc.html", "BlockedActions.dc.html"],
+  "notes": {},
+  "designSystems": []
+}

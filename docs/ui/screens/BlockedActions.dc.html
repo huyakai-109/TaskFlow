@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Blocked actions</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1320px; height: 460px; box-sizing: border-box; padding: 48px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; align-items: start; background: #F3F3F6; color: #18181D; font-family: Geist, Inter, system-ui, sans-serif; font-size: 14px">
+
+  <div role="alertdialog" aria-labelledby="b1" aria-describedby="b1d" style="background: #FFFFFF; border: 1px solid #E3E3E8; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 32px rgba(16,16,24,0.10)">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 10px; background: #F2F2F5; color: #5E5F69; display: inline-flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      <h2 id="b1" style="margin: 0; font-size: 16px; font-weight: 600">Move it to Todo first</h2>
+    </div>
+    <p id="b1d" style="margin: 0; line-height: 22px; color: #3D3E46">“Dark mode for board” is still in Backlog. Tasks move one stage at a time, so it goes to Todo before anyone can start it.</p>
+    <div style="display: flex; gap: 8px; align-items: center">
+      <button type="button" style="min-height: 40px; padding: 0 16px; border: 0; border-radius: 10px; background: #4F4FCC; color: #FFFFFF; font: 600 14px Geist, system-ui, sans-serif">Move to Todo</button>
+      <button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border: 1px solid #E3E3E8; border-radius: 10px; background: #FFFFFF; color: #18181D; font: 500 14px Geist, system-ui, sans-serif">Cancel <kbd style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; padding: 1px 5px; border-radius: 5px; background: #F2F2F5; border: 1px solid #E3E3E8; color: #5E5F69">Esc</kbd></button>
+    </div>
+  </div>
+
+  <div role="alertdialog" aria-labelledby="b2" aria-describedby="b2d" style="background: #FFFFFF; border: 1px solid #E3E3E8; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 32px rgba(16,16,24,0.10)">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 10px; background: #FFF3F3; color: #C42B33; display: inline-flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 8v5M17 16.5v.2"/></svg></span>
+      <h2 id="b2" style="margin: 0; font-size: 16px; font-weight: 600">Lan is at capacity</h2>
+    </div>
+    <p id="b2d" style="margin: 0; line-height: 22px; color: #3D3E46">Lan already has 3 tasks in progress. Pick someone with room for “Payment timeout on checkout”:</p>
+    <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px">
+      <legend style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Assign to</legend>
+      <label style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border: 1.5px solid #4F4FCC; border-radius: 10px; background: #F7F7FE">
+        <input type="radio" name="alt" checked style="accent-color: #4F4FCC">
+        <span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 50%; background: #FDF0D5; color: #7A4B07; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">HT</span>
+        <span style="flex-grow: 1">Huy</span><span style="font-size: 12px; color: #5E5F69">0/3 · most room</span>
+      </label>
+      <label style="display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border: 1px solid #E3E3E8; border-radius: 10px">
+        <input type="radio" name="alt" style="accent-color: #4F4FCC">
+        <span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 50%; background: #DDF3EE; color: #11604E; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600">MH</span>
+        <span style="flex-grow: 1">Minh</span><span style="font-size: 12px; color: #5E5F69">1/3</span>
+      </label>
+    </fieldset>
+    <button type="button" style="align-self: flex-start; min-height: 40px; padding: 0 16px; border: 0; border-radius: 10px; background: #4F4FCC; color: #FFFFFF; font: 600 14px Geist, system-ui, sans-serif">Assign to Huy and start</button>
+  </div>
+
+  <div role="alertdialog" aria-labelledby="b3" aria-describedby="b3d" style="background: #FFFFFF; border: 1px solid #E3E3E8; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 32px rgba(16,16,24,0.10)">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 10px; background: #E6F4EC; color: #1F7A4D; display: inline-flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
+      <h2 id="b3" style="margin: 0; font-size: 16px; font-weight: 600">This one's finished</h2>
+    </div>
+    <p id="b3d" style="margin: 0; line-height: 22px; color: #3D3E46">“Seed demo users” was approved and is locked in Done. If it needs more work, a manager can reopen it.</p>
+    <div style="display: flex; gap: 8px; align-items: center">
+      <button type="button" style="min-height: 40px; padding: 0 16px; border: 1px solid #E3E3E8; border-radius: 10px; background: #FFFFFF; color: #18181D; font: 500 14px Geist, system-ui, sans-serif">Ask a manager to reopen</button>
+      <button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: #5E5F69; font: 500 14px Geist, system-ui, sans-serif">Close <kbd style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; padding: 1px 5px; border-radius: 5px; background: #F2F2F5; border: 1px solid #E3E3E8; color: #5E5F69">Esc</kbd></button>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1320,"height":460}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

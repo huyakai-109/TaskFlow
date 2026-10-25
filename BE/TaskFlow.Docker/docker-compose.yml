@@ -3,7 +3,7 @@ services:
     image: ${DOCKER_REGISTRY-}taskflowapi
     environment:
       - ConnectionStrings__MyDatabase=server=host.docker.internal;user id=root;password=Password@1234;database=mydb
-      - ConnectionStrings__QuartzDatabase=server=host.docker.internal;port=3307;user id=root;password=Password@1234;database=quartz
+      - ConnectionStrings__QuartzDatabase=server=host.docker.internal;user id=root;password=Password@1234;database=quartz
       - ConnectionStrings__RedisDatabase=host.docker.internal:6379
       - EnableSwagger=true
       - AutoMigration=true
@@ -11,21 +11,9 @@ services:
       context: ../
       dockerfile: TaskFlow.Api/Dockerfile
     depends_on:
-      - taskflow.mariadb
       - taskflow.mysql
       - taskflow.minio
       - taskflow.redis
-
-  taskflow.mariadb:
-    container_name: TaskFlow.MariaDb
-    restart: always
-    environment:
-      - MARIADB_ROOT_PASSWORD=Password@1234
-    volumes:
-      - "./data/db:/var/lib/mysql"
-    image: mariadb:10.11.6
-    ports:
-      - "3306:3306"
 
   taskflow.mysql:
     container_name: TaskFlow.MySql
@@ -34,9 +22,9 @@ services:
     environment:
       - MYSQL_ROOT_PASSWORD=Password@1234
     volumes:
-      - "./data/job-store:/var/lib/mysql"
+      - "./data/mysql:/var/lib/mysql"
     ports:
-      - "3307:3306"
+      - "3306:3306"
 
   taskflow.minio:
     container_name: TaskFlow.MinIO

@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>My tasks — Lan</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#3A3AA6}a:hover{color:#2B2B85}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; box-sizing: border-box; display: flex; flex-wrap: wrap; background: #FBFBFC; color: #18181D; font-family: Geist, Inter, system-ui, sans-serif; font-size: 14px">
+
+  <nav aria-label="Workspace" style="flex: 1 1 232px; max-width: 260px; box-sizing: border-box; background: #F2F2F5; border-right: 1px solid #E3E3E8; padding: 16px 12px; display: flex; flex-direction: column; gap: 20px">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 4px 8px">
+      <span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 7px; background: #4F4FCC; color: #FFFFFF; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px">T</span>
+      <span style="font-weight: 600">Team Alpha</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <a href="#" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; color: #5E5F69; text-decoration: none">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13l3.5 7v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z"/></svg>
+        <span style="flex-grow: 1">Inbox</span><span style="font-size: 12px">1</span>
+      </a>
+      <a href="MyTasks.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; background: #EBEBFA; color: #3A3AA6; font-weight: 500; text-decoration: none">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+        <span style="flex-grow: 1">My tasks</span><span style="font-size: 12px">3</span>
+      </a>
+      <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; color: #5E5F69; text-decoration: none">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="11" rx="1.5"/><rect x="17" y="4" width="4" height="7" rx="1.5"/></svg>
+        Board
+      </a>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <span style="padding: 0 10px 6px; font-size: 12px; color: #5E5F69">Views</span>
+      <a href="OverdueList.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; color: #5E5F69; text-decoration: none">
+        <span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #D92F37"></span>
+        <span style="flex-grow: 1">Overdue</span><span style="font-size: 12px">2</span>
+      </a>
+      <a href="#" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 8px; color: #5E5F69; text-decoration: none">
+        <span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #C85A14"></span>
+        <span style="flex-grow: 1">Due this week</span><span style="font-size: 12px">5</span>
+      </a>
+    </div>
+    <div style="margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-top: 1px solid #E3E3E8">
+      <span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 50%; background: #FDE8F1; color: #8E1F52; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600">LN</span>
+      <span style="display: flex; flex-direction: column"><span style="font-weight: 500">Lan Nguyen</span><span style="font-size: 12px; color: #5E5F69">Member</span></span>
+    </div>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 28px; border-bottom: 1px solid #E3E3E8">
+      <h1 style="margin: 0; font-size: 15px; font-weight: 600">My tasks</h1>
+      <button type="button" style="margin-left: auto; display: inline-flex; align-items: center; gap: 10px; min-width: 260px; min-height: 36px; padding: 0 10px 0 12px; border: 1px solid #E3E3E8; border-radius: 9px; background: #FFFFFF; color: #5E5F69; font: 400 13px Geist, system-ui, sans-serif">
+        <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span style="flex-grow: 1; text-align: left">Search or jump to…</span>
+        <kbd style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; padding: 2px 6px; border-radius: 5px; background: #F2F2F5; border: 1px solid #E3E3E8; color: #5E5F69">⌘K</kbd>
+      </button>
+    </header>
+
+    <div style="padding: 28px; display: flex; flex-direction: column; gap: 28px; max-width: 1000px; box-sizing: border-box; width: 100%">
+
+      <!-- Greeting + my capacity (F02 from the member's side) -->
+      <section aria-label="Your capacity" style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; padding: 18px 20px; border: 1px solid #E3E3E8; border-radius: 14px; background: #FFFFFF">
+        <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 4px">
+          <span style="font-size: 20px; font-weight: 600; letter-spacing: -0.01em">Good afternoon, Lan</span>
+          <span style="color: #3D3E46">You're at full capacity. Send something to review before picking up new work.</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px">
+          <span aria-hidden="true" style="display: inline-flex; gap: 4px"><span style="width: 22px; height: 8px; border-radius: 4px; background: #D92F37"></span><span style="width: 22px; height: 8px; border-radius: 4px; background: #D92F37"></span><span style="width: 22px; height: 8px; border-radius: 4px; background: #D92F37"></span></span>
+          <span style="display: flex; flex-direction: column; line-height: 18px"><strong style="color: #C42B33">3/3 in progress</strong><span style="font-size: 12px; color: #5E5F69">0 slots free</span></span>
+        </div>
+      </section>
+
+      <!-- In progress: each row offers only its legal next step -->
+      <section aria-labelledby="ip-h" style="display: flex; flex-direction: column; gap: 10px">
+        <h2 id="ip-h" style="margin: 0; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600">
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#4F4FCC" stroke-width="1.6"/><path d="M8 4a4 4 0 0 1 0 8z" fill="#4F4FCC"/></svg>
+          In progress <span style="color: #5E5F69; font-weight: 400">3</span>
+          <span style="margin-left: auto; font-size: 12px; font-weight: 400; color: #5E5F69">Most urgent first</span>
+        </h2>
+        <ul style="margin: 0; padding: 0; list-style: none; border: 1px solid #E3E3E8; border-radius: 14px; background: #FFFFFF">
+          <li style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid #EEEEF2">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="3.5" fill="#D92F37"/><path d="M8 4.5v4.5M8 11.5v.2" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round"/></svg>
+            <div style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+              <a href="TaskDetail.dc.html" style="color: #18181D; text-decoration: none; font-weight: 500">Fix login bug <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #5E5F69; font-weight: 400">TF-7</span></a>
+              <span style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px">
+                <span style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 6px; background: #FFF3F3; color: #C42B33; font-weight: 600"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Overdue 1d</span>
+                <span style="display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 6px; background: #FFF6EC; color: #8A3B0B; font-weight: 500"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-2"/></svg>Sent back by Minh for rework</span>
+              </span>
+            </div>
+            <button type="button" style="min-height: 36px; padding: 0 14px; border: 0; border-radius: 9px; background: #4F4FCC; color: #FFFFFF; font: 600 13px Geist, system-ui, sans-serif">Submit for review</button>
+          </li>
+          <li style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid #EEEEF2">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><rect x="1.5" y="9" width="3" height="5" rx="1" fill="#C85A14"/><rect x="6.5" y="5.5" width="3" height="8.5" rx="1" fill="#C85A14"/><rect x="11.5" y="2" width="3" height="12" rx="1" fill="#C85A14"/></svg>
+            <div style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+              <a href="#" style="color: #18181D; text-decoration: none; font-weight: 500">API rate limiting <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #5E5F69; font-weight: 400">TF-11</span></a>
+              <span style="font-size: 12px; color: #3D3E46; font-weight: 500">Due today</span>
+            </div>
+            <button type="button" style="min-height: 36px; padding: 0 14px; border: 1px solid #E3E3E8; border-radius: 9px; background: #FFFFFF; color: #18181D; font: 500 13px Geist, system-ui, sans-serif">Submit for review</button>
+          </li>
+          <li style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 14px 16px">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><rect x="1.5" y="9" width="3" height="5" rx="1" fill="#8A8B96"/><rect x="6.5" y="5.5" width="3" height="8.5" rx="1" fill="#8A8B96"/><rect x="11.5" y="2" width="3" height="12" rx="1" fill="#DEDEE4"/></svg>
+            <div style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 4px">
+              <a href="#" style="color: #18181D; text-decoration: none; font-weight: 500">Search tasks by assignee <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #5E5F69; font-weight: 400">TF-16</span></a>
+              <span style="font-size: 12px; color: #5E5F69">Due 25 Oct</span>
+            </div>
+            <button type="button" style="min-height: 36px; padding: 0 14px; border: 1px solid #E3E3E8; border-radius: 9px; background: #FFFFFF; color: #18181D; font: 500 13px Geist, system-ui, sans-serif">Submit for review</button>
+          </li>
+        </ul>
+      </section>
+
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+
+        <!-- Up next: assigned to me, not started -->
+        <section aria-labelledby="un-h" style="display: flex; flex-direction: column; gap: 10px">
+          <h2 id="un-h" style="margin: 0; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#5E5F69" stroke-width="1.6"><circle cx="8" cy="8" r="6"/></svg>
+            Up next <span style="color: #5E5F69; font-weight: 400">1</span>
+          </h2>
+          <div style="border: 1px solid #E3E3E8; border-radius: 14px; background: #FFFFFF; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="3.5" fill="#D92F37"/><path d="M8 4.5v4.5M8 11.5v.2" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round"/></svg>
+              <span style="flex-grow: 1; font-weight: 500">Payment timeout on checkout <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #5E5F69; font-weight: 400">TF-18</span></span>
+              <span style="font-size: 12px; color: #5E5F69">Todo · 22 Oct</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px">
+              <button type="button" disabled aria-describedby="un-why" style="min-height: 36px; padding: 0 14px; border: 1px solid #E3E3E8; border-radius: 9px; background: #F2F2F5; color: #5E5F69; font: 500 13px Geist, system-ui, sans-serif">Start</button>
+              <span id="un-why" style="font-size: 12px; color: #5E5F69">Frees up when one of your 3 moves to Review.</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Review: friendly empty states -->
+        <section aria-labelledby="rv-h" style="display: flex; flex-direction: column; gap: 10px">
+          <h2 id="rv-h" style="margin: 0; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="#C85A14" stroke-width="1.6"/><path d="M8 2a6 6 0 1 1-6 6h6z" fill="#C85A14"/></svg>
+            Review <span style="color: #5E5F69; font-weight: 400">0</span>
+          </h2>
+          <div style="border: 1px dashed #D5D5DC; border-radius: 14px; padding: 18px 16px; display: flex; flex-direction: column; gap: 6px; color: #5E5F69">
+            <span style="color: #18181D; font-weight: 500">Nothing waiting on you</span>
+            <span style="font-size: 13px; line-height: 20px">No one has asked you to review, and none of your work is waiting on a reviewer.</span>
+          </div>
+        </section>
+      </div>
+
+      <!-- Done -->
+      <section aria-labelledby="dn-h" style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 12px; background: #F3F3F6">
+        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#1F7A4D"/><path d="m5 8.2 2 2 4-4.2" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h2 id="dn-h" style="margin: 0; font-size: 14px; font-weight: 500">You finished 2 tasks this week</h2>
+        <a href="#" style="margin-left: auto; font-size: 13px; font-weight: 500">Show</a>
+      </section>
+
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
