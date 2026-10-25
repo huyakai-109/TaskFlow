@@ -18,6 +18,8 @@ namespace TaskFlow.DataAccess.Configurations
             builder.HasData(
             [
                 CreateRole(RolePolicies.Admin.Id, RolePolicies.Admin.Name, RolePolicies.Admin.DisplayName, "005cf705-2e40-4e1c-8e73-afaec8ab2268"),
+                CreateRole(RolePolicies.Manager.Id, RolePolicies.Manager.Name, RolePolicies.Manager.DisplayName, "7b0e5f3a-4c1d-4a8e-9b62-3d5f1c8a2e41"),
+                CreateRole(RolePolicies.Member.Id, RolePolicies.Member.Name, RolePolicies.Member.DisplayName, "c94a2d17-6e83-4f05-a1b9-8e7d03f5b6c2"),
             ]);
         }
 

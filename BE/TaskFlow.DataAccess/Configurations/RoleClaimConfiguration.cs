@@ -16,10 +16,18 @@ namespace TaskFlow.DataAccess.Configurations
                 .WithMany(role => role.RoleClaims)
                 .HasForeignKey(roleClaim => roleClaim.RoleId);
 
-            var id = 1;
-            foreach (var claimValue in RolePolicies.Admin.AllowedPermissions)
+            // Each role owns a fixed id block, so appending a permission to one role never renumbers another role's seed rows.
+            SeedRole(builder, RolePolicies.Admin.Id, 1, RolePolicies.Admin.AllowedPermissions);
+            SeedRole(builder, RolePolicies.Manager.Id, 1001, RolePolicies.Manager.AllowedPermissions);
+            SeedRole(builder, RolePolicies.Member.Id, 2001, RolePolicies.Member.AllowedPermissions);
+        }
+
+        private static void SeedRole(EntityTypeBuilder<RoleClaim> builder, long roleId, int firstId, string[] permissions)
+        {
+            var id = firstId;
+            foreach (var claimValue in permissions)
             {
-                builder.HasData([CreateRoleClaim(id++, RolePolicies.Admin.Id, claimValue)]);
+                builder.HasData([CreateRoleClaim(id++, roleId, claimValue)]);
             }
         }
 
