@@ -149,6 +149,15 @@ namespace TaskFlow.BusinessLogic.Services
 
             var userId = oldTokenPrincipal.Claims.GetUserId();
 
+            var oldTokenExpiry = oldTokenPrincipal.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
+            if (oldTokenExpiry != null
+                && long.TryParse(oldTokenExpiry, out var oldTokenExpiryUnix)
+                && DateTimeOffset.FromUnixTimeSeconds(oldTokenExpiryUnix) > DateTimeHelper.GetDtOffset())
+            {
+                logger.LogWarning("User {userId} tries to get new token while it is still valid", userId);
+                return result;
+            }
+
             var refreshTokenContent = ReadJwtToken(refreshToken);
             var refreshTokenUserId = refreshTokenContent.Claims.GetUserId();
 

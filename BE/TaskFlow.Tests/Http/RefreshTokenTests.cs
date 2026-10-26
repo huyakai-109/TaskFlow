@@ -1,10 +1,14 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
 using TaskFlow.Api.Models.Responses.Auth;
 using TaskFlow.Api.Models.Responses.Base;
 using TaskFlow.Common.Constants;
@@ -53,8 +57,14 @@ namespace TaskFlow.Tests.Http
             Assert.True(loginBody.Success);
             Assert.NotEmpty(loginBody.Result!.Permissions);
 
+            // The access token a real login just minted is still valid; refresh only
+            // accepts an access token that has already expired (see the two tests
+            // below), so exercise the happy path with an expired-but-correctly-signed
+            // token for the same user instead of waiting out the real expiry.
+            var expiredAccessToken = MintAccessToken(ExtractUserId(loginBody.Result!.Token!), DateTimeOffset.UtcNow.AddMinutes(-1));
+
             // Act
-            var (refreshBody, _) = await RefreshAsync(client, deviceGuid, loginBody.Result!.Token!, refreshCookie);
+            var (refreshBody, _) = await RefreshAsync(client, deviceGuid, expiredAccessToken, refreshCookie);
 
             // Assert
             Assert.True(refreshBody.Success);
@@ -62,6 +72,40 @@ namespace TaskFlow.Tests.Http
 
             var refreshedJwt = new JwtSecurityTokenHandler().ReadJwtToken(refreshBody.Result!.Token);
             Assert.Contains(refreshedJwt.Claims, c => c.Type == RolePolicies.ClaimType);
+        }
+
+        [Fact]
+        public async Task RefreshToken_Refuses_WhenAccessTokenIsStillValid()
+        {
+            // Arrange - a freshly minted access token has not expired yet.
+            var client = CreateClient();
+            var deviceGuid = Guid.NewGuid();
+
+            var (loginBody, refreshCookie) = await LoginAsync(client, deviceGuid, "admin", "Admin!1234");
+
+            // Act
+            var (refreshBody, _) = await RefreshAsync(client, deviceGuid, loginBody.Result!.Token!, refreshCookie);
+
+            // Assert
+            Assert.False(refreshBody.Success);
+        }
+
+        [Fact]
+        public async Task RefreshToken_Succeeds_WhenAccessTokenIsExpired()
+        {
+            // Arrange - mint a token with an exp timestamp in the past instead of
+            // waiting for a real one to expire.
+            var client = CreateClient();
+            var deviceGuid = Guid.NewGuid();
+
+            var (loginBody, refreshCookie) = await LoginAsync(client, deviceGuid, "admin", "Admin!1234");
+            var expiredAccessToken = MintAccessToken(ExtractUserId(loginBody.Result!.Token!), DateTimeOffset.UtcNow.AddMinutes(-1));
+
+            // Act
+            var (refreshBody, _) = await RefreshAsync(client, deviceGuid, expiredAccessToken, refreshCookie);
+
+            // Assert
+            Assert.True(refreshBody.Success);
         }
 
         [Fact]
@@ -90,7 +134,10 @@ namespace TaskFlow.Tests.Http
             }
 
             // Act: device A, but the access+refresh token pair belongs to user B.
-            var (refreshResult, _) = await RefreshAsync(client, deviceGuidA, loginB.Result!.Token!, refreshCookieB);
+            // Use an expired access token so the attempt reaches the UserToken
+            // lookup instead of being refused earlier by the still-valid check.
+            var expiredAccessTokenB = MintAccessToken(ExtractUserId(loginB.Result!.Token!), DateTimeOffset.UtcNow.AddMinutes(-1));
+            var (refreshResult, _) = await RefreshAsync(client, deviceGuidA, expiredAccessTokenB, refreshCookieB);
 
             // Assert
             Assert.False(refreshResult.Success);
@@ -202,6 +249,37 @@ namespace TaskFlow.Tests.Http
             var value = cookie[prefix.Length..];
             var semicolonIndex = value.IndexOf(';');
             return semicolonIndex >= 0 ? value[..semicolonIndex] : value;
+        }
+
+        // Mints an access token with the real API's own JWT secret/issuer/audience
+        // (read from the test host's configuration) so it validates exactly like a
+        // real login-issued token, but with a caller-chosen expiry - used to test
+        // the expired/still-valid branches without waiting on real time.
+        private string MintAccessToken(long userId, DateTimeOffset expiresAt)
+        {
+            var configuration = _factory.Services.GetRequiredService<IConfiguration>();
+            var secret = configuration.GetSection("Security:Jwt:Secret").Get<string>()!;
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, userId.ToString())]),
+                NotBefore = expiresAt.UtcDateTime.AddMinutes(-10),
+                Expires = expiresAt.UtcDateTime,
+                SigningCredentials = new SigningCredentials(
+                    new SymmetricSecurityKey(Encoding.ASCII.GetBytes(secret)), SecurityAlgorithms.HmacSha512Signature),
+                Audience = configuration.GetSection("Security:Jwt:Audience").Get<string>(),
+                Issuer = configuration.GetSection("Security:Jwt:Issuer").Get<string>()
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            return tokenHandler.WriteToken(tokenHandler.CreateToken(tokenDescriptor));
+        }
+
+        private static long ExtractUserId(string jwt)
+        {
+            var claims = new JwtSecurityTokenHandler().ReadJwtToken(jwt).Claims;
+            var claimValue = claims.First(c => c.Type == "nameid" || c.Type == ClaimTypes.NameIdentifier).Value;
+            return long.Parse(claimValue);
         }
 
         private static string TamperSignature(string jwt)
