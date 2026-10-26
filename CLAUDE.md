@@ -54,7 +54,7 @@ Complements `.claude/rules/backend.md`. Where this section and a kit rule differ
 | Build | `dotnet build BE/TaskFlow.sln -c Debug` |
 | Run API | `dotnet run --project BE/TaskFlow.Api` → http://localhost:5198, Swagger at `/swagger`. **`AutoMigration` is `true`: running the API applies pending migrations to both databases** — ask before running it with a new migration (`workflow.md` §3) |
 | Run dependencies | `docker compose -f BE/TaskFlow.Docker/docker-compose.yml up -d taskflow.mysql taskflow.redis taskflow.minio` |
-| Test | `n/a` — no test project |
+| Test | Start MySQL first (`docker compose -f BE/TaskFlow.Docker/docker-compose.yml up -d taskflow.mysql`), then `dotnet test BE/TaskFlow.Tests`. Needs `mydb_test` reachable on the same MySQL server as dev — the test fixture creates/migrates it automatically and refuses to run against anything not named `*_test` |
 | Lint / format | `dotnet format BE/TaskFlow.sln --verify-no-changes` — currently fails on pre-existing `ApiVerioningConfiguration.cs` (AV0013); severities in `BE/.editorconfig` |
 | Add migration | `dotnet ef migrations add <Name> --project BE/TaskFlow.DataAccess --startup-project BE/TaskFlow.Api --context MyDbContext` |
 | Quartz migration | same, with `--context QuartzContext --output-dir Quartz-Migrations` |

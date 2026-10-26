@@ -24,10 +24,9 @@ One thin, independently verifiable path each. One `feature/<slice>` branch per s
 | # | Slice | Branch | Owner | Status | Covers |
 |---|---|---|---|---|---|
 | 0.1 | Roles & permission claims seeded | `feature/unit0-roles-seed` | backend-lead | **Done** — accepted by the user 2026-10-25 | R2 — `Manager`/`Member` rows in `RoleConfiguration`, their `RoleClaim` rows · R2b — a first migration aligning the drifted scaffold seed data. Two `MyDbContext` migrations |
-| 0.2 | Backend test project | `feature/unit0-test-project` | backend-lead | Planned | `BE/TaskFlow.Tests` (xUnit, real MySQL), first tests proving 0.1 |
-| 0.3 | Envelope + soft-delete defects | `feature/unit0-envelope-softdelete` | backend-lead | Planned | R1 `InvalidModelStateResponseFactory` · R4 `SaveChangesInternal` early return · tests for both |
-| 0.4 | Auth hardening + dev users | `feature/unit0-auth-hardening` | backend-lead | Planned | R3 — `RolePolicy` claims survive refresh, httpOnly refresh cookie, `UserToken` found by user + device · Development-only seeding of `member1`, `member2`, `manager1` |
-| 0.5 | CI | `feature/unit0-ci` | devops-lead | Planned | `.github/workflows/ci.yml` — build + test BE with a MySQL service, typecheck + lint + build FE. No deploy job |
+| 0.2 | Backend test project + envelope/soft-delete defects (merged 0.2+0.3) | `feature/unit0-tests-envelope-softdelete` | backend-lead | Built | `BE/TaskFlow.Tests` (xUnit, real MySQL `mydb_test`), first tests proving 0.1's successor work · R1 `InvalidModelStateResponseFactory` · R4 `SaveChangesInternal` early return · R5 removed scaffold hosted service/job · tests for all three |
+| 0.3 | Auth hardening + dev users | `feature/unit0-auth-hardening` | backend-lead | Planned | R3 — `RolePolicy` claims survive refresh, httpOnly refresh cookie, `UserToken` found by user + device · Development-only seeding of `member1`, `member2`, `manager1` |
+| 0.4 | CI | `feature/unit0-ci` | devops-lead | Planned | `.github/workflows/ci.yml` — build + test BE with a MySQL service, typecheck + lint + build FE. No deploy job |
 
 ### Units 1–2 — F01 + F04
 
@@ -93,18 +92,19 @@ Found by reading the scaffold against the specs.
 
 | # | Finding | Where | Why it matters | Slice |
 |---|---|---|---|---|
-| R1 | Model-validation failures return ASP.NET's default ProblemDetails, not the `ExecutionRes` envelope | no `InvalidModelStateResponseFactory` configured | F01 AC15 / AC22 shape errors reach the client without `success`, `errorCode` or `validates`; `FE/src/api/client.ts` cannot show field errors | 0.3 |
+| R1 | Model-validation failures return ASP.NET's default ProblemDetails, not the `ExecutionRes` envelope | no `InvalidModelStateResponseFactory` configured | F01 AC15 / AC22 shape errors reach the client without `success`, `errorCode` or `validates`; `FE/src/api/client.ts` cannot show field errors | 0.2 — **Done**, `ApiBehaviorConfiguration.AddInvalidModelStateHandling` |
 | R2 | `Manager` and `Member` roles are not seeded, and `RoleClaimConfiguration` seeds claims for `Admin` only | `RoleConfiguration`, `RoleClaimConfiguration` | Permissions are read from `RoleClaim` rows at login, so the F01 permission table cannot hold until both roles and their claims are seeded by migration | 0.1 |
 | R2b | **The seed data in the database does not match the configurations** — found while building 0.1 on 2026-10-25. The committed migration seeds role 1 as `SysAdmin` / "System Admin" and `RoleClaim` 1–4 as `ViewEmployees`, `ManageEmployees`, `ViewCustomers`, `ManageCustomers`, with no row for `ManageReports`; the configurations now declare `Admin` and the five `Members`/`Reports` permissions. `Example.IsDeleted` was likewise added to the entity with no migration | `RoleConfiguration`, `RoleClaimConfiguration`, `Example`, `20240713060801_InitDatabase` | `SecurityConfiguration` registers one policy per string in `Permissions.All`, so against a freshly migrated database **no role matches any permission — Admin included**. R2 alone would not have fixed this. The missing `Examples.IsDeleted` column also means every future migration silently carries an unrelated `AddColumn` | 0.1 |
-| R3 | Refreshing a token drops every permission: the new access token is built from `CreateUserPrincipalAsync` claims without the `RolePolicy` claims login adds | `AuthService.RefreshToken` | After the first refresh (15 min) every policy-protected endpoint returns 403. Fix together with the planned httpOnly-cookie change. Same method: the `UserToken` row is found by `DeviceGuid` alone, not by user | 0.4 |
-| R4 | A commit that only removes an `IIsDeletedEntity` is a **hard** delete: `SaveChangesInternal` returns early when nothing is Added/Modified, before the soft-delete conversion runs | `UnitOfWork.SaveChangesInternal` | F02 D6 / F04 D6 delete paths are masked only because they add a history row in the same commit | 0.3 |
+| R3 | Refreshing a token drops every permission: the new access token is built from `CreateUserPrincipalAsync` claims without the `RolePolicy` claims login adds | `AuthService.RefreshToken` | After the first refresh (15 min) every policy-protected endpoint returns 403. Fix together with the planned httpOnly-cookie change. Same method: the `UserToken` row is found by `DeviceGuid` alone, not by user | 0.3 |
+| R4 | A commit that only removes an `IIsDeletedEntity` is a **hard** delete: `SaveChangesInternal` returns early when nothing is Added/Modified, before the soft-delete conversion runs | `UnitOfWork.SaveChangesInternal` | F02 D6 / F04 D6 delete paths are masked only because they add a history row in the same commit | 0.2 — **Done**, deleted-entries set is now computed and checked regardless of the Added/Modified set |
+| R5 | `ExampleHostedService` schedules the infinite-loop `ExampleJob` on every start, holding a Quartz worker permanently | `HostedServices/ExampleHostedService.cs` | Ties up a clustered Quartz worker indefinitely on every API start, including in tests | 0.2 — **Done**, `ExampleHostedService`/`ExampleJob` deleted and their registrations removed |
 
 **Before F05, not yet scheduled**
 
 | # | Finding | Where |
 |---|---|---|
-| R5 | `ExampleHostedService` schedules the infinite-loop `ExampleJob` on every start, holding a Quartz worker permanently | `HostedServices/ExampleHostedService.cs` — remove with the demo code |
 | R6 | Verify that `TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh")` resolves on the Windows dev machine: `TaskFlow.Api` runs with `InvariantGlobalization=true`, and IANA-id lookup on Windows depends on ICU. Linux containers read tzdata | `TaskFlow.Api.csproj` |
+| R11 | `QuartzContext`'s committed migration (`20240828071644_InitDatabase.cs`) creates the Quartz.NET v3.13-era MySQL InnoDB schema, but the installed package is Quartz 3.22.7 — `quartz.jobStore.clustered=true` pins `StdAdoDelegate`'s SQL to the 3.22.x schema, which adds columns the committed migration doesn't have: `QRTZ_TRIGGERS.MISFIRE_ORIG_FIRE_TIME`, `EXECUTION_GROUP`, `PREFERRED_NODE`, `PREFERRED_NODE_AUTO`, and `QRTZ_FIRED_TRIGGERS.EXECUTION_GROUP`. Confirmed by diffing the committed SQL against the official `tables_mysql_innodb.sql` at tags `v3.13.1` (matches) and `v3.22.0` (these columns added). F05's job will fail with a SQL error on trigger insert/update until a new `QuartzContext` migration adds them | `BE/TaskFlow.DataAccess/Quartz-Migrations/20240828071644_InitDatabase.cs` |
 
 **Any time, not yet scheduled**
 
