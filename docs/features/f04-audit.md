@@ -83,3 +83,86 @@
 - `UnitOfWork.SaveChanges()` stamps `CreatedBy`/`CreatedAt` on insert, so actor and moment are captured for user-driven entries. A Quartz job runs with no `HttpContext` and would stamp `0`, so the `System` case must be set explicitly, never inferred from a missing claim (AC8).
 - Old and new values span statuses, user ids, priorities and dates. Store them as text with the event type deciding how to read them, rather than adding a column per field — but keep the event type an enum, not free text.
 - History grows faster than the task table. Index by task id plus timestamp, and page the read endpoint from the start.
+
+---
+
+# Technical contract (designed 2026-10-25)
+
+Everything above is the decided behaviour and does not change. This section is the technical contract. It is the F04 half of one design; the shared parts — concurrency, atomicity, error codes, the API conventions and the endpoint table — live in [f01-workflow.md](f01-workflow.md) → *Technical contract*, and are not repeated here.
+
+## T1. `TaskHistory` — table `TaskHistories` — `BaseEntity` only, **no `IIsDeletedEntity`**
+
+| Column | CLR | MySQL | Null | Notes |
+|---|---|---|---|---|
+| `Id` | `long` | `bigint` identity | no | PK |
+| `TaskId` | `long` | `bigint` | no | FK → `Tasks.Id`, `OnDelete(Restrict)`, **no navigation property** |
+| `Event` | `TaskHistoryEvent` | `int` | no | typed enum, never free text (D1) |
+| `ActorUserId` | `long?` | `bigint` | yes | **`null` = System.** FK → `Users.Id`, `Restrict` |
+| `FromValue` | `string` | `varchar(100)` | yes | text; the event type decides how to read it |
+| `ToValue` | `string` | `varchar(100)` | yes | `null` is meaningful and explicit (AC5) |
+| `Reason` | `string` | `varchar(500)` | yes | reopen only (F01 D6, AC6) |
+| `CreatedAt` | `BaseEntity` | `datetime(6)` | no | **this is the entry's timestamp**, exposed as `occurredAt`. No second timestamp column |
+| `CreatedBy`, `UpdatedBy`, `UpdatedAt` | `BaseEntity` | | no | kept for table consistency. **`CreatedBy` is never the actor and is never read as one** |
+
+No query filter. Registered in `MyDbContext.OnModelCreating`.
+
+Index `IX_TaskHistories_TaskId_CreatedAt_Id` on `(TaskId, CreatedAt, Id)` — the only read query the table serves, and it makes AC18's tie-break (`CreatedAt`, then `Id`) an index scan.
+
+**Why the actor is its own column.** `UnitOfWork.SaveChanges()` stamps `CreatedBy` from claims and yields `0` when there is no `HttpContext`, which is exactly the F05 Quartz job's situation. AC8 forbids that, so the `System` case is written explicitly as `null` and is never inferred from a missing claim. This is also why `CLAUDE.md` overrides kit Recipe 15 on this point.
+
+**Why immutability is structural, not a matter of discipline (D2, AC22, AC23).** The entity does not implement `IIsDeletedEntity`, so `UnitOfWork`'s soft-delete conversion can never touch it; no endpoint exposes an update or delete; and no service may call `Update` or `Delete` on `GetRepository<TaskHistory>()`. An accidental `Remove` would be a hard delete and must be caught in review.
+
+**No navigation property to `TaskItem`.** Configure `HasOne<TaskItem>().WithMany().HasForeignKey(i => i.TaskId)`. A required navigation from an unfiltered dependent to a filtered principal raises EF's `RequiredNavigationWithQueryFilterWarning` on every query and would silently hide the history of a deleted task, which AC20 forbids. Reads use explicit LINQ joins.
+
+## T2. Value encoding — one rule per event (D1)
+
+| Event | `FromValue` | `ToValue` | `Reason` |
+|---|---|---|---|
+| `Created` = 1 | null | null | null |
+| `StatusChanged` = 2 | status name | status name | null |
+| `AssigneeChanged` = 3 | user id as text, or null | user id as text, or null | null |
+| `PriorityChanged` = 4 | priority name | priority name | null |
+| `DueDateChanged` = 5 | `yyyy-MM-dd` or null | `yyyy-MM-dd` or null | null |
+| `Reopened` = 6 | `Done` | `Review` | required text |
+| `OverdueMarked` = 7 | null | null | null |
+| `Deleted` = 8 | null | null | null |
+
+Enum **names** are stored in the value columns, not numbers, so renumbering an enum can never silently reinterpret history. The event column itself is the int enum. `UnitOfWork` trims strings and turns `""` into `null`, so never write an empty string.
+
+## T3. Reading (AC15, AC18–AC21)
+
+`GET api/v1/tasks/{taskId}/history?start=&length=` — policy `ViewTasks` (D5: history is not a separate permission), oldest first, `ORDER BY CreatedAt, Id`, paged from the start with the same paging vocabulary as every other list.
+
+```jsonc
+// TaskHistoryRes
+{ "id": 44, "taskId": 7,
+  "event": "StatusChanged",
+  "actorUserId": 12,                                   // null = System (AC8)
+  "actorName": "member1",                              // null = System
+  "fromValue": "Todo", "toValue": "InProgress",
+  "reason": null,
+  "occurredAt":      "2026-10-25T02:12:03.000+00:00",  // UTC, from CreatedAt
+  "occurredAtLocal": "2026-10-25T09:12:03.000+07:00",  // configured zone (D4)
+  "message": "member1 moved the task from Todo to In Progress" }
+```
+
+`message` is **built on read** from the structured fields and never stored (D1), from templates in `BE/TaskFlow.Common/Constants/Messages/TaskHistoryMessages.cs`. It carries no exception text, no internal identifier and no secret (AC24). English only; i18n is out of MVP scope.
+
+**Two query details that AC19 and AC20 depend on.** The history rows themselves need no filter-dodging, because `TaskHistory` is unfiltered. The **existence check** does: look the task up with `IgnoreQueryFilters()` so that a soft-deleted task still returns its trail (AC20) while a genuinely non-existent id still fails with `TaskHistory.GetList.TaskNotFound` (AC19). The actor join also uses `IgnoreQueryFilters()` on `Users`, so an entry written by a since-deleted user still resolves its name. On EF Core 9 that drops *every* filter on the entity, which is safe here because `IsDeleted` is the only one — the deliberate use `CLAUDE.md` describes.
+
+## T4. Writing — who writes what, and when
+
+Every entry is written in the **same `SaveChanges()`** as the change it records (AC10); see f01-workflow.md → T2 *Atomicity*. No entry is written on a refused operation (AC11–AC14), which follows from validating everything before mutating anything.
+
+| Written by | Event | Slice |
+|---|---|---|
+| create | `Created` — exactly one, even when assignee, priority and due date are supplied | 1.1 |
+| move | `StatusChanged` | 1.2 |
+| reopen | `Reopened`, carrying the reason verbatim | 1.3 |
+| assignee change | `AssigneeChanged` | 1.4 |
+| priority change | `PriorityChanged` | 1.4 |
+| due-date change | `DueDateChanged` | 1.4 |
+| delete | `Deleted`, trail untouched (D6, AC9, AC23) | 1.4 |
+| F05 overdue job | `OverdueMarked`, actor `null` | F05 |
+
+**Assumption (approved 2026-10-25)** — reopening a task whose due date has already passed writes **two** entries, `Reopened` plus an `OverdueMarked` whose actor is the reopening user rather than `System`. F05 D7 says every transition into the overdue state is recorded; AC8 constrains only the job's actor. The alternative is a single `Reopened` entry with the `IsOverdue` flag changing unrecorded. As written; it is F05 territory reached through F01 AC23.
