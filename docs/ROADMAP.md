@@ -31,7 +31,7 @@ One thin, independently verifiable path each. One `feature/<slice>` branch per s
 
 ### Units 1–2 — F01 + F04
 
-Contract: `docs/features/f01-workflow.md` → *Technical contract* (shared) and `docs/features/f04-audit.md` → *Technical contract*. **Nothing below starts until the user signs off the open items marked [SIGN-OFF] there.** Riskiest assumptions first: the MySQL concurrency token actually refusing a stale or concurrent write, the time-zone lookup resolving at all (R-TZ), and one-commit atomicity of task + history + notification. All three are retired by the end of slice 1.2.
+Contract: `docs/features/f01-workflow.md` → *Technical contract* (shared) and `docs/features/f04-audit.md` → *Technical contract*. All items there marked [SIGN-OFF] are approved (2026-10-25) — see *Technical contract sign-off* below. Riskiest assumptions first: the MySQL concurrency token actually refusing a stale or concurrent write, the time-zone lookup resolving at all (R-TZ), and one-commit atomicity of task + history + notification. All three are retired by the end of slice 1.2.
 
 | # | Slice | Branch | Owner | Status | Closes |
 |---|---|---|---|---|---|
@@ -64,6 +64,20 @@ All 26 open questions raised during planning are answered; the specs state them 
 - The board is drag-and-drop: dropping a card changes status only, and the drop position carries no meaning.
 
 Tests, users, the drag-and-drop library, CI and the git rule were decided on 2026-10-25: `CLAUDE.md` → *Decided before F01*.
+
+## Technical contract sign-off (2026-10-25)
+
+All [SIGN-OFF] items in `docs/features/f01-workflow.md` and `docs/features/f04-audit.md` → *Technical contract* are approved as recommended:
+
+1. Error-code constants live in `BE/TaskFlow.Common/Constants/Messages/`, one file per controller — the precedent for F02, F03 and F05.
+2. Every business failure is **400** with `success:false` and an `errorCode`; no 404/409.
+3. `Task.Move.SameStatus` is a distinct error code from `Task.Move.InvalidTransition`.
+4. `allowedTransitions` is an array of objects (`{ status, operation, requiresReason, … }`), not a plain `TaskStatus[]`; `FE/src/api/types.ts` is updated to match.
+5. `permissions: string[]` is added to the login and refresh responses — built in slice 0.4.
+6. `GET api/v1/users` → `[{ id, userName, role }]`, policy `ViewTasks`, is added for the assignee picker.
+7. `JsonStringEnumConverter` is registered globally in `Program.cs` so enums serialize as names on the wire.
+8. R-TZ: `<InvariantGlobalization>false</InvariantGlobalization>` is set in `TaskFlow.Api.csproj`.
+9. Reopening an overdue-due-date task writes two history entries, `Reopened` and `OverdueMarked` (actor = the reopening user) — F05 territory, reached through F01 AC23.
 
 ## Done outside the feature units
 

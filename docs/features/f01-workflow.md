@@ -131,7 +131,7 @@ Every other pair is invalid.
 
 # Technical contract (designed 2026-10-25)
 
-Everything above is the decided behaviour and does not change. This section is the technical contract that makes it implementable. Items marked **[SIGN-OFF]** are open until the user decides them; nothing is built against an open item.
+Everything above is the decided behaviour and does not change. This section is the technical contract that makes it implementable. All open items below were approved by the user 2026-10-25.
 
 ## T1. Data model
 
@@ -186,7 +186,7 @@ TaskHistoryEvent       Created=1 … Deleted=8          // see f04-audit.md
 TaskNotificationEvent  ReturnedForRework=1
 ```
 
-Stored as **int** (house style). Exposed on the wire as **names**, which `FE/src/api/types.ts` already assumes. That needs one global registration in `Program.cs`:
+Stored as **int** (house style). Exposed on the wire as **names**, which `FE/src/api/types.ts` already assumes. That needs one global registration in `Program.cs` (**approved 2026-10-25**):
 
 ```csharp
 builder.Services.AddControllers()
@@ -237,11 +237,11 @@ New `Tasks` struct in `Permissions.cs`, appended to `Permissions.All`: `ViewTask
 
 ## T3. Error codes
 
-**Location [SIGN-OFF]:** `BE/TaskFlow.Common/Constants/Messages/`, one file per controller — `TaskControllerMS.cs`, `TaskHistoryControllerMS.cs`, `NotificationControllerMS.cs`. `Constants/` is flat today with 7 files; a `Messages/` subfolder keeps the per-feature message classes together as F02–F05 add theirs. The alternative is flat in `Constants/`. Whichever is chosen is the precedent for F02, F03 and F05.
+**Location (approved 2026-10-25):** `BE/TaskFlow.Common/Constants/Messages/`, one file per controller — `TaskControllerMS.cs`, `TaskHistoryControllerMS.cs`, `NotificationControllerMS.cs`. `Constants/` is flat today with 7 files; a `Messages/` subfolder keeps the per-feature message classes together as F02–F05 add theirs. The alternative is flat in `Constants/`. Whichever is chosen is the precedent for F02, F03 and F05.
 
 Shape per `backend.md` §5: a nested struct per operation, every group carrying an `Exception` member, codes formatted `"Feature.Operation.Reason"`.
 
-**HTTP convention established here [SIGN-OFF]:** every business failure is **400** with `success:false` and an `errorCode`. No 404, no 409 — the client branches on `errorCode` alone (`FE/src/api/client.ts`), and `backend.md` §3 forbids mixing status-code conventions. `ExampleController`'s `NotFound(...)` is explicitly not the precedent. 401 and 403 come from the framework with an empty body and are mapped by the client from the status.
+**HTTP convention established here (approved 2026-10-25):** every business failure is **400** with `success:false` and an `errorCode`. No 404, no 409 — the client branches on `errorCode` alone (`FE/src/api/client.ts`), and `backend.md` §3 forbids mixing status-code conventions. `ExampleController`'s `NotFound(...)` is explicitly not the precedent. 401 and 403 come from the framework with an empty body and are mapped by the client from the status.
 
 | Code | Acceptance criterion | HTTP |
 |---|---|---|
@@ -256,7 +256,7 @@ Shape per `backend.md` §5: a nested struct per operation, every group carrying 
 | `Task.Move.NotFound` | AC24 | 400 |
 | `Task.Move.Conflict` | AC29, AC30 | 400 |
 | `Task.Move.InvalidTransition` | AC7–AC13, AC20, AC27, AC28 | 400 |
-| `Task.Move.SameStatus` **[SIGN-OFF]** | AC14 (D2) | 400 |
+| `Task.Move.SameStatus` **(approved 2026-10-25)** | AC14 (D2) | 400 |
 | `Task.Move.ActorIsAssignee` | AC16, AC20 | 400 |
 | `Task.Move.AssigneeRequired` · `.CapacityReached` | **reserved for F02** AC11 · AC2/AC22 | 400 |
 | `Task.Move.Exception` | — | 500 |
@@ -268,7 +268,7 @@ Shape per `backend.md` §5: a nested struct per operation, every group carrying 
 
 Covered without a code: **permission** → 403 from `[Authorize(Policy)]` (AC21, AC25; F04 AC16); **unauthenticated** → 401 (AC26); **shape** — unknown status, blank reason, over-length title → 400 envelope with `validates[]`, which **requires R1's `InvalidModelStateResponseFactory` (slice 0.3)**. AC15 and AC22 cannot be demonstrated before it lands.
 
-`Task.Move.SameStatus` **[SIGN-OFF]**: D2 requires a same-status move to be rejected as an invalid transition; a distinct code refines that rather than contradicting it, and AC20 asks the error code to identify which rule failed. It exists because a drag-and-drop board drops into the origin column constantly and that should not read as "you skipped a stage". Reverting to `InvalidTransition` is one line and one client mapping.
+`Task.Move.SameStatus` **(approved 2026-10-25)**: D2 requires a same-status move to be rejected as an invalid transition; a distinct code refines that rather than contradicting it, and AC20 asks the error code to identify which rule failed. It exists because a drag-and-drop board drops into the origin column constantly and that should not read as "you skipped a stage". Reverting to `InvalidTransition` is one line and one client mapping.
 
 ## T4. The transition table as data (D10, AC17, AC18)
 
@@ -337,7 +337,7 @@ Controllers and services: `TasksController` → `ITaskService`, `TaskHistoryCont
 { "description": "…", "createdAt": "…+00:00", "createdBy": 12, "updatedAt": "…+00:00" }
 ```
 
-`allowedTransitions` is an **array of objects [SIGN-OFF]**, not the plain `TaskStatus[]` that `FE/src/api/types.ts:73` currently declares. The client must know that `Done → Review` is the *reopen* operation and needs a reason, and `docs/ui.md` forbids re-deriving the transition table in the client. AC18 is still satisfied literally, because the statuses are carried.
+`allowedTransitions` is an **array of objects (approved 2026-10-25)**, not the plain `TaskStatus[]` that `FE/src/api/types.ts:73` currently declares — `FE/src/api/types.ts` is updated to match. The client must know that `Done → Review` is the *reopen* operation and needs a reason, and `docs/ui.md` forbids re-deriving the transition table in the client. AC18 is still satisfied literally, because the statuses are carried.
 
 ### Endpoints
 
@@ -362,19 +362,19 @@ Controllers and services: `TasksController` → `ITaskService`, `TaskHistoryCont
 
 ## T6. Two contract gaps the client hits immediately
 
-1. **Caller permissions [SIGN-OFF].** `allowedTransitions` covers per-task moves, but the "New task", "Delete" and "Reopen" affordances need the caller's permission set. Proposal: add `permissions: string[]` to the **login and refresh** responses — the claims are already assembled in `AuthService.Login`. This touches unit 0's auth work and must be coordinated with slice 0.4.
-2. **User roster [SIGN-OFF].** `docs/ui.md`'s assignee picker, avatar initials and team popover need a user list; no endpoint lists users today. Embedding `assignee { id, userName }` in task payloads covers cards and detail but not the picker. Proposal: a minimal `GET api/v1/users` → `[{ id, userName, role }]` with policy `ViewTasks` (not `ViewMembers`, which Members do not hold). This is a new endpoint beyond the written F01 scope.
+1. **Caller permissions (approved 2026-10-25).** `allowedTransitions` covers per-task moves, but the "New task", "Delete" and "Reopen" affordances need the caller's permission set. `permissions: string[]` is added to the **login and refresh** responses — the claims are already assembled in `AuthService.Login`. This touches unit 0's auth work and is done in slice 0.4.
+2. **User roster (approved 2026-10-25).** `docs/ui.md`'s assignee picker, avatar initials and team popover need a user list; no endpoint lists users today. Embedding `assignee { id, userName }` in task payloads covers cards and detail but not the picker. A minimal `GET api/v1/users` → `[{ id, userName, role }]` with policy `ViewTasks` (not `ViewMembers`, which Members do not hold) is added — a new endpoint beyond the originally written F01 scope.
 
 ## T7. Risks
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| **R-TZ — blocking, confirmed by experiment 2026-10-25.** `TaskFlow.Api.csproj` sets `InvariantGlobalization=true`. Under that setting on this Windows machine, `TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh")` throws `TimeZoneNotFoundException`; with the setting off it resolves to +07:00. ROADMAP R6 scheduled this "before F05", but F01 needs the zone for the due-date rule and history rendering — it is due **now** | Create with a due date, reopen, and every history read would throw 500 on the dev machine | Set `<InvariantGlobalization>false</InvariantGlobalization>` in `TaskFlow.Api.csproj`: one line, reversible, ~28 MB of ICU in the image, and the Debian-based `aspnet:10.0` image already carries libicu. **[SIGN-OFF]** |
+| **R-TZ — blocking, confirmed by experiment 2026-10-25.** `TaskFlow.Api.csproj` sets `InvariantGlobalization=true`. Under that setting on this Windows machine, `TimeZoneInfo.FindSystemTimeZoneById("Asia/Ho_Chi_Minh")` throws `TimeZoneNotFoundException`; with the setting off it resolves to +07:00. ROADMAP R6 scheduled this "before F05", but F01 needs the zone for the due-date rule and history rendering — it is due **now** | Create with a due date, reopen, and every history read would throw 500 on the dev machine | Set `<InvariantGlobalization>false</InvariantGlobalization>` in `TaskFlow.Api.csproj`: one line, reversible, ~28 MB of ICU in the image, and the Debian-based `aspnet:10.0` image already carries libicu. **(approved 2026-10-25)** |
 | AC15 and AC22 are unreachable until R1's `InvalidModelStateResponseFactory` lands | Two criteria cannot be demonstrated | Slice 0.3 precedes slice 1.1 |
 | R4 is masked on the delete path: `SaveChangesInternal` early-returns before the soft-delete conversion when nothing is Added or Modified, and the `Deleted` history insert happens to keep the path working | A future delete path that writes no history would **hard delete** | Slice 0.3 fixes it; until then, add no delete path without a history row |
 | A `Guid` token means any edit invalidates a rendered card's version, so a title edit makes a concurrent move fail with `Conflict` | More conflicts than a status-only token would produce | Accepted and intended (AC30); the client refetches on `Conflict` |
 | `DateTimeOffset` on MySQL stores `datetime(6)` and discards the offset | A non-UTC value written by hand would silently lose its offset | Every timestamp comes from `DateTimeHelper.GetDtOffset()` (UTC), as every existing column does |
 | History grows unbounded; retention is explicitly out of F04 scope | Table growth | Paged reads plus the `(TaskId, CreatedAt, Id)` index |
 | F02 will want a concurrency token on the assignee row. `User.ConcurrencyStamp` already is one, but `UserManager` rewrites it | A second token added in F02 would be redundant and conflicting | Recorded here; F02 decides |
-| **Assumption [SIGN-OFF]** — reopening a task whose due date has already passed writes **two** entries, `Reopened` and an `OverdueMarked` whose actor is the reopening user. F05 D7 says every transition into the overdue state gets an entry; F04 AC8 constrains only the job's actor | Changes what the timeline shows after a reopen | Recommended as written; it is F05 territory touched by AC23 |
+| **Assumption (approved 2026-10-25)** — reopening a task whose due date has already passed writes **two** entries, `Reopened` and an `OverdueMarked` whose actor is the reopening user. F05 D7 says every transition into the overdue state gets an entry; F04 AC8 constrains only the job's actor | Changes what the timeline shows after a reopen | As written; it is F05 territory touched by AC23 |
 | **Assumption** — creating a task with an assignee, priority and due date writes exactly **one** `Created` entry, not three | F04 AC1 wording | Recommended as written |

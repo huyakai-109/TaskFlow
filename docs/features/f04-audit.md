@@ -165,4 +165,4 @@ Every entry is written in the **same `SaveChanges()`** as the change it records 
 | delete | `Deleted`, trail untouched (D6, AC9, AC23) | 1.4 |
 | F05 overdue job | `OverdueMarked`, actor `null` | F05 |
 
-**Open assumption [SIGN-OFF]** — reopening a task whose due date has already passed writes **two** entries, `Reopened` plus an `OverdueMarked` whose actor is the reopening user rather than `System`. F05 D7 says every transition into the overdue state is recorded; AC8 constrains only the job's actor. The alternative is a single `Reopened` entry with the `IsOverdue` flag changing unrecorded. Recommended as written; it is F05 territory reached through F01 AC23.
+**Assumption (approved 2026-10-25)** — reopening a task whose due date has already passed writes **two** entries, `Reopened` plus an `OverdueMarked` whose actor is the reopening user rather than `System`. F05 D7 says every transition into the overdue state is recorded; AC8 constrains only the job's actor. The alternative is a single `Reopened` entry with the `IsOverdue` flag changing unrecorded. As written; it is F05 territory reached through F01 AC23.
