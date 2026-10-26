@@ -1,5 +1,4 @@
 ﻿using System.Collections.Specialized;
-using TaskFlow.BusinessLogic.Schedulers.BackgroundJobs;
 using TaskFlow.Common.Constants;
 using TaskFlow.DataAccess.DbContexts;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +18,6 @@ namespace TaskFlow.BusinessLogic.Schedulers
 
             collection.AddSingleton<IScheduleService, ScheduleService>();
             collection.AddSingleton<IJobFactory, JobFactory>();
-            collection.AddJobs();
         }
 
         private static void ConfigureSchedulerFactory(this IServiceCollection collection, IConfiguration configuration)
@@ -37,7 +35,6 @@ namespace TaskFlow.BusinessLogic.Schedulers
 
                 ["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool, Quartz",
                 ["quartz.threadPool.threadCount"] = "25",
-                ["quartz.threadPool.threadPriority"] = "5",
 
                 ["quartz.jobStore.useProperties"] = "true",
                 ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
@@ -67,11 +64,6 @@ namespace TaskFlow.BusinessLogic.Schedulers
 
             collection.AddDbContext<QuartzContext>(options =>
                 options.UseMySql(connectionString, serverVersion));
-        }
-
-        private static void AddJobs(this IServiceCollection collection)
-        {
-            collection.AddTransient<ExampleJob>();
         }
     }
 }

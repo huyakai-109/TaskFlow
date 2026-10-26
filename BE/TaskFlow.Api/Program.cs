@@ -6,8 +6,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 var config = builder.Configuration;
 
-builder.Services.AddControllers();
-builder.Services.AddCoreDependencies(config);
+builder.Services.AddControllers().AddInvalidModelStateHandling();
+builder.Services.AddCoreDependencies(config, skipQuartz: builder.Environment.IsEnvironment("Testing"));
 
 builder.Services.AddApiVersionings();
 builder.Services.AddSwaggers();
@@ -59,6 +59,13 @@ app.MapControllers();
 app.UseMetricExporters();
 
 app.RunMigration();
-app.RunQuartzMigration();
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.RunQuartzMigration();
+}
 
 app.Run();
+
+public partial class Program
+{
+}

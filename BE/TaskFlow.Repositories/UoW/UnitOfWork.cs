@@ -49,13 +49,16 @@ namespace TaskFlow.Repositories.UoW
             var entries = _context.ChangeTracker.Entries()
                 .Where(x => x.State is EntityState.Added or EntityState.Modified)
                 .ToArray();
-            if (entries.Length == 0) return;
+
+            var deletedEntries = _context.ChangeTracker.Entries()
+                .Where(x => x.State == EntityState.Deleted)
+                .ToArray();
+
+            if (entries.Length == 0 && deletedEntries.Length == 0) return;
 
             SaveChangesInternal(entries, EntityState.Added);
             SaveChangesInternal(entries, EntityState.Modified);
 
-            var deletedEntries = _context.ChangeTracker.Entries()
-                .Where(x => x.State == EntityState.Deleted);
             SaveChangesSoftDelete(deletedEntries);
         }
 

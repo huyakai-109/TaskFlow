@@ -1,6 +1,5 @@
 ﻿using TaskFlow.BusinessLogic.ApiClient;
 using TaskFlow.BusinessLogic.Cache;
-using TaskFlow.BusinessLogic.HostedServices;
 using TaskFlow.BusinessLogic.Schedulers;
 using TaskFlow.BusinessLogic.Services;
 using TaskFlow.BusinessLogic.Storage;
@@ -10,7 +9,9 @@ namespace TaskFlow.Api.Configurations
 {
     public static class CoreDependencyConfiguration
     {
-        public static void AddCoreDependencies(this IServiceCollection collection, IConfiguration configuration)
+        // skipQuartz: the "Testing" host (WebApplicationFactory) must never touch
+        // the real Quartz scheduler or the "quartz" database.
+        public static void AddCoreDependencies(this IServiceCollection collection, IConfiguration configuration, bool skipQuartz = false)
         {
             collection.AddHttpContextAccessor();
             collection.AddServices();
@@ -18,8 +19,11 @@ namespace TaskFlow.Api.Configurations
             collection.AddCacheService(configuration);
 
             collection.AddApiClient();
-            collection.AddQuartzScheduler(configuration);
-            collection.AddHostedServices();
+            if (!skipQuartz)
+            {
+                collection.AddQuartzScheduler(configuration);
+            }
+
             collection.AddStorage(configuration);
         }
 
@@ -27,11 +31,6 @@ namespace TaskFlow.Api.Configurations
         {
             collection.AddScoped<IAuthService, AuthService>();
             collection.AddScoped<IExampleService, ExampleService>();
-        }
-
-        private static void AddHostedServices(this IServiceCollection collection)
-        {
-            collection.AddHostedService<ExampleHostedService>();
         }
     }
 }
