@@ -90,7 +90,7 @@ One target. Written by `/ship setup` after approval; read by `/ship`. **Names an
 ## Decided before F01 (2026-10-25)
 
 - **Q-T Tests** — yes: backend xUnit against a real MySQL, from slice 0. Frontend runner (Vitest) later.
-- **Q-U Users** — roles `Manager`/`Member` and their `RoleClaim` rows are seeded by migration. Users `member1`, `member2`, `manager1` are seeded **only in the Development environment**, never by migration. User management stays out of scope.
+- **Q-U Users** — roles `Manager`/`Member` and their `RoleClaim` rows are seeded by migration. Users `member1`, `member2`, `manager1` are seeded **only in the Development environment**, never by migration (`BE/TaskFlow.Api/Configurations/DevelopmentSeedConfiguration.cs`, run from `Program.cs` after `RunMigration()`, idempotent). `member1`/`member2` are `Member`, `manager1` is `Manager`. Their shared password is read from `DevSeed:Password` (`BE/TaskFlow.Api/appsettings.Development.json` only — never hardcoded, never logged). User management stays out of scope.
 - **Drag and drop** — `@dnd-kit/core` (approved dependency).
 - **CI** — GitHub Actions on every push and pull request: build + test the backend with a MySQL service, typecheck + lint + build the frontend. No deploy job; deployment is decided later with `/ship setup`.
 - **Git** — one `feature/<slice>` branch per slice; agents may commit on it, never push. The user pushes and opens the pull request.

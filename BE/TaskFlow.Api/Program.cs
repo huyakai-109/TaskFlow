@@ -64,6 +64,11 @@ if (!app.Environment.IsEnvironment("Testing"))
     app.RunQuartzMigration();
 }
 
+if (app.Environment.IsDevelopment())
+{
+    await app.SeedDevelopmentUsersAsync();
+}
+
 app.Run();
 
 public partial class Program

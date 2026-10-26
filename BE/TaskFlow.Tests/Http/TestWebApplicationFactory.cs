@@ -18,6 +18,14 @@ namespace TaskFlow.Tests.Http
         {
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
             Environment.SetEnvironmentVariable("Cors__AllowedOrigins__0", "http://localhost");
+
+            // appsettings.json's "MyDatabase" points at the real "mydb"; there is no
+            // appsettings.Testing.json for TaskFlow.Api. Without this override, a hosted
+            // test (and its AutoMigration=true startup migrate) would run against "mydb",
+            // which the rest of this project treats as off-limits for test runs.
+            Environment.SetEnvironmentVariable(
+                "ConnectionStrings__MyDatabase",
+                "server=localhost;port=3306;user id=root;password=Password@1234;database=mydb_test");
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)

@@ -78,15 +78,7 @@ namespace TaskFlow.BusinessLogic.Services
             var principal = await signInManager.CreateUserPrincipalAsync(user);
             var userClaims = principal.Claims.ToList();
 
-            var roleRepo = await unitOfWork.GetRepository<Role>().QueryAll();
-            var userRoleRepo = await unitOfWork.GetRepository<UserRole>().QueryAll();
-            var roleClaims = await unitOfWork.GetRepository<RoleClaim>().QueryAll();
-
-            var authorizationClaims = (from ur in userRoleRepo
-                                       join r in roleRepo on ur.RoleId equals r.Id
-                                       join rc in roleClaims on r.Id equals rc.RoleId
-                                       where ur.UserId == user.Id
-                                       select rc.ClaimValue).Distinct().ToArray();
+            var authorizationClaims = await GetRolePolicyPermissions(user.Id);
 
             userClaims.AddRange(authorizationClaims.Select(ac => new Claim(RolePolicies.ClaimType, ac)));
 
@@ -112,6 +104,8 @@ namespace TaskFlow.BusinessLogic.Services
 
             loginResult.Token = token;
             loginResult.RefreshToken = refreshToken;
+            loginResult.RefreshTokenExpiresAt = refreshExpiration;
+            loginResult.Permissions = authorizationClaims;
 
             var userTokenRepo = await unitOfWork.GetRepository<UserToken>().QueryAll();
             var userToken = await userTokenRepo.FirstOrDefaultAsync(x => x.DeviceGuid == deviceGuid);
@@ -146,74 +140,86 @@ namespace TaskFlow.BusinessLogic.Services
         {
             var result = new RefreshTokenDto();
 
-            try
+            var oldTokenPrincipal = ValidateIgnoringLifetime(token, _secret);
+            if (oldTokenPrincipal == null)
             {
-                var user = await VerifyToken(token, _secret);
-                if (user == null)
-                {
-                    return result;
-                }
-
-                logger.LogWarning("User {id} - {email} tries to get new token while it is still valid", user.Id, user.Email);
+                logger.LogWarning("Refresh rejected: the old access token failed signature/issuer/audience validation");
                 return result;
             }
-            catch (SecurityTokenExpiredException)
+
+            var userId = oldTokenPrincipal.Claims.GetUserId();
+
+            var refreshTokenContent = ReadJwtToken(refreshToken);
+            var refreshTokenUserId = refreshTokenContent.Claims.GetUserId();
+
+            if (userId != refreshTokenUserId)
             {
-                var tokenContent = ReadJwtToken(token);
-                var refreshTokenContent = ReadJwtToken(refreshToken);
-
-                var userId = tokenContent.Claims.GetUserId();
-                var refreshTokenUserId = refreshTokenContent.Claims.GetUserId();
-
-                if (userId != refreshTokenUserId)
-                {
-                    logger.LogWarning("User of both token aren't matched: {userId} - {refreshTokenUserId}", userId, refreshTokenUserId);
-                    return result;
-                }
-
-                var user = await VerifyToken(refreshToken, _refreshSecret);
-                if (user == null)
-                {
-                    return result;
-                }
-
-                var userTokenRepo = await unitOfWork.GetRepository<UserToken>().QueryAll();
-                var userToken = await userTokenRepo.FirstOrDefaultAsync(x => x.DeviceGuid == deviceGuid);
-
-                if (userToken == null
-                    || userToken.RefreshToken != refreshToken
-                    || userToken.RefreshTokenExpiryTime < DateTimeHelper.GetDtOffset())
-                {
-                    return result;
-                }
-
-                var principal = await signInManager.CreateUserPrincipalAsync(user);
-
-                var newToken = GenerateToken(
-                    principal.Claims,
-                    _secret,
-                    DateTimeHelper.GetDt().AddMinutes(_expirationMinutes));
-
-                var refreshExpiration = DateTimeHelper.GetDt()
-                    .AddDays(_refreshExpirationDays);
-
-                var newRefreshToken = GenerateToken(
-                    principal.Claims,
-                    _refreshSecret,
-                    refreshExpiration);
-
-                result.Success = true;
-                result.Token = newToken;
-                result.RefreshToken = newRefreshToken;
-
-                userToken.RefreshToken = newRefreshToken;
-                userToken.RefreshTokenExpiryTime = refreshExpiration;
-
-                await unitOfWork.GetRepository<UserToken>().Update(userToken);
-                await unitOfWork.SaveChanges();
-
+                logger.LogWarning("User of both token aren't matched: {userId} - {refreshTokenUserId}", userId, refreshTokenUserId);
                 return result;
             }
+
+            var user = await VerifyToken(refreshToken, _refreshSecret);
+            if (user == null)
+            {
+                return result;
+            }
+
+            var userTokenRepo = await unitOfWork.GetRepository<UserToken>().QueryAll();
+            var userToken = await userTokenRepo.FirstOrDefaultAsync(x => x.DeviceGuid == deviceGuid && x.UserId == userId);
+
+            if (userToken == null
+                || userToken.RefreshToken != refreshToken
+                || userToken.RefreshTokenExpiryTime < DateTimeHelper.GetDtOffset())
+            {
+                return result;
+            }
+
+            var principal = await signInManager.CreateUserPrincipalAsync(user);
+            var userClaims = principal.Claims.ToList();
+
+            var authorizationClaims = await GetRolePolicyPermissions(user.Id);
+
+            userClaims.AddRange(authorizationClaims.Select(ac => new Claim(RolePolicies.ClaimType, ac)));
+
+            var newToken = GenerateToken(
+                userClaims,
+                _secret,
+                DateTimeHelper.GetDt().AddMinutes(_expirationMinutes));
+
+            var refreshExpiration = DateTimeHelper.GetDt()
+                .AddDays(_refreshExpirationDays);
+
+            var newRefreshToken = GenerateToken(
+                userClaims,
+                _refreshSecret,
+                refreshExpiration);
+
+            result.Success = true;
+            result.Token = newToken;
+            result.RefreshToken = newRefreshToken;
+            result.RefreshTokenExpiresAt = refreshExpiration;
+            result.Permissions = authorizationClaims;
+
+            userToken.RefreshToken = newRefreshToken;
+            userToken.RefreshTokenExpiryTime = refreshExpiration;
+
+            await unitOfWork.GetRepository<UserToken>().Update(userToken);
+            await unitOfWork.SaveChanges();
+
+            return result;
+        }
+
+        private async Task<string[]> GetRolePolicyPermissions(long userId)
+        {
+            var roleRepo = await unitOfWork.GetRepository<Role>().QueryAll();
+            var userRoleRepo = await unitOfWork.GetRepository<UserRole>().QueryAll();
+            var roleClaims = await unitOfWork.GetRepository<RoleClaim>().QueryAll();
+
+            return (from ur in userRoleRepo
+                    join r in roleRepo on ur.RoleId equals r.Id
+                    join rc in roleClaims on r.Id equals rc.RoleId
+                    where ur.UserId == userId
+                    select rc.ClaimValue).Distinct().ToArray();
         }
 
         private string GenerateToken(IEnumerable<Claim> claims, string secret, DateTime expireDateTime)
@@ -256,6 +262,37 @@ namespace TaskFlow.BusinessLogic.Services
             }, out _);
 
             return user;
+        }
+
+        // Validates signature, issuer and audience of an access token that is
+        // expected to be expired by the time a refresh is requested - lifetime
+        // is deliberately not checked. Fails closed (returns null) on a bad
+        // signature, wrong issuer/audience or a malformed token, instead of
+        // letting the exception reach the controller's generic catch.
+        private ClaimsPrincipal? ValidateIgnoringLifetime(string token, string secret)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+
+            try
+            {
+                var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(secret.ToByteArray()),
+                    ValidateIssuer = true,
+                    ValidIssuer = configuration.GetSection(ConfigKeys.Security.Jwt.Issuer).Get<string>(),
+                    ValidateAudience = true,
+                    ValidAudience = configuration.GetSection(ConfigKeys.Security.Jwt.Audience).Get<string>(),
+                    ValidateLifetime = false,
+                    ClockSkew = TimeSpan.Zero
+                }, out _);
+
+                return principal;
+            }
+            catch (SecurityTokenException)
+            {
+                return null;
+            }
         }
 
         private static JwtSecurityToken ReadJwtToken(string token)

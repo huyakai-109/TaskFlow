@@ -362,7 +362,7 @@ Controllers and services: `TasksController` → `ITaskService`, `TaskHistoryCont
 
 ## T6. Two contract gaps the client hits immediately
 
-1. **Caller permissions (approved 2026-10-25).** `allowedTransitions` covers per-task moves, but the "New task", "Delete" and "Reopen" affordances need the caller's permission set. `permissions: string[]` is added to the **login and refresh** responses — the claims are already assembled in `AuthService.Login`. This touches unit 0's auth work and is done in slice 0.4.
+1. **Caller permissions (approved 2026-10-25).** `allowedTransitions` covers per-task moves, but the "New task", "Delete" and "Reopen" affordances need the caller's permission set. `permissions: string[]` is added to the **login and refresh** responses — the claims are already assembled in `AuthService.Login`. This touches unit 0's auth work and is done in slice 0.4 — landed 2026-10-26 on `feature/unit0-auth-ci`, implemented, not just planned.
 2. **User roster (approved 2026-10-25).** `docs/ui.md`'s assignee picker, avatar initials and team popover need a user list; no endpoint lists users today. Embedding `assignee { id, userName }` in task payloads covers cards and detail but not the picker. A minimal `GET api/v1/users` → `[{ id, userName, role }]` with policy `ViewTasks` (not `ViewMembers`, which Members do not hold) is added — a new endpoint beyond the originally written F01 scope.
 
 ## T7. Risks
