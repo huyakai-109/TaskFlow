@@ -2,12 +2,18 @@ using System.Net;
 using System.Net.Http.Json;
 using TaskFlow.Api.Configurations;
 using TaskFlow.Api.Models.Responses.Base;
+using TaskFlow.Tests.Fixtures;
 
 namespace TaskFlow.Tests.Http
 {
     // R1: a model-binding failure (not an attribute failure - this project has
     // no [Required] attributes yet) must carry the project's envelope, not
     // ASP.NET's default ProblemDetails shape.
+    //
+    // In the "Database" collection (not just its own IClassFixture<TestWebApplicationFactory>)
+    // so xUnit never runs it in parallel with another DB-touching test class -
+    // see DatabaseFixture and the comment on DatabaseCollection.
+    [Collection(DatabaseCollection.Name)]
     public class LoginValidationTests : IClassFixture<TestWebApplicationFactory>
     {
         private readonly TestWebApplicationFactory _factory;

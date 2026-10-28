@@ -36,6 +36,11 @@
             public const string AllowedOrigins = "Cors:AllowedOrigins";
         }
 
+        public struct DevSeed
+        {
+            public const string Password = "DevSeed:Password";
+        }
+
         public struct MinIO
         {
             public const string Endpoint = "MinIO:Endpoint";

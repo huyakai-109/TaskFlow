@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (build + test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      mysql:
+        image: mysql:8.4.0
+        env:
+          MYSQL_ROOT_PASSWORD: Password@1234
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -u root -pPassword@1234 --silent"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+          --health-start-period 60s
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore BE/TaskFlow.sln
+
+      - name: Build
+        run: dotnet build BE/TaskFlow.sln -c Debug --no-restore
+
+      - name: Test
+        # No ConnectionStrings__MyDatabase override needed here: BE/TaskFlow.Tests/appsettings.Testing.json
+        # and TestWebApplicationFactory's own env-var override both already point at
+        # localhost:3306/mydb_test with the same dev password this job's mysql service uses,
+        # and GitHub Actions service containers are reachable from job steps on localhost.
+        run: dotnet test BE/TaskFlow.Tests -c Debug --no-build
+
+  frontend:
+    name: Frontend (lint + typecheck + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.x'
+          cache: 'npm'
+          cache-dependency-path: FE/package-lock.json
+
+      - name: Install dependencies
+        run: npm --prefix FE ci
+
+      - name: Lint
+        run: npm --prefix FE run lint
+
+      - name: Typecheck
+        run: npm --prefix FE run typecheck
+
+      - name: Build
+        run: npm --prefix FE run build

@@ -5,6 +5,7 @@ using TaskFlow.Api.Models.Responses.Auth;
 using TaskFlow.Api.Models.Responses.Base;
 using TaskFlow.BusinessLogic.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace TaskFlow.Api.Controllers.V1
@@ -14,8 +15,12 @@ namespace TaskFlow.Api.Controllers.V1
     public class AuthController(
         ILogger<AuthController> logger,
         IMapper mapper,
-        IAuthService authService) : BaseController(logger, mapper)
+        IAuthService authService,
+        IWebHostEnvironment environment) : BaseController(logger, mapper)
     {
+        private const string RefreshTokenCookieName = "refreshToken";
+        private const string RefreshTokenCookiePath = "/api/v1/auth";
+
         [HttpPost]
         [Route("login")]
         [ProducesResponseType(typeof(ResultRes<LoginRes>), StatusCodes.Status200OK)]
@@ -38,6 +43,8 @@ namespace TaskFlow.Api.Controllers.V1
                 {
                     result.Success = true;
                     result.Result = Mapper.Map<LoginRes>(loginResult);
+
+                    SetRefreshTokenCookie(loginResult.RefreshToken!, loginResult.RefreshTokenExpiresAt);
 
                     return Ok(result);
                 }
@@ -77,13 +84,15 @@ namespace TaskFlow.Api.Controllers.V1
 
             try
             {
-                if (string.IsNullOrEmpty(refreshTokenReq.Token) || string.IsNullOrEmpty(refreshTokenReq.RefreshToken))
+                var refreshTokenCookie = HttpContext.Request.Cookies[RefreshTokenCookieName];
+
+                if (string.IsNullOrEmpty(refreshTokenReq.Token) || string.IsNullOrEmpty(refreshTokenCookie))
                 {
                     result.Error = "Invalid tokens";
                     return BadRequest(result);
                 }
 
-                var refreshResult = await authService.RefreshToken(refreshTokenReq.DeviceGuid, refreshTokenReq.Token, refreshTokenReq.RefreshToken);
+                var refreshResult = await authService.RefreshToken(refreshTokenReq.DeviceGuid, refreshTokenReq.Token, refreshTokenCookie);
 
                 if (!refreshResult.Success)
                 {
@@ -93,6 +102,8 @@ namespace TaskFlow.Api.Controllers.V1
 
                 result.Result = Mapper.Map<RefreshTokenRes>(refreshResult);
                 result.Success = true;
+
+                SetRefreshTokenCookie(refreshResult.RefreshToken!, refreshResult.RefreshTokenExpiresAt);
             }
             catch (Exception ex)
             {
@@ -109,6 +120,18 @@ namespace TaskFlow.Api.Controllers.V1
         public IActionResult Check()
         {
             return Ok();
+        }
+
+        private void SetRefreshTokenCookie(string refreshToken, DateTimeOffset expires)
+        {
+            HttpContext.Response.Cookies.Append(RefreshTokenCookieName, refreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = !environment.IsDevelopment(),
+                SameSite = SameSiteMode.Strict,
+                Path = RefreshTokenCookiePath,
+                Expires = expires
+            });
         }
     }
 }
