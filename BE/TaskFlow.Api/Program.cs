@@ -1,4 +1,5 @@
-﻿using TaskFlow.Api.Configurations;
+﻿using System.Text.Json.Serialization;
+using TaskFlow.Api.Configurations;
 using TaskFlow.Common.Constants;
 using Serilog;
 
@@ -6,7 +7,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 var config = builder.Configuration;
 
-builder.Services.AddControllers().AddInvalidModelStateHandling();
+builder.Services.AddControllers()
+    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()))
+    .AddInvalidModelStateHandling();
 builder.Services.AddCoreDependencies(config, skipQuartz: builder.Environment.IsEnvironment("Testing"));
 
 builder.Services.AddApiVersionings();

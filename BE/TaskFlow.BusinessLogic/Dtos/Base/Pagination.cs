@@ -1,10 +1,50 @@
-﻿using TaskFlow.Common.Constants;
+﻿using Microsoft.EntityFrameworkCore;
+using TaskFlow.Common.Constants;
 
 namespace TaskFlow.BusinessLogic.Dtos.Base
 {
     public class Pagination<T> where T : class
     {
         public Pagination() { }
+
+        // New code pages asynchronously; the synchronous constructors above are
+        // left untouched for existing callers (f01-workflow.md T5).
+        public static async Task<Pagination<T>> CreateAsync(
+            IQueryable<T> query,
+            int pageNumber = GlobalConstants.PageConfig.Start,
+            int pageSize = GlobalConstants.PageConfig.Length)
+        {
+            if (pageNumber <= 0)
+            {
+                pageNumber = GlobalConstants.PageConfig.Start;
+            }
+
+            if (pageSize <= 0)
+            {
+                pageSize = GlobalConstants.PageConfig.Length;
+            }
+
+            if (pageSize > GlobalConstants.PageConfig.MaxLength)
+            {
+                pageSize = GlobalConstants.PageConfig.MaxLength;
+            }
+
+            var totalItems = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+            var items = await query
+                .Skip((pageNumber - GlobalConstants.PageConfig.Start) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return new Pagination<T>
+            {
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalItems = totalItems,
+                TotalPages = totalPages,
+                Items = items,
+            };
+        }
 
         public Pagination(IQueryable<T> iQuery, int pageNumber = GlobalConstants.PageConfig.Start, int pageSize = GlobalConstants.PageConfig.Length)
         {

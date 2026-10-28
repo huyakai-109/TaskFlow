@@ -41,6 +41,11 @@
             public const string Password = "DevSeed:Password";
         }
 
+        public struct Workflow
+        {
+            public const string TimeZone = "Workflow:TimeZone";
+        }
+
         public struct MinIO
         {
             public const string Endpoint = "MinIO:Endpoint";

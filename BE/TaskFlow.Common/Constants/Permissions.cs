@@ -8,7 +8,14 @@
             Members.CreateMembers,
             Members.UpdateMembers,
             Members.DeleteMembers,
-            Reports.ManageReports
+            Reports.ManageReports,
+            Tasks.ViewTasks,
+            Tasks.CreateTasks,
+            Tasks.UpdateTasks,
+            Tasks.MoveTasks,
+            Tasks.AssignTasks,
+            Tasks.DeleteTasks,
+            Tasks.ReopenTasks,
         ];
 
         /// <summary>
@@ -26,6 +33,17 @@
         public struct Reports
         {
             public const string ManageReports = "ManageReports";
+        }
+
+        public struct Tasks
+        {
+            public const string ViewTasks = "ViewTasks";
+            public const string CreateTasks = "CreateTasks";
+            public const string UpdateTasks = "UpdateTasks";
+            public const string MoveTasks = "MoveTasks";
+            public const string AssignTasks = "AssignTasks";
+            public const string DeleteTasks = "DeleteTasks";
+            public const string ReopenTasks = "ReopenTasks";
         }
     }
 }

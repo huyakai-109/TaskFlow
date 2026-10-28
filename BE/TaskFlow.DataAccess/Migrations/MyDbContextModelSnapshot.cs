@@ -237,6 +237,83 @@ namespace TaskFlow.DataAccess.Migrations
                         },
                         new
                         {
+                            Id = 6,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "ViewTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 1L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 7,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "CreateTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 1L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 8,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "UpdateTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 1L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 9,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "MoveTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 1L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 10,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "AssignTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 1L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 11,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "DeleteTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 1L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 12,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "ReopenTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 1L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
                             Id = 1001,
                             ClaimType = "RolePolicy",
                             ClaimValue = "ViewMembers",
@@ -289,7 +366,301 @@ namespace TaskFlow.DataAccess.Migrations
                             RoleId = 3L,
                             UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
                             UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 1006,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "ViewTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 3L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 1007,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "CreateTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 3L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 1008,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "UpdateTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 3L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 1009,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "MoveTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 3L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 1010,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "AssignTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 3L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 1011,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "DeleteTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 3L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 1012,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "ReopenTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 3L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 2001,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "ViewTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 4L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 2002,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "CreateTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 4L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 2003,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "UpdateTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 4L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 2004,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "MoveTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 4L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 2005,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "AssignTasks",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 4L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
                         });
+                });
+
+            modelBuilder.Entity("TaskFlow.DataAccess.Entities.TaskHistory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Event")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FromValue")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<long>("TaskId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ToValue")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("UpdatedBy")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("TaskId", "CreatedAt", "Id")
+                        .HasDatabaseName("IX_TaskHistories_TaskId_CreatedAt_Id");
+
+                    b.ToTable("TaskHistories");
+                });
+
+            modelBuilder.Entity("TaskFlow.DataAccess.Entities.TaskItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("AssigneeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(4000)
+                        .HasColumnType("varchar(4000)");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsOverdue")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("UpdatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssigneeId");
+
+                    b.HasIndex("IsDeleted", "Status", "CompletedAt")
+                        .HasDatabaseName("IX_Tasks_IsDeleted_Status_CompletedAt");
+
+                    b.HasIndex("IsDeleted", "Status", "Priority", "DueDate")
+                        .HasDatabaseName("IX_Tasks_IsDeleted_Status_Priority_DueDate");
+
+                    b.ToTable("Tasks");
+                });
+
+            modelBuilder.Entity("TaskFlow.DataAccess.Entities.TaskNotification", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Event")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTimeOffset?>("ReadAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("RecipientUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TaskId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long>("UpdatedBy")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecipientUserId");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("TaskNotifications");
                 });
 
             modelBuilder.Entity("TaskFlow.DataAccess.Entities.User", b =>
@@ -563,6 +934,43 @@ namespace TaskFlow.DataAccess.Migrations
                         .IsRequired();
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("TaskFlow.DataAccess.Entities.TaskHistory", b =>
+                {
+                    b.HasOne("TaskFlow.DataAccess.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("TaskFlow.DataAccess.Entities.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TaskFlow.DataAccess.Entities.TaskItem", b =>
+                {
+                    b.HasOne("TaskFlow.DataAccess.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("AssigneeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("TaskFlow.DataAccess.Entities.TaskNotification", b =>
+                {
+                    b.HasOne("TaskFlow.DataAccess.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("RecipientUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TaskFlow.DataAccess.Entities.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("TaskFlow.DataAccess.Entities.UserClaim", b =>

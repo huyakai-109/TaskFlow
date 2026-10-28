@@ -14,6 +14,13 @@ namespace TaskFlow.Repositories.UoW
 
         IBaseRepository<TEntity> GetRepository<TEntity>()
             where TEntity : class;
+
+        // Only for the multi-aggregate-write case (dotnet-patterns.md Recipe 8):
+        // a read determines a written value, e.g. a child row's FK needs a
+        // parent's identity-generated id before it can be inserted. A
+        // single-aggregate write never needs this - SaveChanges() alone is
+        // already transactional.
+        MyDbContext DbContext { get; }
     }
 
     public class UnitOfWork(
@@ -22,6 +29,8 @@ namespace TaskFlow.Repositories.UoW
     {
         private readonly MyDbContext _context = context ?? throw new ArgumentNullException(nameof(context));
         private readonly Dictionary<Type, object> _repositories = new();
+
+        public MyDbContext DbContext => _context;
 
         public IBaseRepository<TEntity> GetRepository<TEntity>()
             where TEntity : class

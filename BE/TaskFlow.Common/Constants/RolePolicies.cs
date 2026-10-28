@@ -17,6 +17,13 @@
                 Permissions.Members.DeleteMembers,
                 Permissions.Members.UpdateMembers,
                 Permissions.Reports.ManageReports,
+                Permissions.Tasks.ViewTasks,
+                Permissions.Tasks.CreateTasks,
+                Permissions.Tasks.UpdateTasks,
+                Permissions.Tasks.MoveTasks,
+                Permissions.Tasks.AssignTasks,
+                Permissions.Tasks.DeleteTasks,
+                Permissions.Tasks.ReopenTasks,
             ];
         }
 
@@ -33,6 +40,13 @@
                 Permissions.Members.DeleteMembers,
                 Permissions.Members.UpdateMembers,
                 Permissions.Reports.ManageReports,
+                Permissions.Tasks.ViewTasks,
+                Permissions.Tasks.CreateTasks,
+                Permissions.Tasks.UpdateTasks,
+                Permissions.Tasks.MoveTasks,
+                Permissions.Tasks.AssignTasks,
+                Permissions.Tasks.DeleteTasks,
+                Permissions.Tasks.ReopenTasks,
             ];
         }
 
@@ -44,7 +58,11 @@
 
             public static readonly string[] AllowedPermissions =
             [
-
+                Permissions.Tasks.ViewTasks,
+                Permissions.Tasks.CreateTasks,
+                Permissions.Tasks.UpdateTasks,
+                Permissions.Tasks.MoveTasks,
+                Permissions.Tasks.AssignTasks,
             ];
         }
     }
