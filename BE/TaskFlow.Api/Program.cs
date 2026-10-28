@@ -58,9 +58,16 @@ app.MapControllers();
 
 app.UseMetricExporters();
 
-app.RunMigration();
+// BE/TaskFlow.Tests's DatabaseFixture (an xUnit collection fixture, shared by
+// every DB-touching test class in the "Database" collection) is the single
+// migrator for "mydb_test" - it runs once before any test in that collection
+// starts. A WebApplicationFactory-hosted app must not also migrate here: with
+// several test classes each building their own host, concurrent
+// Database.Migrate() calls raced to CREATE DATABASE and failed CI
+// intermittently ("Can't create database 'mydb_test'; database exists").
 if (!app.Environment.IsEnvironment("Testing"))
 {
+    app.RunMigration();
     app.RunQuartzMigration();
 }
 

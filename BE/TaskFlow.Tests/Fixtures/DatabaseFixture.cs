@@ -8,6 +8,18 @@ namespace TaskFlow.Tests.Fixtures
 {
     // Guards every test run against the real "mydb": this fixture may only
     // migrate and clean a database whose name ends with "_test".
+    //
+    // The single migrator for "mydb_test": every test class that touches the
+    // database - directly, or indirectly by booting a TestWebApplicationFactory
+    // host - must carry [Collection(DatabaseCollection.Name)] so it shares this
+    // one instance and runs serially with every other class in the collection.
+    // xUnit constructs a collection fixture once, before any test in that
+    // collection runs, so InitializeAsync's migration always completes first.
+    // Program.cs skips its own startup migration under the "Testing"
+    // environment for the same reason: two migrators racing to CREATE DATABASE
+    // concurrently is what broke CI ("Can't create database 'mydb_test';
+    // database exists") - a class left out of this collection (or an app host
+    // that migrates on its own) reintroduces that race.
     public class DatabaseFixture : IAsyncLifetime
     {
         private static readonly MySqlServerVersion ServerVersion = new(new Version(8, 4, 0));
