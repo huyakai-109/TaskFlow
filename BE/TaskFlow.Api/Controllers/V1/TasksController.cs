@@ -53,6 +53,39 @@ namespace TaskFlow.Api.Controllers.V1
             }
         }
 
+        [HttpPut]
+        [Route("{id:long}/status")]
+        [Authorize(Policy = Permissions.Tasks.MoveTasks)]
+        [ProducesResponseType(typeof(ResultRes<TaskDetailRes>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Move([FromRoute] long id, TaskMoveReq request)
+        {
+            var response = new ResultRes<TaskDetailRes>();
+
+            try
+            {
+                var actorUserId = this.User.Claims.GetUserId();
+                var callerPermissions = this.User.Claims.GetUserRoleClaims();
+
+                var (errorCode, task) = await taskService.Move(id, Mapper.Map<TaskMoveReqDto>(request), actorUserId, callerPermissions);
+
+                if (!string.IsNullOrEmpty(errorCode))
+                {
+                    response.ErrorCode = errorCode;
+                    return BadRequest(response);
+                }
+
+                response.Success = true;
+                response.Result = Mapper.Map<TaskDetailRes>(task);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                response.ErrorCode = TaskControllerMS.Move.Exception;
+                Logger.LogError(ex, "Move task {Id} failed", id);
+                return InternalServerError(response);
+            }
+        }
+
         [HttpGet]
         [Route("{id:long}")]
         [Authorize(Policy = Permissions.Tasks.ViewTasks)]
