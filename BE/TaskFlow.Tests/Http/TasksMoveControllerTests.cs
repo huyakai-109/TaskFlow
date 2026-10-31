@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 using TaskFlow.Api.Models.Responses.Auth;
 using TaskFlow.Api.Models.Responses.Base;
 using TaskFlow.Api.Models.Responses.Tasks;
@@ -392,8 +393,8 @@ namespace TaskFlow.Tests.Http
 
             await using var contextA = _dbFixture.CreateContext();
             await using var contextB = _dbFixture.CreateContext();
-            var serviceA = new TaskService(configuration, new UnitOfWork(contextA, new HttpContextAccessor()));
-            var serviceB = new TaskService(configuration, new UnitOfWork(contextB, new HttpContextAccessor()));
+            var serviceA = new TaskService(configuration, new UnitOfWork(contextA, new HttpContextAccessor()), NullLogger<TaskService>.Instance);
+            var serviceB = new TaskService(configuration, new UnitOfWork(contextB, new HttpContextAccessor()), NullLogger<TaskService>.Instance);
 
             var moveDto = new TaskMoveReqDto { Status = TaskWorkflowStatus.InProgress, Version = atTodo.Version };
             var permissions = new[] { Permissions.Tasks.MoveTasks };
@@ -447,6 +448,30 @@ namespace TaskFlow.Tests.Http
             await using var context = _dbFixture.CreateContext();
             var finalTask = await context.Set<TaskItem>().SingleAsync(t => t.Id == created.Id);
             Assert.Equal(TaskWorkflowStatus.InProgress, finalTask.Status);
+        }
+
+        [Fact]
+        public async Task Move_OtherDbUpdateException_IsNotTreatedAsConflict()
+        {
+            // IsDeadlock's filter matches MySQL error 1213 only. A different
+            // DbUpdateException - here, an FK violation on
+            // TaskHistories.ActorUserId caused by an actor id that doesn't
+            // exist - must propagate uncaught, so the controller's generic
+            // catch maps it to Task.Move.Exception (500), not Task.Move.Conflict.
+            var mover = await CreateAuthenticatedClientAsync("Member");
+            var task = await CreateTaskAsync(mover.Client);
+
+            var configuration = _factory.Services.GetRequiredService<IConfiguration>();
+            await using var context = _dbFixture.CreateContext();
+            var service = new TaskService(configuration, new UnitOfWork(context, new HttpContextAccessor()), NullLogger<TaskService>.Instance);
+
+            const long nonExistentActorUserId = 999_999_999;
+            var moveDto = new TaskMoveReqDto { Status = TaskWorkflowStatus.Todo, Version = task.Version };
+
+            var thrown = await Assert.ThrowsAsync<DbUpdateException>(
+                () => service.Move(task.Id, moveDto, nonExistentActorUserId, new[] { Permissions.Tasks.MoveTasks }));
+
+            Assert.False(thrown is DbUpdateConcurrencyException);
         }
 
         // ---- F04 AC18, DB level only (the read endpoint lands in slice 1.4) ----

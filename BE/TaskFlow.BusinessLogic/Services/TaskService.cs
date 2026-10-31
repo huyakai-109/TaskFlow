@@ -7,6 +7,7 @@ using TaskFlow.DataAccess.Entities;
 using TaskFlow.Repositories.UoW;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using MySqlConnector;
 
 namespace TaskFlow.BusinessLogic.Services
@@ -22,7 +23,8 @@ namespace TaskFlow.BusinessLogic.Services
 
     public class TaskService(
         IConfiguration configuration,
-        IUnitOfWork unitOfWork) : ITaskService
+        IUnitOfWork unitOfWork,
+        ILogger<TaskService> logger) : ITaskService
     {
         private readonly string _timeZone = configuration.GetSection(ConfigKeys.Workflow.TimeZone).Get<string>()!;
 
@@ -199,15 +201,19 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 // Two real concurrent writers can make InnoDB pick a deadlock
                 // victim instead of cleanly affecting 0 rows (confirmed
-                // empirically under slice 1.2's AC29 test): the victim's
-                // whole transaction is already rolled back, so this is the
-                // same "someone else moved it, please retry" case as the
-                // optimistic-concurrency miss above, not a defect to surface
-                // as 500. Pomelo's non-retrying execution strategy wraps the
-                // MySqlException two levels deep, inside an
+                // empirically under slice 1.2's AC29 test, ROADMAP R13): the
+                // victim's whole transaction is already rolled back, so this
+                // is the same "someone else moved it, please retry" case as
+                // the optimistic-concurrency miss above, not a defect to
+                // surface as 500. Pomelo's non-retrying execution strategy
+                // wraps the MySqlException two levels deep, inside an
                 // InvalidOperationException inside a DbUpdateException, so
                 // the type itself can't be matched in the catch clause -
-                // only the unwrapped chain can.
+                // only the unwrapped chain can. Any other DbUpdateException
+                // (lost connection, FK violation, ...) is deliberately left
+                // uncaught here and surfaces as Task.Move.Exception (500) in
+                // the controller - IsDeadlock only matches MySQL error 1213.
+                logger.LogWarning(ex, "Move task {Id} hit a MySQL deadlock (1213); treated as Task.Move.Conflict", id);
                 return (TaskControllerMS.Move.Conflict, null);
             }
 
