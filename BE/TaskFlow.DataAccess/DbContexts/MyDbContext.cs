@@ -26,6 +26,9 @@ namespace TaskFlow.DataAccess.DbContexts
             builder.ApplyConfiguration(new UserLoginConfiguration());
             builder.ApplyConfiguration(new UserClaimConfiguration());
             builder.ApplyConfiguration(new ExampleConfiguration());
+            builder.ApplyConfiguration(new TaskItemConfiguration());
+            builder.ApplyConfiguration(new TaskHistoryConfiguration());
+            builder.ApplyConfiguration(new TaskNotificationConfiguration());
         }
     }
 }
