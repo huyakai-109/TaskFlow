@@ -474,6 +474,37 @@ namespace TaskFlow.Tests.Http
             Assert.False(thrown is DbUpdateConcurrencyException);
         }
 
+        [Fact]
+        public async Task Move_RealDatabaseFailure_ThroughHttp_ReturnsExceptionCode_NotConflict()
+        {
+            // End-to-end counterpart to Move_OtherDbUpdateException_IsNotTreatedAsConflict:
+            // a genuine FK violation reached through the real HTTP pipeline
+            // (not a direct service call) still surfaces as Task.Move.Exception
+            // (500), confirming TasksController's generic catch - not IsDeadlock -
+            // handles it. "doomed" never creates a task (so no existing history
+            // row references it yet, and its row can be hard-deleted), then
+            // moves this task: the JWT stays valid after its user row is gone
+            // (bearer auth doesn't re-query Users per request), so the new
+            // StatusChanged entry's ActorUserId FK violates on write.
+            var creator = await CreateAuthenticatedClientAsync("Member");
+            var doomed = await CreateAuthenticatedClientAsync("Member");
+            var task = await CreateTaskAsync(creator.Client);
+
+            await using (var context = _dbFixture.CreateContext())
+            {
+                context.RemoveRange(context.Set<UserRole>().Where(ur => ur.UserId == doomed.UserId));
+                context.RemoveRange(context.Set<UserToken>().Where(t => t.UserId == doomed.UserId));
+                context.Remove(await context.Set<User>().SingleAsync(u => u.Id == doomed.UserId));
+                await context.SaveChangesAsync();
+            }
+
+            var response = await doomed.Client.PutAsJsonAsync($"api/v1/tasks/{task.Id}/status", new { status = "Todo", version = task.Version });
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
+
+            Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+            Assert.Equal(TaskControllerMS.Move.Exception, body!.ErrorCode);
+        }
+
         // ---- F04 AC18, DB level only (the read endpoint lands in slice 1.4) ----
 
         [Fact]
