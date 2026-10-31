@@ -5,7 +5,9 @@ using TaskFlow.Common.Enums;
 using TaskFlow.Common.Helpers;
 using TaskFlow.DataAccess.Entities;
 using TaskFlow.Repositories.UoW;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using MySqlConnector;
 
 namespace TaskFlow.BusinessLogic.Services
 {
@@ -14,6 +16,8 @@ namespace TaskFlow.BusinessLogic.Services
         Task<(string ErrorCode, TaskDetailResDto? Task)> Create(TaskCreateReqDto requestDto, long actorUserId, string[] callerPermissions);
 
         Task<(string ErrorCode, TaskDetailResDto? Task)> Get(long id, long actorUserId, string[] callerPermissions);
+
+        Task<(string ErrorCode, TaskDetailResDto? Task)> Move(long id, TaskMoveReqDto requestDto, long actorUserId, string[] callerPermissions);
     }
 
     public class TaskService(
@@ -107,6 +111,127 @@ namespace TaskFlow.BusinessLogic.Services
             }
 
             return (string.Empty, BuildDetail(task, assigneeUserName, actorUserId, callerPermissions));
+        }
+
+        // D3 + T2 validation order: existence -> version -> transition validity
+        // (same-status, then the transition table) -> actor rule (D5). F02's
+        // capacity guard is not implemented yet, so RequiresAssignee and
+        // ConsumesCapacity are not checked here (T3: AssigneeRequired /
+        // CapacityReached are reserved for F02).
+        public async Task<(string ErrorCode, TaskDetailResDto? Task)> Move(long id, TaskMoveReqDto requestDto, long actorUserId, string[] callerPermissions)
+        {
+            var query = await unitOfWork.GetRepository<TaskItem>().QueryCondition(i => i.Id == id, disableTracking: false);
+            var task = query.FirstOrDefault();
+
+            if (task == null)
+            {
+                return (TaskControllerMS.Move.NotFound, null);
+            }
+
+            if (task.Version != requestDto.Version)
+            {
+                return (TaskControllerMS.Move.Conflict, null);
+            }
+
+            if (requestDto.Status == task.Status)
+            {
+                return (TaskControllerMS.Move.SameStatus, null);
+            }
+
+            var edge = TaskTransitions.FindMove(task.Status, requestDto.Status);
+            if (edge == null)
+            {
+                return (TaskControllerMS.Move.InvalidTransition, null);
+            }
+
+            if (edge.ActorMustNotBeAssignee && task.AssigneeId.HasValue && task.AssigneeId.Value == actorUserId)
+            {
+                return (TaskControllerMS.Move.ActorIsAssignee, null);
+            }
+
+            var fromStatus = task.Status;
+            task.Status = requestDto.Status;
+
+            if (task.Status == TaskWorkflowStatus.Done)
+            {
+                var today = TodayInZone();
+                task.CompletedAt = DateTimeHelper.GetDtOffset();
+                task.IsOverdue = TaskOverdueRule.IsOverdue(task.DueDate, TaskWorkflowStatus.Done, today);
+            }
+
+            task.Version = Guid.NewGuid();
+
+            var history = new TaskHistory
+            {
+                TaskId = task.Id,
+                Event = TaskHistoryEvent.StatusChanged,
+                ActorUserId = actorUserId,
+                FromValue = fromStatus.ToString(),
+                ToValue = task.Status.ToString(),
+            };
+            await unitOfWork.GetRepository<TaskHistory>().Add(history);
+
+            // D7: a rework move raises the assignee's one in-app notification.
+            // Named explicitly by edge rather than "ActorMustNotBeAssignee &&
+            // RequiresAssignee", which Review->Done also satisfies.
+            if (edge.From == TaskWorkflowStatus.Review && edge.To == TaskWorkflowStatus.InProgress && task.AssigneeId.HasValue)
+            {
+                var notification = new TaskNotification
+                {
+                    RecipientUserId = task.AssigneeId.Value,
+                    TaskId = task.Id,
+                    Event = TaskNotificationEvent.ReturnedForRework,
+                };
+                await unitOfWork.GetRepository<TaskNotification>().Add(notification);
+            }
+
+            try
+            {
+                // Exactly one SaveChanges(): task update + history insert +
+                // notification insert commit together or not at all (AC31).
+                await unitOfWork.SaveChanges();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return (TaskControllerMS.Move.Conflict, null);
+            }
+            catch (Exception ex) when (IsDeadlock(ex))
+            {
+                // Two real concurrent writers can make InnoDB pick a deadlock
+                // victim instead of cleanly affecting 0 rows (confirmed
+                // empirically under slice 1.2's AC29 test): the victim's
+                // whole transaction is already rolled back, so this is the
+                // same "someone else moved it, please retry" case as the
+                // optimistic-concurrency miss above, not a defect to surface
+                // as 500. Pomelo's non-retrying execution strategy wraps the
+                // MySqlException two levels deep, inside an
+                // InvalidOperationException inside a DbUpdateException, so
+                // the type itself can't be matched in the catch clause -
+                // only the unwrapped chain can.
+                return (TaskControllerMS.Move.Conflict, null);
+            }
+
+            string? assigneeUserName = null;
+            if (task.AssigneeId.HasValue)
+            {
+                var assignee = await unitOfWork.GetRepository<User>().FindById(task.AssigneeId.Value);
+                assigneeUserName = assignee?.UserName;
+            }
+
+            return (string.Empty, BuildDetail(task, assigneeUserName, actorUserId, callerPermissions));
+        }
+
+        private static bool IsDeadlock(Exception ex)
+        {
+            for (var current = ex; current != null; current = current.InnerException)
+            {
+                if (current is MySqlException { ErrorCode: MySqlErrorCode.LockDeadlock })
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private DateOnly TodayInZone()

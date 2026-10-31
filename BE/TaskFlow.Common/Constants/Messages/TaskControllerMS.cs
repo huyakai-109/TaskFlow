@@ -18,5 +18,17 @@ namespace TaskFlow.Common.Constants.Messages
             public const string NotFound = "Task.Get.NotFound";
             public const string Exception = "Task.Get.Exception";
         }
+
+        // AssigneeRequired / CapacityReached are reserved for F02 (slice 1.2's
+        // move does not enforce RequiresAssignee/ConsumesCapacity yet, f01-workflow.md T3).
+        public struct Move
+        {
+            public const string NotFound = "Task.Move.NotFound";
+            public const string Conflict = "Task.Move.Conflict";
+            public const string InvalidTransition = "Task.Move.InvalidTransition";
+            public const string SameStatus = "Task.Move.SameStatus";
+            public const string ActorIsAssignee = "Task.Move.ActorIsAssignee";
+            public const string Exception = "Task.Move.Exception";
+        }
     }
 }

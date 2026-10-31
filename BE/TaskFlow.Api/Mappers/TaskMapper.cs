@@ -10,6 +10,7 @@ namespace TaskFlow.Api.Mappers
         public TaskMapper()
         {
             CreateMap<TaskCreateReq, TaskCreateReqDto>();
+            CreateMap<TaskMoveReq, TaskMoveReqDto>();
             CreateMap<AllowedTransitionResDto, AllowedTransitionRes>();
             CreateMap<TaskDetailResDto, TaskDetailRes>()
                 .ForMember(dest => dest.Assignee, opt => opt.MapFrom(src => src.AssigneeId.HasValue
