@@ -30,5 +30,15 @@ namespace TaskFlow.Common.Constants.Messages
             public const string ActorIsAssignee = "Task.Move.ActorIsAssignee";
             public const string Exception = "Task.Move.Exception";
         }
+
+        // Done -> Review only, validated against TaskTransitions.Reopens, not
+        // Moves (f01-workflow.md T3/T4, D6, AC6, AC13).
+        public struct Reopen
+        {
+            public const string NotFound = "Task.Reopen.NotFound";
+            public const string Conflict = "Task.Reopen.Conflict";
+            public const string InvalidTransition = "Task.Reopen.InvalidTransition";
+            public const string Exception = "Task.Reopen.Exception";
+        }
     }
 }

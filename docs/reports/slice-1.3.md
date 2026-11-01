@@ -31,3 +31,38 @@ Closes: F01 AC6, AC21–AC23, D6, D7; F04 AC6. Fully within the signed-off contr
 ## Agent
 
 Delegated to `backend-lead`. Files in scope: `TaskControllerMS.cs`, `NotificationControllerMS.cs` (new), `TaskService.cs` (add `Reopen`), `NotificationService.cs` (new) + interface, `TasksController.cs` (add reopen action), `NotificationsController.cs` (new), DTOs, response models, AutoMapper profile, `CoreDependencyConfiguration.AddServices` registration, tests under `BE/TaskFlow.Tests`.
+
+## Result
+
+Diff reviewed directly (not just the agent's report): `TaskService.Reopen` follows `Move`'s exact pattern — existence → version → `TaskTransitions.FindReopen` → mutate → bump `Version` → append `Reopened` history (reason verbatim, F04 AC6) and, only when the overdue recompute flips false→true, a second `OverdueMarked` entry actor'd to the reopening user — both inside the one `SaveChanges()`, guarded by the same two-catch concurrency pattern as `Move` (`DbUpdateConcurrencyException` + the MySQL-1213 deadlock unwrap, now shared via `TaskConcurrencyHelper.IsDeadlock`, a pure lift with no behavior change to `Move`). Notification read side (`GetList`, `MarkRead`) matches T5 endpoints 13–14: own rows only, non-deleted-task join via `TaskItem`'s existing query filter, idempotent mark-read, 404 not 403 on another user's notification. No migration needed (`dotnet ef migrations has-pending-model-changes` → none; entities/permissions already landed in 1.1/1.2).
+
+One minor deviation flagged by the agent and accepted: new controller actions don't call `TrimData()`, matching this controller's existing `Create`/`Move` actions, which already don't either — followed the established code over the written T5 convention (`coding-standards.md` §1).
+
+### Verification
+
+```
+Build:   PASS   dotnet build BE/TaskFlow.sln -c Debug → 0 Warning(s), 0 Error(s)
+Tests:   PASS   dotnet test BE/TaskFlow.Tests, run 3x consecutively against real MySQL
+                 run 1: 77 passed, 0 failed, 0 skipped (58s)
+                 run 2: 77 passed, 0 failed, 0 skipped (56s)
+                 run 3: 77 passed, 0 failed, 0 skipped (57s)
+                 No flake. New tests: TasksReopenControllerTests, NotificationsControllerTests.
+Checked: diff read in full by the orchestrator, not just the subagent's report.
+Not covered: no additional manual HTTP exercise beyond the xUnit HTTP-level test suite (same
+             level slice 1.2 was verified at).
+```
+
+### AC checklist
+
+| AC | Status | Evidence |
+|---|---|---|
+| F01 AC6 (reopen happy path, reason stored) | PASS | `TasksReopenControllerTests` happy-path test, passing in all 3 runs |
+| F01 AC21 (Member without ReopenTasks → 403) | PASS | same suite |
+| F01 AC22 (blank/whitespace reason → shape error) | PASS | same suite |
+| F01 AC23 (overdue recompute on reopen) | PASS | same suite |
+| F01 D7 (notification read side) | PASS | `NotificationsControllerTests` |
+| F04 AC6 (reason verbatim in history) | PASS | same test as AC6 |
+
+Note: slice 1.2's environment blocker (no Docker/MySQL reachable in the orchestrator's first session) was resolved by the user starting `taskflow.mysql`; verification above ran after that, directly by the orchestrator, not just by the subagent.
+
+Status: **Built**, not yet Done — awaiting the batch's slice-1.4 checkpoint and the user's final acceptance.

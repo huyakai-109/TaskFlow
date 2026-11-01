@@ -86,6 +86,39 @@ namespace TaskFlow.Api.Controllers.V1
             }
         }
 
+        [HttpPut]
+        [Route("{id:long}/reopen")]
+        [Authorize(Policy = Permissions.Tasks.ReopenTasks)]
+        [ProducesResponseType(typeof(ResultRes<TaskDetailRes>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Reopen([FromRoute] long id, TaskReopenReq request)
+        {
+            var response = new ResultRes<TaskDetailRes>();
+
+            try
+            {
+                var actorUserId = this.User.Claims.GetUserId();
+                var callerPermissions = this.User.Claims.GetUserRoleClaims();
+
+                var (errorCode, task) = await taskService.Reopen(id, Mapper.Map<TaskReopenReqDto>(request), actorUserId, callerPermissions);
+
+                if (!string.IsNullOrEmpty(errorCode))
+                {
+                    response.ErrorCode = errorCode;
+                    return BadRequest(response);
+                }
+
+                response.Success = true;
+                response.Result = Mapper.Map<TaskDetailRes>(task);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                response.ErrorCode = TaskControllerMS.Reopen.Exception;
+                Logger.LogError(ex, "Reopen task {Id} failed", id);
+                return InternalServerError(response);
+            }
+        }
+
         [HttpGet]
         [Route("{id:long}")]
         [Authorize(Policy = Permissions.Tasks.ViewTasks)]

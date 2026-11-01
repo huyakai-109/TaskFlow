@@ -8,7 +8,6 @@ using TaskFlow.Repositories.UoW;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using MySqlConnector;
 
 namespace TaskFlow.BusinessLogic.Services
 {
@@ -19,6 +18,8 @@ namespace TaskFlow.BusinessLogic.Services
         Task<(string ErrorCode, TaskDetailResDto? Task)> Get(long id, long actorUserId, string[] callerPermissions);
 
         Task<(string ErrorCode, TaskDetailResDto? Task)> Move(long id, TaskMoveReqDto requestDto, long actorUserId, string[] callerPermissions);
+
+        Task<(string ErrorCode, TaskDetailResDto? Task)> Reopen(long id, TaskReopenReqDto requestDto, long actorUserId, string[] callerPermissions);
     }
 
     public class TaskService(
@@ -197,7 +198,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return (TaskControllerMS.Move.Conflict, null);
             }
-            catch (Exception ex) when (IsDeadlock(ex))
+            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
             {
                 // Two real concurrent writers can make InnoDB pick a deadlock
                 // victim instead of cleanly affecting 0 rows (confirmed
@@ -227,17 +228,95 @@ namespace TaskFlow.BusinessLogic.Services
             return (string.Empty, BuildDetail(task, assigneeUserName, actorUserId, callerPermissions));
         }
 
-        private static bool IsDeadlock(Exception ex)
+        // D6/AC6: validated against TaskTransitions.Reopens only - Done is not
+        // reachable through Move (AC13). Same validation order as Move
+        // (existence -> version -> transition) minus the actor rule, which
+        // the Done->Review edge does not carry. AC21 (ReopenTasks) is the
+        // [Authorize(Policy)] 403; AC22 (blank reason) is TaskReopenReq's
+        // [Required] shape rule - neither needs a check here.
+        public async Task<(string ErrorCode, TaskDetailResDto? Task)> Reopen(long id, TaskReopenReqDto requestDto, long actorUserId, string[] callerPermissions)
         {
-            for (var current = ex; current != null; current = current.InnerException)
+            var query = await unitOfWork.GetRepository<TaskItem>().QueryCondition(i => i.Id == id, disableTracking: false);
+            var task = query.FirstOrDefault();
+
+            if (task == null)
             {
-                if (current is MySqlException { ErrorCode: MySqlErrorCode.LockDeadlock })
-                {
-                    return true;
-                }
+                return (TaskControllerMS.Reopen.NotFound, null);
             }
 
-            return false;
+            if (task.Version != requestDto.Version)
+            {
+                return (TaskControllerMS.Reopen.Conflict, null);
+            }
+
+            var edge = TaskTransitions.FindReopen(task.Status, TaskWorkflowStatus.Review);
+            if (edge == null)
+            {
+                return (TaskControllerMS.Reopen.InvalidTransition, null);
+            }
+
+            var today = TodayInZone();
+            var wasOverdue = task.IsOverdue;
+
+            task.Status = TaskWorkflowStatus.Review;
+            task.CompletedAt = null;
+            task.IsOverdue = TaskOverdueRule.IsOverdue(task.DueDate, task.Status, today);
+            task.Version = Guid.NewGuid();
+
+            var history = new TaskHistory
+            {
+                TaskId = task.Id,
+                Event = TaskHistoryEvent.Reopened,
+                ActorUserId = actorUserId,
+                FromValue = nameof(TaskWorkflowStatus.Done),
+                ToValue = nameof(TaskWorkflowStatus.Review),
+                Reason = requestDto.Reason,
+            };
+            await unitOfWork.GetRepository<TaskHistory>().Add(history);
+
+            // AC23 + f01-workflow.md T7 assumption: reopening a task whose due
+            // date has already passed writes a second entry, OverdueMarked,
+            // whose actor is the reopening user (not System - F04 AC8
+            // constrains only the nightly job's actor). Both entries commit in
+            // this same SaveChanges() (AC31, F04 AC10).
+            if (!wasOverdue && task.IsOverdue)
+            {
+                var overdueHistory = new TaskHistory
+                {
+                    TaskId = task.Id,
+                    Event = TaskHistoryEvent.OverdueMarked,
+                    ActorUserId = actorUserId,
+                };
+                await unitOfWork.GetRepository<TaskHistory>().Add(overdueHistory);
+            }
+
+            try
+            {
+                await unitOfWork.SaveChanges();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return (TaskControllerMS.Reopen.Conflict, null);
+            }
+            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            {
+                // Same MySQL 1213 lock-upgrade deadlock Move hits under
+                // concurrent writers (ROADMAP R13); reopen inserts into
+                // TaskHistories in the same SaveChanges() as its UPDATE, so the
+                // identical mechanism applies here. See TaskService.Move's
+                // catch clause for the full explanation.
+                logger.LogWarning(ex, "Reopen task {Id} hit a MySQL deadlock (1213); treated as Task.Reopen.Conflict", id);
+                return (TaskControllerMS.Reopen.Conflict, null);
+            }
+
+            string? assigneeUserName = null;
+            if (task.AssigneeId.HasValue)
+            {
+                var assignee = await unitOfWork.GetRepository<User>().FindById(task.AssigneeId.Value);
+                assigneeUserName = assignee?.UserName;
+            }
+
+            return (string.Empty, BuildDetail(task, assigneeUserName, actorUserId, callerPermissions));
         }
 
         private DateOnly TodayInZone()
