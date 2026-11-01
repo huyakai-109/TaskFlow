@@ -3,13 +3,19 @@ import type { ReactNode } from 'react'
 import type { TaskDetail, TaskPriority } from '../../../api/types'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
-import styles from './PropertiesPanel.module.css'
-
 const dateTimeFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' })
 
 function formatInstant(value: string): string {
   return dateTimeFormatter.format(new Date(value))
 }
+
+const labelClass = 'text-[length:var(--font-size-sm)] text-text-muted'
+const selectOrDateInputClass =
+  'min-h-9 rounded-sm border border-border bg-surface px-[var(--space-2)] text-[length:var(--font-size-sm)] text-text [font:inherit] disabled:opacity-60'
+const linkButtonClass =
+  'cursor-pointer border-0 bg-transparent text-[length:var(--font-size-sm)] text-accent-ink underline [font:inherit] disabled:cursor-not-allowed disabled:text-text-muted disabled:no-underline'
+const pendingClass = 'text-[length:var(--font-size-xs)] text-text-muted'
+const fieldErrorClass = 'm-0 text-[length:var(--font-size-xs)] text-danger'
 
 interface PropertyRowProps {
   label: string
@@ -19,15 +25,17 @@ interface PropertyRowProps {
 
 function PropertyRow({ label, htmlFor, children }: PropertyRowProps) {
   return (
-    <div className={styles.row}>
+    <div className="grid min-h-10 grid-cols-[96px_minmax(0,1fr)] items-center gap-[var(--space-2)]">
       {htmlFor === undefined ? (
-        <span className={styles.label}>{label}</span>
+        <span className={labelClass}>{label}</span>
       ) : (
-        <label htmlFor={htmlFor} className={styles.label}>
+        <label htmlFor={htmlFor} className={labelClass}>
           {label}
         </label>
       )}
-      <span className={styles.value}>{children}</span>
+      <span className="flex flex-wrap items-center gap-[var(--space-2)] text-[length:var(--font-size-base)]">
+        {children}
+      </span>
     </div>
   )
 }
@@ -70,13 +78,16 @@ export function PropertiesPanel({
   isAssigneePending,
 }: PropertiesPanelProps) {
   return (
-    <aside aria-label="Properties" className={styles.panel}>
+    <aside
+      aria-label="Properties"
+      className="flex min-w-[260px] max-w-[360px] flex-[1_1_300px] flex-col gap-[var(--space-1)] rounded-xl border border-border bg-column p-[var(--space-5)]"
+    >
       <PropertyRow label="Status">{STATUS_LABELS[task.status]}</PropertyRow>
 
       <PropertyRow label="Priority" htmlFor="pp-priority">
         <select
           id="pp-priority"
-          className={styles.select}
+          className={selectOrDateInputClass}
           value={task.priority}
           disabled={isPriorityPending}
           onChange={(event) => onEditPriority(event.target.value as TaskPriority)}
@@ -88,28 +99,23 @@ export function PropertiesPanel({
           ))}
         </select>
         {isPriorityPending && (
-          <span role="status" className={styles.pending}>
+          <span role="status" className={pendingClass}>
             Saving…
           </span>
         )}
       </PropertyRow>
       {priorityError !== null && (
-        <p role="alert" className={styles.fieldError}>
+        <p role="alert" className={fieldErrorClass}>
           {priorityError}
         </p>
       )}
 
       <PropertyRow label="Assignee">
-        <button
-          type="button"
-          className={styles.linkButton}
-          disabled={isAssigneePending}
-          onClick={onOpenAssigneePicker}
-        >
+        <button type="button" className={linkButtonClass} disabled={isAssigneePending} onClick={onOpenAssigneePicker}>
           {task.assignee !== null ? task.assignee.userName : 'Unassigned'}
         </button>
         {isAssigneePending && (
-          <span role="status" className={styles.pending}>
+          <span role="status" className={pendingClass}>
             Saving…
           </span>
         )}
@@ -119,30 +125,25 @@ export function PropertiesPanel({
         <input
           id="pp-due-date"
           type="date"
-          className={styles.dateInput}
+          className={selectOrDateInputClass}
           value={task.dueDate ?? ''}
           disabled={isDueDatePending}
           onChange={(event) => onEditDueDate(event.target.value.length > 0 ? event.target.value : null)}
         />
         {task.dueDate !== null && (
-          <button
-            type="button"
-            className={styles.linkButton}
-            disabled={isDueDatePending}
-            onClick={() => onEditDueDate(null)}
-          >
+          <button type="button" className={linkButtonClass} disabled={isDueDatePending} onClick={() => onEditDueDate(null)}>
             Clear
           </button>
         )}
-        {task.isOverdue && <span className={styles.overdue}>Overdue</span>}
+        {task.isOverdue && <span className="font-semibold text-overdue">Overdue</span>}
         {isDueDatePending && (
-          <span role="status" className={styles.pending}>
+          <span role="status" className={pendingClass}>
             Saving…
           </span>
         )}
       </PropertyRow>
       {dueDateError !== null && (
-        <p role="alert" className={styles.fieldError}>
+        <p role="alert" className={fieldErrorClass}>
           {dueDateError}
         </p>
       )}

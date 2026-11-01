@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
@@ -10,13 +11,16 @@ import { fieldErrorMap } from '../../../shared/lib/fieldErrors'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 import { useCreateTaskMutation } from '../hooks/useCreateTaskMutation'
 
-import styles from './NewTaskDialog.module.css'
-
 // Mirrors TaskCreateReq's [MaxLength] attributes (coding-standards.md "limits
 // agree across layers") — the server is still the real enforcer.
 const TITLE_MAX = 200
 const DESCRIPTION_MAX = 4000
 const PRIORITIES: TaskPriority[] = ['Urgent', 'High', 'Normal']
+
+const fieldClass = 'flex flex-col gap-[var(--space-1)]'
+const labelClass = 'text-[length:var(--font-size-sm)] font-medium text-text-muted'
+const fieldErrorClass = 'text-[length:var(--font-size-xs)] text-danger'
+const hintClass = 'text-[length:var(--font-size-xs)] text-text-muted'
 
 interface NewTaskDialogProps {
   onClose: () => void
@@ -75,23 +79,26 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
   }
 
   return (
-    <div className={styles.overlay} onClick={() => !mutation.isPending && onClose()}>
+    <div
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-[rgb(16_16_24_/_40%)] px-[var(--space-4)] py-[var(--space-6)]"
+      onClick={() => !mutation.isPending && onClose()}
+    >
       <form
         role="dialog"
         aria-modal="true"
         aria-labelledby="nt-title"
-        className={styles.dialog}
+        className="flex w-full max-w-[560px] flex-col gap-[var(--space-4)] rounded-xl bg-surface-raised p-[var(--space-5)] shadow-raised"
         onClick={(event) => event.stopPropagation()}
         onSubmit={handleSubmit}
       >
-        <div className={styles.header}>
-          <h2 id="nt-title" className={styles.heading}>
+        <div className="flex items-center gap-[var(--space-2)]">
+          <h2 id="nt-title" className="m-0 text-[length:var(--font-size-lg)] font-semibold">
             New task
           </h2>
           <button
             type="button"
             aria-label="Close"
-            className={styles.closeButton}
+            className="ml-auto inline-flex size-8 cursor-pointer items-center justify-center rounded-sm border-0 bg-transparent text-[length:var(--font-size-lg)] text-text-muted disabled:cursor-not-allowed disabled:opacity-60"
             onClick={onClose}
             disabled={mutation.isPending}
           >
@@ -100,20 +107,23 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
         </div>
 
         {serverError !== null && (
-          <p role="alert" className={styles.serverError}>
+          <p
+            role="alert"
+            className="m-0 rounded-md border border-danger-border bg-danger-surface p-[var(--space-3)] text-[length:var(--font-size-sm)] text-danger"
+          >
             {serverError}
           </p>
         )}
 
-        <div className={styles.field}>
-          <label htmlFor="nt-title-input" className={styles.label}>
+        <div className={fieldClass}>
+          <label htmlFor="nt-title-input" className={labelClass}>
             Title
           </label>
           <input
             id="nt-title-input"
             ref={titleRef}
             type="text"
-            className={styles.titleInput}
+            className="border-0 border-b border-border bg-transparent py-[var(--space-2)] text-[length:var(--font-size-lg)] font-semibold text-text focus:outline-2 focus:outline-offset-2 focus:outline-focus"
             value={title}
             maxLength={TITLE_MAX}
             required
@@ -121,39 +131,42 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
             onChange={(event) => setTitle(event.target.value)}
           />
           {fieldErrors.title !== undefined && (
-            <span role="alert" className={styles.fieldError}>
+            <span role="alert" className={fieldErrorClass}>
               {fieldErrors.title}
             </span>
           )}
         </div>
 
-        <div className={styles.field}>
-          <label htmlFor="nt-desc-input" className={styles.label}>
-            Description <span className={styles.optional}>(optional)</span>
+        <div className={fieldClass}>
+          <label htmlFor="nt-desc-input" className={labelClass}>
+            Description <span className="font-normal">(optional)</span>
           </label>
           <textarea
             id="nt-desc-input"
             rows={3}
-            className={styles.textarea}
+            className="min-h-[72px] resize-y rounded-md border border-border bg-surface p-[var(--space-3)] text-text [font:inherit]"
             value={description}
             maxLength={DESCRIPTION_MAX}
             disabled={mutation.isPending}
             onChange={(event) => setDescription(event.target.value)}
           />
           {fieldErrors.description !== undefined && (
-            <span role="alert" className={styles.fieldError}>
+            <span role="alert" className={fieldErrorClass}>
               {fieldErrors.description}
             </span>
           )}
         </div>
 
-        <fieldset className={styles.fieldset}>
-          <legend className={styles.label}>Priority — decides where it sits on the board</legend>
-          <div className={styles.priorityOptions}>
+        <fieldset className="m-0 flex flex-col gap-[var(--space-2)] border-0 p-0">
+          <legend className={labelClass}>Priority — decides where it sits on the board</legend>
+          <div className="grid grid-cols-3 gap-[var(--space-2)]">
             {PRIORITIES.map((candidate) => (
               <label
                 key={candidate}
-                className={`${styles.priorityOption} ${priority === candidate ? styles.priorityOptionSelected : ''}`}
+                className={clsx(
+                  'flex min-h-10 cursor-pointer items-center gap-[var(--space-2)] rounded-md border border-border px-[var(--space-3)]',
+                  priority === candidate && 'border-[1.5px] border-accent bg-accent-soft',
+                )}
               >
                 <input
                   type="radio"
@@ -168,36 +181,36 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
             ))}
           </div>
           {fieldErrors.priority !== undefined && (
-            <span role="alert" className={styles.fieldError}>
+            <span role="alert" className={fieldErrorClass}>
               {fieldErrors.priority}
             </span>
           )}
         </fieldset>
 
-        <div className={styles.row}>
-          <div className={styles.field}>
-            <label htmlFor="nt-due-input" className={styles.label}>
-              Due date <span className={styles.optional}>(optional)</span>
+        <div className="grid grid-cols-2 gap-[var(--space-3)] max-[600px]:grid-cols-1">
+          <div className={fieldClass}>
+            <label htmlFor="nt-due-input" className={labelClass}>
+              Due date <span className="font-normal">(optional)</span>
             </label>
             <input
               id="nt-due-input"
               type="date"
-              className={styles.dateInput}
+              className="min-h-10 rounded-md border border-border bg-surface px-[var(--space-3)] text-text [font:inherit]"
               value={dueDate}
               disabled={mutation.isPending}
               onChange={(event) => setDueDate(event.target.value)}
             />
-            <span className={styles.hint}>No date = never overdue, listed after dated tasks.</span>
+            <span className={hintClass}>No date = never overdue, listed after dated tasks.</span>
             {fieldErrors.duedate !== undefined && (
-              <span role="alert" className={styles.fieldError}>
+              <span role="alert" className={fieldErrorClass}>
                 {fieldErrors.duedate}
               </span>
             )}
           </div>
 
-          <div className={styles.field}>
-            <label htmlFor="nt-assignee-input" className={styles.label}>
-              Assignee <span className={styles.optional}>(optional)</span>
+          <div className={fieldClass}>
+            <label htmlFor="nt-assignee-input" className={labelClass}>
+              Assignee <span className="font-normal">(optional)</span>
             </label>
             <AssigneeSelect
               id="nt-assignee-input"
@@ -205,23 +218,32 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
               disabled={mutation.isPending}
               onChange={setAssigneeId}
             />
-            <span className={styles.hint}>
+            <span className={hintClass}>
               Only people already assigned to a task are listed — there is no user directory yet.
             </span>
             {fieldErrors.assigneeid !== undefined && (
-              <span role="alert" className={styles.fieldError}>
+              <span role="alert" className={fieldErrorClass}>
                 {fieldErrors.assigneeid}
               </span>
             )}
           </div>
         </div>
 
-        <div className={styles.footer}>
-          <span className={styles.backlogNote}>New tasks start in Backlog</span>
-          <button type="button" className={styles.secondaryAction} onClick={onClose} disabled={mutation.isPending}>
+        <div className="flex flex-wrap items-center gap-[var(--space-3)]">
+          <span className={hintClass}>New tasks start in Backlog</span>
+          <button
+            type="button"
+            className="min-h-11 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-4)] font-medium text-text disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={onClose}
+            disabled={mutation.isPending}
+          >
             Cancel
           </button>
-          <button type="submit" className={styles.primaryAction} disabled={mutation.isPending}>
+          <button
+            type="submit"
+            className="ml-auto min-h-11 cursor-pointer rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60 max-[600px]:ml-0"
+            disabled={mutation.isPending}
+          >
             {mutation.isPending ? 'Creating…' : 'Create task'}
           </button>
         </div>

@@ -19,7 +19,10 @@ import { useTaskHistoryQuery } from './hooks/useTaskHistoryQuery'
 import { useTaskQuery } from './hooks/useTaskQuery'
 import { useUpdateDueDateMutation } from './hooks/useUpdateDueDateMutation'
 import { useUpdatePriorityMutation } from './hooks/useUpdatePriorityMutation'
-import styles from './TaskDetailPage.module.css'
+
+const noteClass = 'text-[length:var(--font-size-sm)] text-text-muted'
+const errorBoxClass =
+  'flex flex-col items-start gap-[var(--space-3)] rounded-md border border-danger-border bg-danger-surface p-[var(--space-4)] text-danger'
 
 const CONFLICT_CODES = new Set(['Task.Move.Conflict', 'Task.Move.NotFound'])
 
@@ -100,7 +103,7 @@ export function TaskDetailPage() {
 
   if (taskQuery.isPending) {
     return (
-      <p className={styles.note} role="status">
+      <p className={noteClass} role="status">
         Loading task…
       </p>
     )
@@ -108,7 +111,7 @@ export function TaskDetailPage() {
 
   if (taskQuery.isError) {
     return (
-      <div className={styles.errorBox} role="alert">
+      <div className={errorBoxClass} role="alert">
         <p>{describeError(taskQuery.error)}</p>
         <Link to="/board">Back to board</Link>
       </div>
@@ -138,25 +141,29 @@ export function TaskDetailPage() {
   }
 
   return (
-    <section className={styles.page}>
-      <Link to="/board" className={styles.back}>
+    <section className="flex max-w-[1100px] flex-col gap-[var(--space-5)]">
+      <Link to="/board" className="self-start text-[length:var(--font-size-sm)] text-text-muted no-underline hover:underline">
         ← Board
       </Link>
 
-      <div className={styles.header}>
-        <div className={styles.headerRow}>
-          <h1 className={styles.title}>{task.title}</h1>
-          <button type="button" className={styles.editButton} onClick={() => setEditOpen(true)}>
+      <div className="flex flex-col gap-[var(--space-3)]">
+        <div className="flex flex-wrap items-center gap-[var(--space-3)]">
+          <h1 className="m-0 text-[1.875rem] font-semibold tracking-[-0.02em]">{task.title}</h1>
+          <button
+            type="button"
+            className="min-h-9 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-3)] font-medium text-text hover:bg-accent-soft"
+            onClick={() => setEditOpen(true)}
+          >
             Edit
           </button>
         </div>
         {task.description !== null && task.description !== '' && (
-          <p className={styles.description}>{task.description}</p>
+          <p className="max-w-[640px] text-text-muted [line-height:1.6]">{task.description}</p>
         )}
       </div>
 
-      <div className={styles.body}>
-        <main className={styles.main}>
+      <div className="flex flex-wrap items-start gap-[var(--space-5)]">
+        <main className="flex min-w-[320px] flex-[999_1_540px] flex-col gap-[var(--space-5)]">
           <WorkflowStrip
             status={task.status}
             moves={moves}
@@ -167,20 +174,22 @@ export function TaskDetailPage() {
             onReopenRequested={() => setReopenOpen(true)}
           />
 
-          <section aria-labelledby="activity-heading" className={styles.activity}>
-            <div className={styles.activityHeader}>
-              <h2 id="activity-heading" className={styles.sectionTitle}>
+          <section aria-labelledby="activity-heading" className="flex flex-col gap-[var(--space-4)]">
+            <div className="flex flex-wrap items-center justify-between gap-[var(--space-2)]">
+              <h2 id="activity-heading" className="text-[length:var(--font-size-lg)] font-semibold">
                 Activity
               </h2>
-              <span className={styles.permanentNote}>Permanent — entries can&rsquo;t be edited or deleted</span>
+              <span className="text-[length:var(--font-size-xs)] text-text-muted">
+                Permanent — entries can&rsquo;t be edited or deleted
+              </span>
             </div>
             {historyQuery.isPending && (
-              <p role="status" className={styles.note}>
+              <p role="status" className={noteClass}>
                 Loading history…
               </p>
             )}
             {historyQuery.isError && (
-              <p role="alert" className={styles.note}>
+              <p role="alert" className={noteClass}>
                 {describeError(historyQuery.error)}
               </p>
             )}

@@ -14,7 +14,6 @@ import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 import { BoardColumn } from './components/BoardColumn'
 import { NewTaskDialog } from './components/NewTaskDialog'
 import { useBoardQuery } from './hooks/useBoardQuery'
-import styles from './BoardPage.module.css'
 
 function StatusIcon({ status }: { status: TaskStatus }) {
   switch (status) {
@@ -131,30 +130,41 @@ export function BoardPage() {
 
   return (
     <section>
-      <div className={styles.toolbar}>
-        <h2 className={styles.heading}>Board</h2>
+      <div className="flex flex-wrap items-center gap-[var(--space-3)]">
+        <h2 className="text-[length:var(--font-size-xl)] font-semibold">Board</h2>
         <span
-          className={styles.sortInfo}
+          className="text-[length:var(--font-size-sm)] text-text-muted"
           title="Urgent → High → Normal, then earliest due date. Tasks with no date go last."
         >
           Sort: <strong>Priority</strong>
         </span>
-        <div className={styles.rightGroup}>
-          {overdueCount > 0 && <span className={styles.overdueChip}>{overdueCount} overdue</span>}
-          <button type="button" className={styles.newTaskButton} onClick={() => setCreateOpen(true)}>
+        <div className="ml-auto flex items-center gap-[var(--space-3)] max-[600px]:ml-0">
+          {overdueCount > 0 && (
+            <span className="inline-flex items-center rounded-pill bg-overdue-surface px-[var(--space-3)] py-[2px] text-[length:var(--font-size-sm)] font-semibold text-overdue">
+              {overdueCount} overdue
+            </span>
+          )}
+          <button
+            type="button"
+            className="min-h-10 cursor-pointer rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
+            onClick={() => setCreateOpen(true)}
+          >
             New task
           </button>
         </div>
       </div>
 
       {boardQuery.isPending && (
-        <p className={styles.note} role="status">
+        <p className="mt-[var(--space-5)] text-[length:var(--font-size-sm)] text-text-muted" role="status">
           Loading board…
         </p>
       )}
 
       {boardQuery.isError && (
-        <div className={styles.errorBox} role="alert">
+        <div
+          className="mt-[var(--space-5)] flex flex-col items-start gap-[var(--space-3)] rounded-md border border-danger-border bg-danger-surface p-[var(--space-4)] text-danger"
+          role="alert"
+        >
           <p>{describeError(boardQuery.error)}</p>
           <button type="button" onClick={() => boardQuery.refetch()}>
             Try again
@@ -164,7 +174,7 @@ export function BoardPage() {
 
       {boardQuery.isSuccess && (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActiveTask(null)}>
-          <div className={styles.columns}>
+          <div className="mt-[var(--space-5)] grid grid-flow-col auto-cols-[minmax(232px,1fr)] items-start gap-[var(--space-4)] overflow-x-auto max-[600px]:auto-cols-[85vw]">
             {BOARD_COLUMNS.map((status) => {
               const column = boardQuery.data.columns.find((c) => c.status === status)
               const items = column?.items ?? []

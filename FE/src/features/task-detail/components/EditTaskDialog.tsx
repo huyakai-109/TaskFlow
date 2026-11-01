@@ -8,11 +8,15 @@ import { fieldErrorMap } from '../../../shared/lib/fieldErrors'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 import { useUpdateTaskMutation } from '../hooks/useUpdateTaskMutation'
 
-import styles from './EditTaskDialog.module.css'
-
 // Mirrors TaskUpdateReq's [MaxLength] attributes.
 const TITLE_MAX = 200
 const DESCRIPTION_MAX = 4000
+
+const fieldClass = 'flex flex-col gap-[var(--space-1)]'
+const labelClass = 'text-[length:var(--font-size-sm)] font-medium text-text-muted'
+const fieldErrorClass = 'text-[length:var(--font-size-xs)] text-danger'
+const actionButtonClass =
+  'min-h-11 cursor-pointer rounded-md px-[var(--space-4)] disabled:cursor-not-allowed disabled:opacity-60'
 
 interface EditTaskDialogProps {
   task: TaskDetail
@@ -73,34 +77,40 @@ export function EditTaskDialog({ task, onClose, onRefused }: EditTaskDialogProps
   }
 
   return (
-    <div className={styles.overlay} onClick={() => !mutation.isPending && onClose()}>
+    <div
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-[rgb(16_16_24_/_40%)] px-[var(--space-4)] py-[var(--space-6)]"
+      onClick={() => !mutation.isPending && onClose()}
+    >
       <form
         role="dialog"
         aria-modal="true"
         aria-labelledby="edit-title"
-        className={styles.dialog}
+        className="flex w-full max-w-[520px] flex-col gap-[var(--space-4)] rounded-xl bg-surface-raised p-[var(--space-5)] shadow-raised"
         onClick={(event) => event.stopPropagation()}
         onSubmit={handleSubmit}
       >
-        <h2 id="edit-title" className={styles.heading}>
+        <h2 id="edit-title" className="m-0 text-[length:var(--font-size-lg)] font-semibold">
           Edit task
         </h2>
 
         {serverError !== null && (
-          <p role="alert" className={styles.serverError}>
+          <p
+            role="alert"
+            className="m-0 rounded-md border border-danger-border bg-danger-surface p-[var(--space-3)] text-[length:var(--font-size-sm)] text-danger"
+          >
             {serverError}
           </p>
         )}
 
-        <div className={styles.field}>
-          <label htmlFor="edit-title-input" className={styles.label}>
+        <div className={fieldClass}>
+          <label htmlFor="edit-title-input" className={labelClass}>
             Title
           </label>
           <input
             id="edit-title-input"
             ref={titleRef}
             type="text"
-            className={styles.titleInput}
+            className="min-h-10 rounded-md border border-border bg-surface px-[var(--space-3)] text-text [font:inherit] font-semibold"
             value={title}
             maxLength={TITLE_MAX}
             required
@@ -108,37 +118,46 @@ export function EditTaskDialog({ task, onClose, onRefused }: EditTaskDialogProps
             onChange={(event) => setTitle(event.target.value)}
           />
           {fieldErrors.title !== undefined && (
-            <span role="alert" className={styles.fieldError}>
+            <span role="alert" className={fieldErrorClass}>
               {fieldErrors.title}
             </span>
           )}
         </div>
 
-        <div className={styles.field}>
-          <label htmlFor="edit-desc-input" className={styles.label}>
+        <div className={fieldClass}>
+          <label htmlFor="edit-desc-input" className={labelClass}>
             Description
           </label>
           <textarea
             id="edit-desc-input"
             rows={4}
-            className={styles.textarea}
+            className="min-h-[96px] resize-y rounded-md border border-border bg-surface p-[var(--space-3)] text-text [font:inherit]"
             value={description}
             maxLength={DESCRIPTION_MAX}
             disabled={mutation.isPending}
             onChange={(event) => setDescription(event.target.value)}
           />
           {fieldErrors.description !== undefined && (
-            <span role="alert" className={styles.fieldError}>
+            <span role="alert" className={fieldErrorClass}>
               {fieldErrors.description}
             </span>
           )}
         </div>
 
-        <div className={styles.actions}>
-          <button type="submit" className={styles.primaryAction} disabled={mutation.isPending}>
+        <div className="flex gap-[var(--space-3)]">
+          <button
+            type="submit"
+            className={`${actionButtonClass} border-0 bg-accent font-semibold text-on-accent`}
+            disabled={mutation.isPending}
+          >
             {mutation.isPending ? 'Saving…' : 'Save'}
           </button>
-          <button type="button" className={styles.secondaryAction} onClick={onClose} disabled={mutation.isPending}>
+          <button
+            type="button"
+            className={`${actionButtonClass} border border-border bg-surface font-medium text-text`}
+            onClick={onClose}
+            disabled={mutation.isPending}
+          >
             Cancel
           </button>
         </div>

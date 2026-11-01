@@ -5,8 +5,6 @@ import { describeError } from '../../../api/errorMessages'
 import { useMarkNotificationReadMutation } from '../hooks/useMarkNotificationReadMutation'
 import { useNotificationsQuery } from '../hooks/useNotificationsQuery'
 
-import styles from './NotificationBell.module.css'
-
 function BellIcon() {
   return (
     <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -65,39 +63,59 @@ export function NotificationBell() {
   }, [open])
 
   return (
-    <div className={styles.wrapper}>
+    <div className="relative ml-auto">
       <button
         type="button"
         ref={buttonRef}
-        className={styles.bellButton}
+        className="relative inline-flex size-10 cursor-pointer items-center justify-center rounded-pill border border-border bg-surface text-text hover:bg-column"
         aria-haspopup="true"
         aria-expanded={open}
         aria-label={items.length > 0 ? `Notifications, ${items.length} unread` : 'Notifications'}
         onClick={() => setOpen((value) => !value)}
       >
         <BellIcon />
-        {items.length > 0 && <span className={styles.badge}>{items.length}</span>}
+        {items.length > 0 && (
+          <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-pill bg-danger px-[3px] text-[10px] font-bold text-text-inverse">
+            {items.length}
+          </span>
+        )}
       </button>
 
       {open && (
-        <div ref={panelRef} role="menu" aria-label="Notifications" className={styles.panel}>
-          {notificationsQuery.isPending && <p className={styles.note}>Loading…</p>}
+        <div
+          ref={panelRef}
+          role="menu"
+          aria-label="Notifications"
+          className="absolute top-[calc(100%+var(--space-2))] right-0 z-50 w-[320px] max-w-[90vw] rounded-xl bg-surface-raised p-[var(--space-2)] shadow-raised"
+        >
+          {notificationsQuery.isPending && (
+            <p className="p-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted">Loading…</p>
+          )}
           {notificationsQuery.isError && (
-            <p className={styles.note} role="alert">
+            <p className="p-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted" role="alert">
               {describeError(notificationsQuery.error)}
             </p>
           )}
-          {notificationsQuery.isSuccess && items.length === 0 && <p className={styles.note}>You&rsquo;re all caught up.</p>}
+          {notificationsQuery.isSuccess && items.length === 0 && (
+            <p className="p-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted">You&rsquo;re all caught up.</p>
+          )}
           {notificationsQuery.isSuccess && items.length > 0 && (
-            <ul className={styles.list}>
+            <ul className="m-0 flex list-none flex-col gap-[2px] p-0">
               {items.map((notification) => (
-                <li key={notification.id} className={styles.item}>
-                  <Link to={`/tasks/${notification.taskId}`} className={styles.itemLink} onClick={() => setOpen(false)}>
+                <li
+                  key={notification.id}
+                  className="flex items-center gap-[var(--space-2)] rounded-md px-[var(--space-3)] py-[var(--space-2)] hover:bg-column"
+                >
+                  <Link
+                    to={`/tasks/${notification.taskId}`}
+                    className="grow text-[length:var(--font-size-sm)] text-text no-underline hover:underline"
+                    onClick={() => setOpen(false)}
+                  >
                     Task #{notification.taskId} was sent back for rework
                   </Link>
                   <button
                     type="button"
-                    className={styles.markRead}
+                    className="shrink-0 cursor-pointer rounded-sm border border-border bg-surface px-[var(--space-2)] py-[4px] text-[length:var(--font-size-xs)] text-text-muted hover:bg-accent-soft hover:text-accent-ink"
                     onClick={() => markReadMutation.mutate(notification.id)}
                   >
                     Mark read

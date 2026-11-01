@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import styles from './ReopenDialog.module.css'
+const actionButtonClass =
+  'min-h-11 cursor-pointer rounded-md px-[var(--space-4)] disabled:cursor-not-allowed disabled:opacity-60'
 
 interface ReopenDialogProps {
   taskTitle: string
@@ -65,37 +66,51 @@ export function ReopenDialog({ taskTitle, isPending, onCancel, onSubmit }: Reope
   }
 
   return (
-    <div className={styles.overlay} onClick={() => !isPending && onCancel()}>
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgb(16_16_24_/_40%)] p-[var(--space-4)]"
+      onClick={() => !isPending && onCancel()}
+    >
       <form
         role="dialog"
         aria-modal="true"
         aria-labelledby="reopen-title"
-        className={styles.dialog}
+        className="flex w-full max-w-[440px] flex-col gap-[var(--space-3)] rounded-xl bg-surface-raised p-[var(--space-5)] shadow-raised"
         onClick={(event) => event.stopPropagation()}
         onSubmit={handleSubmit}
       >
-        <h2 id="reopen-title" className={styles.title}>
+        <h2 id="reopen-title" className="text-[length:var(--font-size-lg)] font-semibold">
           Reopen &ldquo;{taskTitle}&rdquo;
         </h2>
-        <p className={styles.hint}>Say why it needs more work. This moves the task back to Review.</p>
-        <label className={styles.label} htmlFor="reopen-reason">
+        <p className="text-[length:var(--font-size-sm)] text-text-muted">
+          Say why it needs more work. This moves the task back to Review.
+        </p>
+        <label className="text-[length:var(--font-size-sm)] font-medium" htmlFor="reopen-reason">
           Reason
         </label>
         <textarea
           id="reopen-reason"
           ref={textareaRef}
-          className={styles.textarea}
+          className="min-h-[96px] resize-y rounded-md border border-border bg-surface p-[var(--space-3)] text-text [font:inherit]"
           value={reason}
           maxLength={MAX_REASON_LENGTH}
           required
           disabled={isPending}
           onChange={(event) => setReason(event.target.value)}
         />
-        <div className={styles.actions}>
-          <button type="submit" className={styles.primaryAction} disabled={isPending || reason.trim().length === 0}>
+        <div className="flex gap-[var(--space-3)]">
+          <button
+            type="submit"
+            className={`${actionButtonClass} border-0 bg-accent font-semibold text-on-accent [&:hover:not(:disabled)]:bg-accent-hover`}
+            disabled={isPending || reason.trim().length === 0}
+          >
             {isPending ? 'Reopening…' : 'Reopen'}
           </button>
-          <button type="button" className={styles.secondaryAction} onClick={onCancel} disabled={isPending}>
+          <button
+            type="button"
+            className={`${actionButtonClass} border border-border bg-surface font-medium text-text`}
+            onClick={onCancel}
+            disabled={isPending}
+          >
             Cancel
           </button>
         </div>

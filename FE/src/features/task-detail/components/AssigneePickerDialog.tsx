@@ -1,10 +1,9 @@
+import clsx from 'clsx'
 import { useRef } from 'react'
 
 import { describeErrorCode } from '../../../api/errorMessages'
 import { useKnownAssignees } from '../../../shared/hooks/useKnownAssignees'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
-
-import styles from './AssigneePickerDialog.module.css'
 
 interface AssigneePickerDialogProps {
   currentAssigneeId: number | null
@@ -13,6 +12,9 @@ interface AssigneePickerDialogProps {
   onClose: () => void
   onSelect: (assigneeId: number | null) => void
 }
+
+const optionClass =
+  'flex min-h-10 w-full cursor-pointer items-center rounded-sm border-0 bg-transparent px-[var(--space-3)] text-left text-text [font:inherit] [&:hover:not(:disabled)]:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-60'
 
 /**
  * `docs/ui/screens/AssignPicker.dc.html`, minus its "has room" sort and
@@ -35,23 +37,26 @@ export function AssigneePickerDialog({
   useDialogA11y(closeButtonRef, onClose, isPending)
 
   return (
-    <div className={styles.overlay} onClick={() => !isPending && onClose()}>
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgb(16_16_24_/_40%)] p-[var(--space-4)]"
+      onClick={() => !isPending && onClose()}
+    >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="ap-title"
-        className={styles.dialog}
+        className="flex w-full max-w-[360px] flex-col gap-[var(--space-3)] rounded-xl bg-surface-raised p-[var(--space-5)] shadow-raised"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className={styles.header}>
-          <h2 id="ap-title" className={styles.heading}>
+        <div className="flex items-center gap-[var(--space-2)]">
+          <h2 id="ap-title" className="m-0 text-[length:var(--font-size-lg)] font-semibold">
             Assign to
           </h2>
           <button
             type="button"
             ref={closeButtonRef}
             aria-label="Close"
-            className={styles.closeButton}
+            className="ml-auto inline-flex size-8 cursor-pointer items-center justify-center rounded-sm border-0 bg-transparent text-[length:var(--font-size-lg)] text-text-muted disabled:cursor-not-allowed disabled:opacity-60"
             onClick={onClose}
             disabled={isPending}
           >
@@ -59,22 +64,25 @@ export function AssigneePickerDialog({
           </button>
         </div>
 
-        <p className={styles.hint}>
+        <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">
           Listed alphabetically, everyone shown — the workload limit (F02) isn&rsquo;t built yet, so nobody is marked
           full.
         </p>
 
         {errorCode !== null && (
-          <p role="alert" className={styles.serverError}>
+          <p
+            role="alert"
+            className="m-0 rounded-md border border-danger-border bg-danger-surface p-[var(--space-3)] text-[length:var(--font-size-sm)] text-danger"
+          >
             {describeErrorCode(errorCode)}
           </p>
         )}
 
-        <ul role="listbox" aria-label="Assign to" className={styles.list}>
+        <ul role="listbox" aria-label="Assign to" className="m-0 flex list-none flex-col p-0">
           <li role="option" aria-selected={currentAssigneeId === null}>
             <button
               type="button"
-              className={`${styles.option} ${currentAssigneeId === null ? styles.optionSelected : ''}`}
+              className={clsx(optionClass, currentAssigneeId === null && 'bg-accent-soft font-semibold text-accent-ink')}
               disabled={isPending}
               onClick={() => onSelect(null)}
             >
@@ -85,7 +93,10 @@ export function AssigneePickerDialog({
             <li key={assignee.id} role="option" aria-selected={currentAssigneeId === assignee.id}>
               <button
                 type="button"
-                className={`${styles.option} ${currentAssigneeId === assignee.id ? styles.optionSelected : ''}`}
+                className={clsx(
+                  optionClass,
+                  currentAssigneeId === assignee.id && 'bg-accent-soft font-semibold text-accent-ink',
+                )}
                 disabled={isPending}
                 onClick={() => onSelect(assignee.id)}
               >
@@ -96,7 +107,9 @@ export function AssigneePickerDialog({
         </ul>
 
         {assignees.length === 0 && (
-          <p className={styles.note}>No one is assigned to any task yet, so there is no one to pick besides Unassigned.</p>
+          <p className="m-0 text-[length:var(--font-size-sm)] text-text-muted">
+            No one is assigned to any task yet, so there is no one to pick besides Unassigned.
+          </p>
         )}
       </div>
     </div>

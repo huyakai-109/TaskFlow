@@ -1,9 +1,9 @@
 import { useDroppable } from '@dnd-kit/core'
+import clsx from 'clsx'
 import type { ReactNode } from 'react'
 
 import type { TaskStatus, TaskSummary } from '../../../api/types'
 
-import styles from './BoardColumn.module.css'
 import { TaskCard } from './TaskCard'
 
 interface BoardColumnProps {
@@ -27,16 +27,26 @@ interface BoardColumnProps {
 export function BoardColumn({ status, label, icon, items, isDragging, isDropTarget, onMove }: BoardColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: status, disabled: !isDropTarget })
 
-  const dropState = !isDragging ? '' : isDropTarget ? (isOver ? styles.dropActive : styles.dropAllowed) : styles.dropDisabled
-
   return (
-    <section ref={setNodeRef} className={`${styles.column} ${dropState}`} aria-label={label}>
-      <h3 className={styles.columnTitle}>
+    <section
+      ref={setNodeRef}
+      className={clsx(
+        'flex flex-col gap-[var(--space-2)] rounded-lg border-2 border-transparent bg-column p-[var(--space-3)] [transition:border-color_var(--transition-fast),opacity_var(--transition-fast)]',
+        isDragging &&
+          (isDropTarget
+            ? isOver
+              ? 'border-solid border-accent bg-accent-soft'
+              : 'border-dashed border-accent'
+            : 'opacity-45'),
+      )}
+      aria-label={label}
+    >
+      <h3 className="m-0 flex items-center gap-[var(--space-2)] px-[var(--space-1)] pt-[var(--space-1)] pb-[var(--space-2)] text-[length:var(--font-size-sm)] font-semibold">
         {icon}
-        {label} <span className={styles.columnCount}>{items.length}</span>
+        {label} <span className="font-normal text-text-muted">{items.length}</span>
       </h3>
       {items.length === 0 ? (
-        <p className={styles.empty}>No tasks</p>
+        <p className="mt-[var(--space-2)] text-[length:var(--font-size-sm)] text-text-muted">No tasks</p>
       ) : (
         items.map((task) => <TaskCard key={task.id} task={task} onMove={onMove} />)
       )}

@@ -1,8 +1,8 @@
+import clsx from 'clsx'
+
 import { BOARD_COLUMNS } from '../../../api/types'
 import type { AllowedTransition, TaskStatus } from '../../../api/types'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
-
-import styles from './WorkflowStrip.module.css'
 
 function CheckIcon() {
   return (
@@ -34,16 +34,26 @@ export function WorkflowStrip({ status, moves, reopen, onMove, onReopenRequested
   const currentIndex = BOARD_COLUMNS.indexOf(status)
 
   return (
-    <section aria-labelledby="workflow-heading" className={styles.card}>
-      <h2 id="workflow-heading" className={styles.sectionTitle}>
+    <section
+      aria-labelledby="workflow-heading"
+      className="flex flex-col gap-[var(--space-4)] rounded-xl border border-border bg-surface p-[var(--space-5)] shadow-card"
+    >
+      <h2 id="workflow-heading" className="text-[length:var(--font-size-sm)] font-semibold text-text-muted">
         Workflow
       </h2>
-      <ol aria-label="Workflow stages" className={styles.stages}>
+      <ol
+        aria-label="Workflow stages"
+        className="m-0 flex list-none flex-wrap items-center gap-[var(--space-2)] p-0 text-[length:var(--font-size-sm)]"
+      >
         {BOARD_COLUMNS.map((stage, index) => (
           <li
             key={stage}
             aria-current={stage === status ? 'step' : undefined}
-            className={`${styles.stage} ${stage === status ? styles.stageCurrent : ''} ${index > currentIndex ? styles.stageFuture : ''}`}
+            className={clsx(
+              'inline-flex items-center gap-[var(--space-2)] rounded-pill bg-column px-[var(--space-3)] py-[4px] text-text-muted',
+              stage === status && 'bg-accent-soft font-semibold text-accent-ink',
+              index > currentIndex && 'border border-dashed border-border-strong bg-transparent',
+            )}
           >
             {index < currentIndex && <CheckIcon />}
             {STATUS_LABELS[stage]}
@@ -51,21 +61,30 @@ export function WorkflowStrip({ status, moves, reopen, onMove, onReopenRequested
         ))}
       </ol>
 
-      <div className={styles.actions}>
+      <div className="flex flex-wrap items-center gap-[var(--space-3)]">
         {moves.map((move) => (
-          <button key={move.status} type="button" className={styles.primaryAction} onClick={() => onMove(move.status)}>
+          <button
+            key={move.status}
+            type="button"
+            className="inline-flex min-h-11 cursor-pointer items-center rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
+            onClick={() => onMove(move.status)}
+          >
             Move to {STATUS_LABELS[move.status]}
           </button>
         ))}
 
         {reopen !== undefined && (
-          <button type="button" className={styles.secondaryAction} onClick={onReopenRequested}>
+          <button
+            type="button"
+            className="inline-flex min-h-11 cursor-pointer items-center rounded-md border border-border bg-surface px-[var(--space-4)] font-medium text-text hover:bg-column"
+            onClick={onReopenRequested}
+          >
             Reopen
           </button>
         )}
 
         {moves.length === 0 && reopen === undefined && (
-          <span className={styles.lockedNote}>
+          <span className="text-[length:var(--font-size-sm)] text-text-muted">
             {status === 'Done'
               ? "This one's finished. If it needs more work, a manager can reopen it."
               : status === 'Review'

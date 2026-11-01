@@ -1,7 +1,5 @@
 import { useKnownAssignees } from '../hooks/useKnownAssignees'
 
-import styles from './AssigneeSelect.module.css'
-
 interface AssigneeSelectProps {
   id: string
   value: number | null
@@ -23,7 +21,7 @@ export function AssigneeSelect({ id, value, disabled = false, onChange }: Assign
   return (
     <select
       id={id}
-      className={styles.select}
+      className="min-h-10 rounded-md border border-border bg-surface px-[var(--space-3)] text-text [font:inherit] disabled:opacity-60"
       value={value === null ? '' : String(value)}
       disabled={disabled}
       onChange={(event) => onChange(event.target.value === '' ? null : Number(event.target.value))}

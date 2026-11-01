@@ -1,8 +1,6 @@
 import type { TaskHistoryEntry } from '../../../api/types'
 import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
 
-import styles from './HistoryTimeline.module.css'
-
 const timestampFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
 function SystemIcon() {
@@ -27,21 +25,27 @@ interface HistoryTimelineProps {
  */
 export function HistoryTimeline({ entries }: HistoryTimelineProps) {
   if (entries.length === 0) {
-    return <p className={styles.empty}>No activity yet.</p>
+    return <p className="text-[length:var(--font-size-sm)] text-text-muted">No activity yet.</p>
   }
 
   return (
-    <ol className={styles.timeline}>
+    <ol className="m-0 flex list-none flex-col border-l border-border py-0 pr-0 pl-[4px]">
       {entries.map((entry) => (
-        <li key={entry.id} className={styles.entry}>
+        <li
+          key={entry.id}
+          className="-ml-[11px] flex items-center gap-[var(--space-3)] py-[var(--space-2)] pr-0 pl-[var(--space-4)]"
+        >
           {entry.actorUserId === null ? (
-            <span aria-hidden="true" className={styles.systemIcon}>
+            <span
+              aria-hidden="true"
+              className="inline-flex size-5 shrink-0 items-center justify-center rounded-pill border border-danger-border bg-danger-surface text-danger"
+            >
               <SystemIcon />
             </span>
           ) : (
             <span
               aria-hidden="true"
-              className={styles.actorAvatar}
+              className="inline-flex size-5 shrink-0 items-center justify-center rounded-pill text-[9px] font-semibold"
               style={{
                 backgroundColor: `var(--avatar-${avatarPaletteIndex(entry.actorUserId)}-bg)`,
                 color: `var(--avatar-${avatarPaletteIndex(entry.actorUserId)}-ink)`,
@@ -50,8 +54,8 @@ export function HistoryTimeline({ entries }: HistoryTimelineProps) {
               {initialsOf(entry.actorName ?? '?')}
             </span>
           )}
-          <span className={styles.message}>{entry.message}</span>
-          <time className={styles.timestamp} dateTime={entry.occurredAt}>
+          <span className="grow">{entry.message}</span>
+          <time className="shrink-0 text-[length:var(--font-size-xs)] whitespace-nowrap text-text-muted" dateTime={entry.occurredAt}>
             {timestampFormatter.format(new Date(entry.occurredAtLocal))}
           </time>
         </li>

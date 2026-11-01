@@ -119,3 +119,16 @@ Decided 2026-10-25: `FE/src/styles/tokens.css` takes the wireframe's palette, ra
 | Type sizes 12 · 13 · 14 · 18 · 24px | `--font-size-xs` · `--font-size-sm` · `--font-size-base` · `--font-size-lg` · `--font-size-xl` |
 
 A value the wireframe uses that has no token yet (e.g. the 30px task title, 15px page title) gets a token added here first, not a literal in a component.
+
+## Theming (Tailwind CSS v4)
+
+Decided 2026-11-01: Tailwind CSS v4 (`tailwindcss` + `@tailwindcss/vite`) replaces CSS Modules as the styling mechanism. `tokens.css` stays the one source of truth for every value — nothing here changes what a token resolves to, only how a component reaches it.
+
+- **Setup**: `@import 'tailwindcss';` in `FE/src/styles/global.css` (the app's root CSS file, imported once from `main.tsx`), registered as a Vite plugin in `vite.config.ts`. CSS-first config (Tailwind v4 style) — no `tailwind.config.js`.
+- **Token mapping**: `global.css`'s `@theme inline` block maps colours, shadows, radii and font families into Tailwind's theme namespaces, each entry pointing *at* the existing `--color-*`/`--shadow-*`/`--radius-*`/`--font-*` custom property (not a copy of its value) — e.g. `--color-bg: var(--color-bg);` generates the utility `bg-bg`, which still resolves through `var(--color-bg)` at paint time, so it repaints under `prefers-color-scheme` or `[data-theme]` exactly like a CSS Module rule did. Spacing (`--space-*`) and font size (`--font-size-*`) are **not** remapped into Tailwind's `--spacing-*`/`--text-*` namespaces — both are multi-value scales in Tailwind v4 (spacing drives a shared multiplier; each text size carries a paired line-height), and only reassigning the keys this app happens to use risked a silent mismatch elsewhere in that scale. Components reach those two token groups through Tailwind's arbitrary-value syntax instead: `p-[var(--space-3)]`, `text-[length:var(--font-size-sm)]`.
+- **Dark mode**: `tokens.css` switches dark values two ways — `@media (prefers-color-scheme: dark)` (unless `[data-theme="light"]` overrides it back) and an explicit `:root[data-theme="dark"]` override regardless of the OS. `global.css` declares a `@custom-variant dark` that reproduces those same two rules, so a `dark:` utility only ever fires when a token's own dark value would also apply. In practice no component uses a `dark:`-prefixed utility yet: every colour is reached through a mapped token (`bg-surface`, `text-text-muted`, …), and the token itself already carries the correct light/dark value — `dark:` exists for the rare case a future screen needs a non-token-driven override.
+- **Conditional classes**: `clsx` (approved dependency, 2026-11-01), used in place of CSS Modules' multi-class template strings.
+
+## Import direction (frontend)
+
+`FE/src/` is organized `app/` (router, providers, pages that compose features) · `features/<feature>/{components,hooks,utils}` (plus the feature's own page file(s) at its root) · `shared/{components,hooks,lib,utils}` · `api/` · `styles/`. Dependency direction is `shared → features → app`: a feature never imports another feature (compose multiple features together only in `app/`), and `shared/` never imports `features/` or `app/`. Enforced by `FE/.oxlintrc.json`'s `no-restricted-imports` overrides, scoped per folder.

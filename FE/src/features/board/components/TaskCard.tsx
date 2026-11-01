@@ -1,4 +1,5 @@
 import { useDraggable } from '@dnd-kit/core'
+import clsx from 'clsx'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -6,7 +7,8 @@ import type { TaskPriority, TaskStatus, TaskSummary } from '../../../api/types'
 import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
-import styles from './TaskCard.module.css'
+const chipBase =
+  'inline-flex items-center gap-[var(--space-1)] rounded-sm border border-border px-[var(--space-2)] py-[2px]'
 
 const dueDateFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })
 
@@ -34,19 +36,19 @@ function isToday(dueDate: string): boolean {
 
 function DueChip({ dueDate }: { dueDate: string | null }) {
   if (dueDate === null) {
-    return <span className={`${styles.chip} ${styles.chipDashed}`}>No due date</span>
+    return <span className={clsx(chipBase, 'border-dashed')}>No due date</span>
   }
 
   if (isToday(dueDate)) {
-    return <span className={`${styles.chip} ${styles.chipEmphasis}`}>Due today</span>
+    return <span className={clsx(chipBase, 'font-medium text-text')}>Due today</span>
   }
 
-  return <span className={styles.chip}>{dueDateFormatter.format(parseDueDate(dueDate))}</span>
+  return <span className={chipBase}>{dueDateFormatter.format(parseDueDate(dueDate))}</span>
 }
 
 function OverdueChip({ dueDate }: { dueDate: string | null }) {
   return (
-    <span className={`${styles.chip} ${styles.chipOverdue}`}>
+    <span className={clsx(chipBase, 'border-transparent bg-overdue-surface font-semibold text-overdue')}>
       <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7v5l3 2" />
@@ -120,10 +122,17 @@ export function TaskCard({ task, onMove }: TaskCardProps) {
     <article
       ref={setNodeRef}
       style={style}
-      className={`${styles.card} ${task.isOverdue ? styles.cardOverdue : ''} ${isDragging ? styles.cardDragging : ''}`}
+      className={clsx(
+        'flex flex-col gap-[var(--space-2)] rounded-md border border-border bg-surface p-[var(--space-3)] shadow-card',
+        task.isOverdue && 'border-overdue-border',
+        isDragging && 'opacity-60 shadow-raised',
+      )}
     >
-      <div className={styles.cardHeader}>
-        <Link to={`/tasks/${task.id}`} className={styles.key}>
+      <div className="flex items-center gap-[var(--space-2)]">
+        <Link
+          to={`/tasks/${task.id}`}
+          className="font-mono text-[length:var(--font-size-xs)] text-text-muted no-underline hover:underline"
+        >
           #{task.id}
         </Link>
         {moves.length > 0 && (
@@ -134,14 +143,14 @@ export function TaskCard({ task, onMove }: TaskCardProps) {
             aria-hidden="true"
             tabIndex={-1}
             title="Drag to move"
-            className={styles.dragHandle}
+            className="mr-auto inline-flex cursor-grab touch-none items-center justify-center text-text-muted [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11"
           >
             <GripIcon />
           </span>
         )}
         {task.assignee !== null && (
           <span
-            className={styles.avatar}
+            className="inline-flex size-5 shrink-0 items-center justify-center rounded-pill text-[9px] font-semibold"
             aria-label={`Assigned to ${task.assignee.userName}`}
             style={{
               backgroundColor: `var(--avatar-${avatarPaletteIndex(task.assignee.id)}-bg)`,
@@ -152,25 +161,25 @@ export function TaskCard({ task, onMove }: TaskCardProps) {
           </span>
         )}
       </div>
-      <h3 className={styles.title}>
-        <Link to={`/tasks/${task.id}`} className={styles.titleLink}>
+      <h3 className="m-0 text-[length:var(--font-size-base)] font-medium [line-height:1.4]">
+        <Link to={`/tasks/${task.id}`} className="text-inherit no-underline hover:underline">
           {task.title}
         </Link>
       </h3>
-      <div className={styles.chips}>
-        <span className={styles.chip}>
+      <div className="flex flex-wrap gap-[var(--space-2)] text-[length:var(--font-size-xs)] text-text-muted">
+        <span className={chipBase}>
           <PriorityIcon priority={task.priority} />
           {task.priority}
         </span>
         {task.isOverdue ? <OverdueChip dueDate={task.dueDate} /> : <DueChip dueDate={task.dueDate} />}
       </div>
       {moves.length > 0 && (
-        <div className={styles.moveActions} role="group" aria-label={`Move "${task.title}" to`}>
+        <div className="flex flex-wrap gap-[var(--space-2)]" role="group" aria-label={`Move "${task.title}" to`}>
           {moves.map((move) => (
             <button
               key={move.status}
               type="button"
-              className={styles.moveButton}
+              className="min-h-[28px] cursor-pointer rounded-sm border border-border bg-surface px-[var(--space-2)] py-[2px] text-[length:var(--font-size-xs)] font-medium text-text hover:border-accent hover:bg-accent-soft hover:text-accent-ink [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:px-[var(--space-3)] [@media(pointer:coarse)]:py-0"
               onClick={() => onMove(task.id, move.status, task.version)}
             >
               Move to {STATUS_LABELS[move.status]}

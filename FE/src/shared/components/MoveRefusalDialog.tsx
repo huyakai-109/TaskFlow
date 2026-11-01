@@ -3,8 +3,6 @@ import { useEffect, useRef } from 'react'
 import { describeErrorCode } from '../../api/errorMessages'
 import { DEFAULT_REFUSAL_TITLE, MOVE_REFUSAL_TITLES } from '../lib/moveRefusalTitles'
 
-import styles from './MoveRefusalDialog.module.css'
-
 interface MoveRefusalDialogProps {
   code: string | null
   taskTitle: string
@@ -46,22 +44,30 @@ export function MoveRefusalDialog({ code, taskTitle, onClose }: MoveRefusalDialo
   const title = (code !== null && MOVE_REFUSAL_TITLES[code]) || DEFAULT_REFUSAL_TITLE
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgb(16_16_24_/_40%)] p-[var(--space-4)]"
+      onClick={onClose}
+    >
       <div
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="move-refusal-title"
         aria-describedby="move-refusal-description"
-        className={styles.dialog}
+        className="flex max-w-[420px] flex-col gap-[var(--space-3)] rounded-xl bg-surface-raised p-[var(--space-5)] shadow-raised"
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 id="move-refusal-title" className={styles.title}>
+        <h2 id="move-refusal-title" className="text-[length:var(--font-size-lg)] font-semibold">
           {title}
         </h2>
-        <p id="move-refusal-description" className={styles.description}>
+        <p id="move-refusal-description" className="text-text-muted [line-height:var(--line-height)]">
           &ldquo;{taskTitle}&rdquo; — {describeErrorCode(code)}
         </p>
-        <button type="button" ref={closeButtonRef} className={styles.closeButton} onClick={onClose}>
+        <button
+          type="button"
+          ref={closeButtonRef}
+          className="min-h-10 cursor-pointer self-start rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
+          onClick={onClose}
+        >
           Close
         </button>
       </div>
