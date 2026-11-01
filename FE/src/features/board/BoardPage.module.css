@@ -1,12 +1,49 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .heading {
   font-size: var(--font-size-xl);
   font-weight: 600;
 }
 
-.note {
-  margin-top: var(--space-2);
+.sortInfo {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+}
+
+.overdueChip {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-overdue-surface);
+  color: var(--color-overdue);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.note {
+  margin-top: var(--space-5);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.errorBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-danger-surface);
+  color: var(--color-danger);
 }
 
 .columns {
@@ -14,27 +51,37 @@
   overflow-x: auto;
   margin-top: var(--space-5);
   gap: var(--space-4);
-  grid-auto-columns: minmax(260px, 1fr);
+  grid-auto-columns: minmax(232px, 1fr);
   grid-auto-flow: column;
+  align-items: start;
 }
 
 .column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background-color: var(--color-surface);
-  box-shadow: var(--shadow-card);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-column);
 }
 
 .columnTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-1) var(--space-1) var(--space-2);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+}
+
+.columnCount {
+  color: var(--color-text-muted);
+  font-weight: 400;
 }
 
 .empty {
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
@@ -42,5 +89,9 @@
 @media (width <= 600px) {
   .columns {
     grid-auto-columns: 85vw;
+  }
+
+  .overdueChip {
+    margin-left: 0;
   }
 }
