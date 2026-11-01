@@ -32,6 +32,7 @@ namespace TaskFlow.Api.Configurations
             collection.AddScoped<IAuthService, AuthService>();
             collection.AddScoped<IExampleService, ExampleService>();
             collection.AddScoped<ITaskService, TaskService>();
+            collection.AddScoped<ITaskHistoryService, TaskHistoryService>();
             collection.AddScoped<INotificationService, NotificationService>();
         }
     }

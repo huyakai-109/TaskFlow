@@ -42,3 +42,35 @@ Per the batch instructions, `qa-lead` runs an independent check after this slice
 ## Agent
 
 Delegated to `backend-lead`. Files in scope: `TaskControllerMS.cs` (new structs), `TaskHistoryControllerMS.cs` (new), `TaskService.cs` (add `Update`, `UpdatePriority`, `UpdateDueDate`, `Assign`, `Delete`, `GetList`, `GetBoard`), `TaskHistoryService.cs` (new) + interface, `TaskHistoryMessages.cs` (new), `TasksController.cs` (add actions), `TaskHistoryController.cs` (new), DTOs, response models, AutoMapper profiles, `CoreDependencyConfiguration.AddServices`, tests under `BE/TaskFlow.Tests`.
+
+## Result
+
+Diff reviewed directly. All endpoints follow the Move/Reopen pattern exactly (existence → version → mutate → bump `Version` → history entry where applicable → one `SaveChanges()` with the shared two-catch concurrency guard via `TaskConcurrencyHelper.IsDeadlock`). `Delete` correctly does not bump `Version` (soft-delete path resets the entry to `Unchanged`, per `CLAUDE.md`'s *Soft delete* note) but still writes `Deleted` in the same commit. `GetBoard`/`GetList` share a new `BuildSummariesAsync` helper that batches assignee-name lookups (no N+1). The only shared-code touch is a pure extraction of `BuildAllowedTransitions` out of `BuildDetail` — confirmed a no-op for `Move`/`Reopen` (all of slice 1.2/1.3's existing tests still pass unchanged across all 3 runs).
+
+One accepted judgment call beyond the contract's literal text: `TaskHistoryMessages`/`TaskHistoryService` resolve the `AssigneeChanged` entry's old/new user ids to display names for the rendered `message` (not just the actor, which is all T3 explicitly requires) — reasoned from F04 AC24 ("no internal identifier" in a rendered message). Accepted as a sensible, contained reading of AC24; structured `fromValue`/`toValue` columns still store raw ids per T2, so nothing stored changed.
+
+### Verification
+
+```
+Build:   PASS   dotnet build BE/TaskFlow.sln -c Debug → 0 Warning(s), 0 Error(s)
+Tests:   PASS   dotnet test BE/TaskFlow.Tests, run 3x consecutively against real MySQL
+                 run 1: 98 passed, 0 failed, 0 skipped (58s)
+                 run 2: 98 passed, 0 failed, 0 skipped (76s)
+                 run 3: 98 passed, 0 failed, 0 skipped (73s)
+                 No flake. All of 1.1–1.3's prior tests still pass alongside the 21 new ones.
+Checked: diff read in full by the orchestrator; build and all 3 test runs executed directly by
+         the orchestrator (not just reported by the subagent).
+Not covered: no additional manual HTTP exercise beyond the xUnit HTTP-level suite.
+```
+
+### AC checklist
+
+| AC | Status |
+|---|---|
+| F04 AC3, AC4, AC5, AC9 | PASS |
+| F04 AC15–AC21, AC23 | PASS |
+| F03 board/list shape (five columns, zero totals when empty; order/page-size left at F01 defaults) | PASS |
+| F01 remaining primitives (Update/UpdatePriority/UpdateDueDate/Assign/Delete/GetList/GetBoard) | PASS |
+| AC11–AC14 (nothing recorded on a refused request) | PASS — representative spot checks only, as scoped |
+
+Status: **Built**, not yet Done. Next: mandatory `qa-lead` independent check across the full F01+F04 surface (1.1–1.4), per the batch's hard gate before stop point B.
