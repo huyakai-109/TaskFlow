@@ -1,10 +1,12 @@
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import { BOARD_COLUMNS } from '../../api/types'
 import type { TaskStatus, TaskSummary } from '../../api/types'
 import { describeError, describeErrorCode } from '../../api/errorMessages'
+import { NewTaskDialog } from '../task-create/NewTaskDialog'
 
 import { BoardColumn } from './BoardColumn'
 import styles from './BoardPage.module.css'
@@ -73,10 +75,12 @@ const CONFLICT_CODES = new Set(['Task.Move.Conflict', 'Task.Move.NotFound'])
  * returns today.
  */
 export function BoardPage() {
+  const navigate = useNavigate()
   const boardQuery = useBoardQuery()
   const [activeTask, setActiveTask] = useState<TaskSummary | null>(null)
   const [refusal, setRefusal] = useState<{ code: string | null; taskTitle: string } | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
@@ -135,7 +139,12 @@ export function BoardPage() {
         >
           Sort: <strong>Priority</strong>
         </span>
-        {overdueCount > 0 && <span className={styles.overdueChip}>{overdueCount} overdue</span>}
+        <div className={styles.rightGroup}>
+          {overdueCount > 0 && <span className={styles.overdueChip}>{overdueCount} overdue</span>}
+          <button type="button" className={styles.newTaskButton} onClick={() => setCreateOpen(true)}>
+            New task
+          </button>
+        </div>
       </div>
 
       {boardQuery.isPending && (
@@ -185,6 +194,16 @@ export function BoardPage() {
       )}
 
       {toastMessage !== null && <MoveToast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
+
+      {createOpen && (
+        <NewTaskDialog
+          onClose={() => setCreateOpen(false)}
+          onCreated={(taskId) => {
+            setCreateOpen(false)
+            navigate(`/tasks/${taskId}`)
+          }}
+        />
+      )}
     </section>
   )
 }

@@ -1,5 +1,15 @@
 import { request } from './client'
-import type { Board, PaginationResultRes, ResultRes, TaskDetail, TaskHistoryEntry, TaskStatus } from './types'
+import type { Board, PaginationResultRes, ResultRes, TaskDetail, TaskHistoryEntry, TaskPriority, TaskStatus } from './types'
+
+/** Body of `POST /tasks` (`TaskCreateReq`). */
+export interface CreateTaskInput {
+  title: string
+  description: string | null
+  priority: TaskPriority
+  /** `yyyy-MM-dd`, or null for no due date. */
+  dueDate: string | null
+  assigneeId: number | null
+}
 
 /**
  * `GET /tasks/board` (`docs/features/f01-workflow.md` T5 #3). Always returns all
@@ -49,6 +59,76 @@ export async function reopenTask(id: number, reason: string, version: string): P
 
   if (envelope.result == null) {
     throw new Error(`Reopen of task ${id} returned no task`)
+  }
+
+  return envelope.result
+}
+
+/** `POST /tasks` (T5 #1) — new tasks always start in Backlog (server-decided). */
+export async function createTask(input: CreateTaskInput): Promise<TaskDetail> {
+  const envelope = await request<ResultRes<TaskDetail>>('/tasks', {
+    method: 'POST',
+    body: input,
+  })
+
+  if (envelope.result == null) {
+    throw new Error('Create task returned no task')
+  }
+
+  return envelope.result
+}
+
+/** `PUT /tasks/{id}` (T5 #5) — title/description only; no history entry (F04 scope). */
+export async function updateTask(id: number, title: string, description: string | null, version: string): Promise<TaskDetail> {
+  const envelope = await request<ResultRes<TaskDetail>>(`/tasks/${id}`, {
+    method: 'PUT',
+    body: { title, description, version },
+  })
+
+  if (envelope.result == null) {
+    throw new Error(`Update of task ${id} returned no task`)
+  }
+
+  return envelope.result
+}
+
+/** `PUT /tasks/{id}/priority` (T5 #6). */
+export async function updateTaskPriority(id: number, priority: TaskPriority, version: string): Promise<TaskDetail> {
+  const envelope = await request<ResultRes<TaskDetail>>(`/tasks/${id}/priority`, {
+    method: 'PUT',
+    body: { priority, version },
+  })
+
+  if (envelope.result == null) {
+    throw new Error(`Update priority of task ${id} returned no task`)
+  }
+
+  return envelope.result
+}
+
+/** `PUT /tasks/{id}/due-date` (T5 #7) — an explicit `null` clears the due date. */
+export async function updateTaskDueDate(id: number, dueDate: string | null, version: string): Promise<TaskDetail> {
+  const envelope = await request<ResultRes<TaskDetail>>(`/tasks/${id}/due-date`, {
+    method: 'PUT',
+    body: { dueDate, version },
+  })
+
+  if (envelope.result == null) {
+    throw new Error(`Update due date of task ${id} returned no task`)
+  }
+
+  return envelope.result
+}
+
+/** `PUT /tasks/{id}/assignee` (T5 #8) — `assigneeId: null` unassigns. */
+export async function assignTask(id: number, assigneeId: number | null, version: string): Promise<TaskDetail> {
+  const envelope = await request<ResultRes<TaskDetail>>(`/tasks/${id}/assignee`, {
+    method: 'PUT',
+    body: { assigneeId, version },
+  })
+
+  if (envelope.result == null) {
+    throw new Error(`Assign of task ${id} returned no task`)
   }
 
   return envelope.result

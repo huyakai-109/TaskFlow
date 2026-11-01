@@ -25,10 +25,58 @@
 }
 
 .value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
   font-size: var(--font-size-base);
 }
 
 .overdue {
   color: var(--color-overdue);
   font-weight: 600;
+}
+
+.select,
+.dateInput {
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+}
+
+.select:disabled,
+.dateInput:disabled {
+  opacity: 0.6;
+}
+
+.linkButton {
+  border: 0;
+  background: transparent;
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.linkButton:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+.pending {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.fieldError {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
 }

@@ -2,20 +2,31 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { describeError, describeErrorCode } from '../../api/errorMessages'
+import type { TaskPriority } from '../../api/types'
 import { MoveRefusalDialog } from '../board/MoveRefusalDialog'
 import { MoveToast } from '../board/MoveToast'
 import { useMoveTaskMutation } from '../board/useMoveTaskMutation'
 
+import { AssigneePickerDialog } from './AssigneePickerDialog'
+import { EditTaskDialog } from './EditTaskDialog'
 import { HistoryTimeline } from './HistoryTimeline'
 import { PropertiesPanel } from './PropertiesPanel'
 import { ReopenDialog } from './ReopenDialog'
 import styles from './TaskDetailPage.module.css'
+import { useAssignTaskMutation } from './useAssignTaskMutation'
 import { useReopenTaskMutation } from './useReopenTaskMutation'
 import { useTaskHistoryQuery } from './useTaskHistoryQuery'
 import { useTaskQuery } from './useTaskQuery'
+import { useUpdateDueDateMutation } from './useUpdateDueDateMutation'
+import { useUpdatePriorityMutation } from './useUpdatePriorityMutation'
 import { WorkflowStrip } from './WorkflowStrip'
 
 const CONFLICT_CODES = new Set(['Task.Move.Conflict', 'Task.Move.NotFound'])
+
+/** `Conflict`/`NotFound` codes across the properties-panel operations get a toast, same as a drag refusal; anything else is a field-level message. */
+function isConflictLike(code: string | null): boolean {
+  return code !== null && (code.endsWith('.Conflict') || code.endsWith('.NotFound'))
+}
 
 /**
  * The task detail screen (`docs/ui/screens/TaskDetail.dc.html`): workflow
@@ -32,6 +43,11 @@ export function TaskDetailPage() {
   const [refusal, setRefusal] = useState<{ code: string | null; taskTitle: string } | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [reopenOpen, setReopenOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [assigneePickerOpen, setAssigneePickerOpen] = useState(false)
+  const [priorityError, setPriorityError] = useState<string | null>(null)
+  const [dueDateError, setDueDateError] = useState<string | null>(null)
+  const [assignErrorCode, setAssignErrorCode] = useState<string | null>(null)
 
   const moveMutation = useMoveTaskMutation({
     onRefused: (code, taskTitle) => {
@@ -46,6 +62,40 @@ export function TaskDetailPage() {
 
   const reopenMutation = useReopenTaskMutation({
     onRefused: (code) => setToastMessage(describeErrorCode(code)),
+  })
+
+  const priorityMutation = useUpdatePriorityMutation({
+    onRefused: (code) => {
+      if (isConflictLike(code)) {
+        setToastMessage(describeErrorCode(code))
+        return
+      }
+
+      setPriorityError(describeErrorCode(code))
+    },
+  })
+
+  const dueDateMutation = useUpdateDueDateMutation({
+    onRefused: (code) => {
+      if (isConflictLike(code)) {
+        setToastMessage(describeErrorCode(code))
+        return
+      }
+
+      setDueDateError(describeErrorCode(code))
+    },
+  })
+
+  const assignMutation = useAssignTaskMutation({
+    onRefused: (code) => {
+      if (isConflictLike(code)) {
+        setToastMessage(describeErrorCode(code))
+        setAssigneePickerOpen(false)
+        return
+      }
+
+      setAssignErrorCode(code)
+    },
   })
 
   if (taskQuery.isPending) {
@@ -69,6 +119,24 @@ export function TaskDetailPage() {
   const moves = task.allowedTransitions.filter((t) => t.operation === 'Move')
   const reopen = task.allowedTransitions.find((t) => t.operation === 'Reopen')
 
+  function handlePriorityChange(priority: TaskPriority) {
+    setPriorityError(null)
+    priorityMutation.mutate({ taskId: task.id, priority, version: task.version })
+  }
+
+  function handleDueDateChange(dueDate: string | null) {
+    setDueDateError(null)
+    dueDateMutation.mutate({ taskId: task.id, dueDate, version: task.version })
+  }
+
+  function handleAssign(assigneeId: number | null) {
+    setAssignErrorCode(null)
+    assignMutation.mutate(
+      { taskId: task.id, assigneeId, version: task.version },
+      { onSuccess: () => setAssigneePickerOpen(false) },
+    )
+  }
+
   return (
     <section className={styles.page}>
       <Link to="/board" className={styles.back}>
@@ -76,7 +144,12 @@ export function TaskDetailPage() {
       </Link>
 
       <div className={styles.header}>
-        <h1 className={styles.title}>{task.title}</h1>
+        <div className={styles.headerRow}>
+          <h1 className={styles.title}>{task.title}</h1>
+          <button type="button" className={styles.editButton} onClick={() => setEditOpen(true)}>
+            Edit
+          </button>
+        </div>
         {task.description !== null && task.description !== '' && (
           <p className={styles.description}>{task.description}</p>
         )}
@@ -115,7 +188,17 @@ export function TaskDetailPage() {
           </section>
         </main>
 
-        <PropertiesPanel task={task} />
+        <PropertiesPanel
+          task={task}
+          onEditPriority={handlePriorityChange}
+          isPriorityPending={priorityMutation.isPending}
+          priorityError={priorityError}
+          onEditDueDate={handleDueDateChange}
+          isDueDatePending={dueDateMutation.isPending}
+          dueDateError={dueDateError}
+          onOpenAssigneePicker={() => setAssigneePickerOpen(true)}
+          isAssigneePending={assignMutation.isPending}
+        />
       </div>
 
       {reopenOpen && (
@@ -129,6 +212,29 @@ export function TaskDetailPage() {
               { onSuccess: () => setReopenOpen(false) },
             )
           }}
+        />
+      )}
+
+      {editOpen && (
+        <EditTaskDialog
+          task={task}
+          onClose={() => setEditOpen(false)}
+          onRefused={(code) => {
+            if (isConflictLike(code)) {
+              setToastMessage(describeErrorCode(code))
+              setEditOpen(false)
+            }
+          }}
+        />
+      )}
+
+      {assigneePickerOpen && (
+        <AssigneePickerDialog
+          currentAssigneeId={task.assignee?.id ?? null}
+          isPending={assignMutation.isPending}
+          errorCode={assignErrorCode}
+          onClose={() => setAssigneePickerOpen(false)}
+          onSelect={handleAssign}
         />
       )}
 
