@@ -13,16 +13,36 @@
   border-color: var(--color-overdue-border);
 }
 
+.cardDragging {
+  opacity: 0.6;
+  box-shadow: var(--shadow-raised);
+}
+
 .cardHeader {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: var(--space-2);
 }
 
 .key {
   color: var(--color-text-muted);
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
+  text-decoration: none;
+}
+
+.key:hover {
+  text-decoration: underline;
+}
+
+.dragHandle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: auto;
+  color: var(--color-text-muted);
+  cursor: grab;
+  touch-action: none;
 }
 
 .avatar {
@@ -42,6 +62,15 @@
   font-size: var(--font-size-base);
   font-weight: 500;
   line-height: 1.4;
+}
+
+.titleLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.titleLink:hover {
+  text-decoration: underline;
 }
 
 .chips {
@@ -77,8 +106,39 @@
   font-weight: 600;
 }
 
-.moves {
-  margin: 0;
-  color: var(--color-text-muted);
+.moveActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.moveButton {
+  min-height: 28px;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-text);
   font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.moveButton:hover {
+  background-color: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
+/* Touch targets grow to 44px on a coarse (touch) pointer — frontend.md §7. */
+@media (pointer: coarse) {
+  .moveButton {
+    min-height: 44px;
+    padding: 0 var(--space-3);
+  }
+
+  .dragHandle {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }

@@ -1,4 +1,9 @@
-import type { TaskPriority, TaskSummary } from '../../api/types'
+import { useDraggable } from '@dnd-kit/core'
+import type { CSSProperties } from 'react'
+import { Link } from 'react-router-dom'
+
+import type { TaskPriority, TaskStatus, TaskSummary } from '../../api/types'
+import { avatarPaletteIndex, initialsOf } from '../../shared/avatar'
 
 import { STATUS_LABELS } from './statusLabels'
 import styles from './TaskCard.module.css'
@@ -74,32 +79,66 @@ function PriorityIcon({ priority }: { priority: TaskPriority }) {
   )
 }
 
-function initialsOf(userName: string): string {
-  return userName.slice(0, 2).toUpperCase()
-}
-
-/** A stable background/ink pair per person (`docs/ui.md` Avatar), from a fixed six-colour palette. */
-function avatarPaletteIndex(userId: number): number {
-  return ((userId - 1) % 6) + 1
+function GripIcon() {
+  return (
+    <svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+      <circle cx="5" cy="4" r="1.3" />
+      <circle cx="11" cy="4" r="1.3" />
+      <circle cx="5" cy="8" r="1.3" />
+      <circle cx="11" cy="8" r="1.3" />
+      <circle cx="5" cy="12" r="1.3" />
+      <circle cx="11" cy="12" r="1.3" />
+    </svg>
+  )
 }
 
 interface TaskCardProps {
   task: TaskSummary
+  onMove: (taskId: number, toStatus: TaskStatus, version: string) => void
 }
 
 /**
- * A read-only board card. The allowed-move list underneath is this slice's
- * drop-target affordance: it is exactly what a drag onto another column would
- * be allowed to do (F01 D10), shown as plain text because dragging itself is
- * slice 1.6 — see `docs/ui.md` "Keep a non-drag path".
+ * A board card: draggable to any column in its own `allowedTransitions` (F01
+ * D10), plus the same moves as plain buttons underneath — the "non-drag path"
+ * `docs/ui.md` requires for keyboard and screen-reader users. The drag handle
+ * itself is `aria-hidden` and out of the tab order: it is a pointer-only
+ * shortcut, not a second way to reach the same action for keyboard users, who
+ * use the buttons instead.
  */
-export function TaskCard({ task }: TaskCardProps) {
+export function TaskCard({ task, onMove }: TaskCardProps) {
   const moves = task.allowedTransitions.filter((t) => t.operation === 'Move')
+  const { setNodeRef, setActivatorNodeRef, listeners, attributes, transform, isDragging } = useDraggable({
+    id: `task-${task.id}`,
+    data: { task },
+    disabled: moves.length === 0,
+  })
+
+  const style: CSSProperties | undefined =
+    transform !== null ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 10 } : undefined
 
   return (
-    <article className={`${styles.card} ${task.isOverdue ? styles.cardOverdue : ''}`} aria-label={task.title}>
+    <article
+      ref={setNodeRef}
+      style={style}
+      className={`${styles.card} ${task.isOverdue ? styles.cardOverdue : ''} ${isDragging ? styles.cardDragging : ''}`}
+    >
       <div className={styles.cardHeader}>
-        <span className={styles.key}>#{task.id}</span>
+        <Link to={`/tasks/${task.id}`} className={styles.key}>
+          #{task.id}
+        </Link>
+        {moves.length > 0 && (
+          <span
+            ref={setActivatorNodeRef}
+            {...listeners}
+            {...attributes}
+            aria-hidden="true"
+            tabIndex={-1}
+            title="Drag to move"
+            className={styles.dragHandle}
+          >
+            <GripIcon />
+          </span>
+        )}
         {task.assignee !== null && (
           <span
             className={styles.avatar}
@@ -113,7 +152,11 @@ export function TaskCard({ task }: TaskCardProps) {
           </span>
         )}
       </div>
-      <h3 className={styles.title}>{task.title}</h3>
+      <h3 className={styles.title}>
+        <Link to={`/tasks/${task.id}`} className={styles.titleLink}>
+          {task.title}
+        </Link>
+      </h3>
       <div className={styles.chips}>
         <span className={styles.chip}>
           <PriorityIcon priority={task.priority} />
@@ -122,7 +165,18 @@ export function TaskCard({ task }: TaskCardProps) {
         {task.isOverdue ? <OverdueChip dueDate={task.dueDate} /> : <DueChip dueDate={task.dueDate} />}
       </div>
       {moves.length > 0 && (
-        <p className={styles.moves}>Can move to {moves.map((m) => STATUS_LABELS[m.status]).join(', ')}</p>
+        <div className={styles.moveActions} role="group" aria-label={`Move "${task.title}" to`}>
+          {moves.map((move) => (
+            <button
+              key={move.status}
+              type="button"
+              className={styles.moveButton}
+              onClick={() => onMove(task.id, move.status, task.version)}
+            >
+              Move to {STATUS_LABELS[move.status]}
+            </button>
+          ))}
+        </div>
       )}
     </article>
   )

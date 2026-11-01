@@ -1,11 +1,18 @@
-import { BOARD_COLUMNS } from '../../api/types'
-import type { TaskStatus } from '../../api/types'
-import { describeError } from '../../api/errorMessages'
+import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import { useMemo, useState } from 'react'
 
+import { BOARD_COLUMNS } from '../../api/types'
+import type { TaskStatus, TaskSummary } from '../../api/types'
+import { describeError, describeErrorCode } from '../../api/errorMessages'
+
+import { BoardColumn } from './BoardColumn'
 import styles from './BoardPage.module.css'
+import { MoveRefusalDialog } from './MoveRefusalDialog'
+import { MoveToast } from './MoveToast'
 import { STATUS_LABELS } from './statusLabels'
-import { TaskCard } from './TaskCard'
 import { useBoardQuery } from './useBoardQuery'
+import { useMoveTaskMutation } from './useMoveTaskMutation'
 
 function StatusIcon({ status }: { status: TaskStatus }) {
   switch (status) {
@@ -45,11 +52,19 @@ function StatusIcon({ status }: { status: TaskStatus }) {
   }
 }
 
+/** `event.active.id` is `task-{id}`, so it never collides with a column's status id. */
+function parseDraggedTaskId(dragId: string | number): number {
+  return Number(String(dragId).replace('task-', ''))
+}
+
+const CONFLICT_CODES = new Set(['Task.Move.Conflict', 'Task.Move.NotFound'])
+
 /**
- * The board: five fixed columns, cards read-only. Drag-and-drop interaction is
- * slice 1.6 — each card instead lists the statuses it could legally move to
- * (`TaskCard`'s "Can move to …" line), derived from `allowedTransitions` and
- * never recomputed client-side (F01 D10, `docs/ui.md`).
+ * The board: five fixed columns, drag-and-drop between them (F01 D9, D10).
+ * Every move available by drag is also a button on the card (`TaskCard`), so
+ * the non-drag path is never a lesser one (`docs/ui.md` "Keep a non-drag
+ * path"). A column not in the dragged card's own `allowedTransitions` is a
+ * genuinely disabled drop target, not just a dimmed one (`BoardColumn`).
  *
  * The sidebar, search, team-capacity popover and "N at capacity" chip from the
  * wireframe are left out here: they need F02 (capacity), a user roster or
@@ -59,6 +74,53 @@ function StatusIcon({ status }: { status: TaskStatus }) {
  */
 export function BoardPage() {
   const boardQuery = useBoardQuery()
+  const [activeTask, setActiveTask] = useState<TaskSummary | null>(null)
+  const [refusal, setRefusal] = useState<{ code: string | null; taskTitle: string } | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  const moveMutation = useMoveTaskMutation({
+    onRefused: (code, taskTitle) => {
+      if (code !== null && CONFLICT_CODES.has(code)) {
+        setToastMessage(describeErrorCode(code))
+        return
+      }
+
+      setRefusal({ code, taskTitle })
+    },
+  })
+
+  function findTask(taskId: number): TaskSummary | undefined {
+    return boardQuery.data?.columns.flatMap((column) => column.items).find((item) => item.id === taskId)
+  }
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveTask(findTask(parseDraggedTaskId(event.active.id)) ?? null)
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const task = findTask(parseDraggedTaskId(event.active.id))
+    const toStatus = event.over?.id as TaskStatus | undefined
+    setActiveTask(null)
+
+    if (task === undefined || toStatus === undefined || toStatus === task.status) {
+      return
+    }
+
+    const isAllowed = task.allowedTransitions.some((t) => t.operation === 'Move' && t.status === toStatus)
+
+    if (!isAllowed) {
+      return
+    }
+
+    moveMutation.mutate({ taskId: task.id, toStatus, version: task.version, taskTitle: task.title })
+  }
+
+  const allowedTargetsForActiveDrag = useMemo(
+    () => new Set(activeTask?.allowedTransitions.filter((t) => t.operation === 'Move').map((t) => t.status) ?? []),
+    [activeTask],
+  )
 
   const overdueCount =
     boardQuery.data?.columns.reduce((total, column) => total + column.items.filter((item) => item.isOverdue).length, 0) ?? 0
@@ -92,27 +154,37 @@ export function BoardPage() {
       )}
 
       {boardQuery.isSuccess && (
-        <div className={styles.columns}>
-          {BOARD_COLUMNS.map((status) => {
-            const column = boardQuery.data.columns.find((c) => c.status === status)
-            const items = column?.items ?? []
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActiveTask(null)}>
+          <div className={styles.columns}>
+            {BOARD_COLUMNS.map((status) => {
+              const column = boardQuery.data.columns.find((c) => c.status === status)
+              const items = column?.items ?? []
 
-            return (
-              <section key={status} className={styles.column} aria-label={STATUS_LABELS[status]}>
-                <h3 className={styles.columnTitle}>
-                  <StatusIcon status={status} />
-                  {STATUS_LABELS[status]} <span className={styles.columnCount}>{items.length}</span>
-                </h3>
-                {items.length === 0 ? (
-                  <p className={styles.empty}>No tasks</p>
-                ) : (
-                  items.map((task) => <TaskCard key={task.id} task={task} />)
-                )}
-              </section>
-            )
-          })}
-        </div>
+              return (
+                <BoardColumn
+                  key={status}
+                  status={status}
+                  label={STATUS_LABELS[status]}
+                  icon={<StatusIcon status={status} />}
+                  items={items}
+                  isDragging={activeTask !== null}
+                  isDropTarget={allowedTargetsForActiveDrag.has(status)}
+                  onMove={(taskId, toStatus, version) => {
+                    const task = findTask(taskId)
+                    moveMutation.mutate({ taskId, toStatus, version, taskTitle: task?.title ?? `#${taskId}` })
+                  }}
+                />
+              )
+            })}
+          </div>
+        </DndContext>
       )}
+
+      {refusal !== null && (
+        <MoveRefusalDialog code={refusal.code} taskTitle={refusal.taskTitle} onClose={() => setRefusal(null)} />
+      )}
+
+      {toastMessage !== null && <MoveToast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
     </section>
   )
 }

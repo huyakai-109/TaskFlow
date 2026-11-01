@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 
 import { AppLayout } from './app/AppLayout'
 import { BoardPage } from './features/board/BoardPage'
+import { TaskDetailPage } from './features/task-detail/TaskDetailPage'
 
 /**
  * Routes are declared in one place. Auth guards come in with the login screen —
@@ -14,6 +15,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/board" replace /> },
       { path: 'board', element: <BoardPage /> },
+      { path: 'tasks/:id', element: <TaskDetailPage /> },
     ],
   },
 ])

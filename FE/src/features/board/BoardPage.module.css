@@ -56,36 +56,6 @@
   align-items: start;
 }
 
-.column {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border-radius: var(--radius-lg);
-  background-color: var(--color-column);
-}
-
-.columnTitle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0;
-  padding: var(--space-1) var(--space-1) var(--space-2);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-}
-
-.columnCount {
-  color: var(--color-text-muted);
-  font-weight: 400;
-}
-
-.empty {
-  margin-top: var(--space-2);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
 @media (width <= 600px) {
   .columns {
     grid-auto-columns: 85vw;

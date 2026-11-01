@@ -1,0 +1,49 @@
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 2px solid transparent;
+  border-radius: var(--radius-lg);
+  background-color: var(--color-column);
+  transition: border-color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.columnTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-1) var(--space-1) var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.columnCount {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.empty {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* A legal drop target for the card currently being dragged. */
+.dropAllowed {
+  border-color: var(--color-accent);
+  border-style: dashed;
+}
+
+/* The column the dragged card is hovering over right now, and may legally drop onto. */
+.dropActive {
+  border-color: var(--color-accent);
+  border-style: solid;
+  background-color: var(--color-accent-soft);
+}
+
+/* Not one of the dragged card's `allowedTransitions` — visibly disabled, not just un-highlighted. */
+.dropDisabled {
+  opacity: 0.45;
+}

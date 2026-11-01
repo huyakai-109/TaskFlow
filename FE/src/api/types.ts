@@ -94,3 +94,55 @@ export interface BoardColumn {
 export interface Board {
   columns: BoardColumn[]
 }
+
+/** `TaskDetailRes` — `TaskSummaryRes` plus the detail-only fields (T5 endpoint 2). */
+export interface TaskDetail extends TaskSummary {
+  description: string | null
+  createdAt: string
+  createdBy: number
+  updatedAt: string
+}
+
+/** `TaskHistoryEvent` enum, wire names (`f01-workflow.md` T1). */
+export type TaskHistoryEvent =
+  | 'Created'
+  | 'StatusChanged'
+  | 'AssigneeChanged'
+  | 'PriorityChanged'
+  | 'DueDateChanged'
+  | 'Reopened'
+  | 'OverdueMarked'
+  | 'Deleted'
+
+/**
+ * `TaskHistoryRes` — one append-only entry (F04). `message` is already a
+ * human-readable sentence built server-side (`TaskHistoryMessages.Build`);
+ * the client renders it as-is rather than re-deriving copy from the
+ * structured fields.
+ */
+export interface TaskHistoryEntry {
+  id: number
+  taskId: number
+  event: TaskHistoryEvent
+  actorUserId: number | null
+  actorName: string | null
+  fromValue: string | null
+  toValue: string | null
+  reason: string | null
+  occurredAt: string
+  occurredAtLocal: string
+  message: string
+}
+
+/** `TaskNotificationEvent` enum — `ReturnedForRework` is the only MVP value (F01 D7). */
+export type TaskNotificationEvent = 'ReturnedForRework'
+
+/** `NotificationRes` */
+export interface TaskNotification {
+  id: number
+  taskId: number
+  event: TaskNotificationEvent
+  isRead: boolean
+  readAt: string | null
+  createdAt: string
+}
