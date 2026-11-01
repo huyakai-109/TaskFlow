@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router-dom'
 
-import { NotificationBell } from '../features/notifications/NotificationBell'
+import { NotificationBell } from '../features/notifications/components/NotificationBell'
 
 import styles from './AppLayout.module.css'
 

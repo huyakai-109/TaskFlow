@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
-import type { TaskDetail, TaskPriority } from '../../api/types'
-import { STATUS_LABELS } from '../board/statusLabels'
+import type { TaskDetail, TaskPriority } from '../../../api/types'
+import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
 import styles from './PropertiesPanel.module.css'
 

@@ -1,5 +1,5 @@
-import type { TaskHistoryEntry } from '../../api/types'
-import { avatarPaletteIndex, initialsOf } from '../../shared/avatar'
+import type { TaskHistoryEntry } from '../../../api/types'
+import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
 
 import styles from './HistoryTimeline.module.css'
 

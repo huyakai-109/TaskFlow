@@ -2,10 +2,10 @@ import { useDraggable } from '@dnd-kit/core'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 
-import type { TaskPriority, TaskStatus, TaskSummary } from '../../api/types'
-import { avatarPaletteIndex, initialsOf } from '../../shared/avatar'
+import type { TaskPriority, TaskStatus, TaskSummary } from '../../../api/types'
+import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
+import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
-import { STATUS_LABELS } from './statusLabels'
 import styles from './TaskCard.module.css'
 
 const dueDateFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })

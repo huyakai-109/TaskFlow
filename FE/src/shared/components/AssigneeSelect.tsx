@@ -1,5 +1,6 @@
+import { useKnownAssignees } from '../hooks/useKnownAssignees'
+
 import styles from './AssigneeSelect.module.css'
-import { useKnownAssignees } from './useKnownAssignees'
 
 interface AssigneeSelectProps {
   id: string

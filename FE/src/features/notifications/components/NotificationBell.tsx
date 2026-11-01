@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { describeError } from '../../api/errorMessages'
+import { describeError } from '../../../api/errorMessages'
+import { useMarkNotificationReadMutation } from '../hooks/useMarkNotificationReadMutation'
+import { useNotificationsQuery } from '../hooks/useNotificationsQuery'
 
 import styles from './NotificationBell.module.css'
-import { useMarkNotificationReadMutation } from './useMarkNotificationReadMutation'
-import { useNotificationsQuery } from './useNotificationsQuery'
 
 function BellIcon() {
   return (

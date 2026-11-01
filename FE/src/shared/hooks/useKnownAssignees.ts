@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 
-import type { Assignee, Board } from '../api/types'
+import type { Assignee, Board } from '../../api/types'
 
 /**
  * `GET api/v1/users` is approved in the contract (`docs/ROADMAP.md` *Technical

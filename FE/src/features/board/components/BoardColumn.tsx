@@ -1,7 +1,7 @@
 import { useDroppable } from '@dnd-kit/core'
 import type { ReactNode } from 'react'
 
-import type { TaskStatus, TaskSummary } from '../../api/types'
+import type { TaskStatus, TaskSummary } from '../../../api/types'
 
 import styles from './BoardColumn.module.css'
 import { TaskCard } from './TaskCard'

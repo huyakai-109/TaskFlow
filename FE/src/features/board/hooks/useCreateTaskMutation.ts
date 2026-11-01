@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-import type { CreateTaskInput } from '../../api/tasks'
-import { createTask } from '../../api/tasks'
+import type { CreateTaskInput } from '../../../api/tasks'
+import { createTask } from '../../../api/tasks'
 
 /**
  * `POST /tasks`. No optimistic update: there is no existing board card to

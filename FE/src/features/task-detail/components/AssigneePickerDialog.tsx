@@ -1,8 +1,8 @@
 import { useRef } from 'react'
 
-import { describeErrorCode } from '../../api/errorMessages'
-import { useKnownAssignees } from '../../shared/useKnownAssignees'
-import { useDialogA11y } from '../../shared/useDialogA11y'
+import { describeErrorCode } from '../../../api/errorMessages'
+import { useKnownAssignees } from '../../../shared/hooks/useKnownAssignees'
+import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 
 import styles from './AssigneePickerDialog.module.css'
 

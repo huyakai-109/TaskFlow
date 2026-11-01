@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { markNotificationRead } from '../../api/notifications'
+import { markNotificationRead } from '../../../api/notifications'
 
 export function useMarkNotificationReadMutation() {
   const queryClient = useQueryClient()

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { ApiError } from '../../api/client'
-import { reopenTask } from '../../api/tasks'
+import { ApiError } from '../../../api/client'
+import { reopenTask } from '../../../api/tasks'
 
 interface ReopenVariables {
   taskId: number

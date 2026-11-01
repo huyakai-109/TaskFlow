@@ -1,6 +1,6 @@
-import { BOARD_COLUMNS } from '../../api/types'
-import type { AllowedTransition, TaskStatus } from '../../api/types'
-import { STATUS_LABELS } from '../board/statusLabels'
+import { BOARD_COLUMNS } from '../../../api/types'
+import type { AllowedTransition, TaskStatus } from '../../../api/types'
+import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
 import styles from './WorkflowStrip.module.css'
 

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { getNotifications } from '../../api/notifications'
+import { getNotifications } from '../../../api/notifications'
 
 /**
  * Unread notifications only — the inbox shows exactly the rework event F01

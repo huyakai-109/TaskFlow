@@ -1,14 +1,14 @@
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { ApiError } from '../../api/client'
-import { describeError } from '../../api/errorMessages'
-import type { TaskDetail } from '../../api/types'
-import { fieldErrorMap } from '../../shared/fieldErrors'
-import { useDialogA11y } from '../../shared/useDialogA11y'
+import { ApiError } from '../../../api/client'
+import { describeError } from '../../../api/errorMessages'
+import type { TaskDetail } from '../../../api/types'
+import { fieldErrorMap } from '../../../shared/lib/fieldErrors'
+import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
+import { useUpdateTaskMutation } from '../hooks/useUpdateTaskMutation'
 
 import styles from './EditTaskDialog.module.css'
-import { useUpdateTaskMutation } from './useUpdateTaskMutation'
 
 // Mirrors TaskUpdateReq's [MaxLength] attributes.
 const TITLE_MAX = 200

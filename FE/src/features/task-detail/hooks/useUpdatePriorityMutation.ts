@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { ApiError } from '../../api/client'
-import { updateTaskPriority } from '../../api/tasks'
-import type { TaskPriority } from '../../api/types'
+import { ApiError } from '../../../api/client'
+import { updateTaskPriority } from '../../../api/tasks'
+import type { TaskPriority } from '../../../api/types'
 
 interface Variables {
   taskId: number

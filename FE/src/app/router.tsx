@@ -1,8 +1,8 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 
-import { AppLayout } from './app/AppLayout'
-import { BoardPage } from './features/board/BoardPage'
-import { TaskDetailPage } from './features/task-detail/TaskDetailPage'
+import { AppLayout } from './AppLayout'
+import { BoardPage } from '../features/board/BoardPage'
+import { TaskDetailPage } from '../features/task-detail/TaskDetailPage'
 
 /**
  * Routes are declared in one place. Auth guards come in with the login screen —

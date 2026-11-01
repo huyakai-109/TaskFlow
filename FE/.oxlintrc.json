@@ -4,5 +4,47 @@
   "rules": {
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+  },
+  "overrides": [
+    {
+      // Dependency direction (frontend.md / architecture decision 2026-11-01):
+      // shared -> features -> app. shared/ must not reach into a feature or into app/.
+      "files": ["src/shared/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          { "patterns": ["**/features/**", "**/app/**"] }
+        ]
+      }
+    },
+    {
+      // A feature must not import from another feature or from app/ — features
+      // are composed together only in app/.
+      "files": ["src/features/board/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          { "patterns": ["**/task-detail/**", "**/notifications/**", "**/app/**"] }
+        ]
+      }
+    },
+    {
+      "files": ["src/features/task-detail/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          { "patterns": ["**/board/**", "**/notifications/**", "**/app/**"] }
+        ]
+      }
+    },
+    {
+      "files": ["src/features/notifications/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          { "patterns": ["**/board/**", "**/task-detail/**", "**/app/**"] }
+        ]
+      }
+    }
+  ]
 }

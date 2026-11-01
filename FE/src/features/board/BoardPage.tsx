@@ -6,15 +6,15 @@ import { useNavigate } from 'react-router-dom'
 import { BOARD_COLUMNS } from '../../api/types'
 import type { TaskStatus, TaskSummary } from '../../api/types'
 import { describeError, describeErrorCode } from '../../api/errorMessages'
-import { NewTaskDialog } from '../task-create/NewTaskDialog'
+import { MoveRefusalDialog } from '../../shared/components/MoveRefusalDialog'
+import { MoveToast } from '../../shared/components/MoveToast'
+import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
+import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 
-import { BoardColumn } from './BoardColumn'
+import { BoardColumn } from './components/BoardColumn'
+import { NewTaskDialog } from './components/NewTaskDialog'
+import { useBoardQuery } from './hooks/useBoardQuery'
 import styles from './BoardPage.module.css'
-import { MoveRefusalDialog } from './MoveRefusalDialog'
-import { MoveToast } from './MoveToast'
-import { STATUS_LABELS } from './statusLabels'
-import { useBoardQuery } from './useBoardQuery'
-import { useMoveTaskMutation } from './useMoveTaskMutation'
 
 function StatusIcon({ status }: { status: TaskStatus }) {
   switch (status) {

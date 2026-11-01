@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react'
 
 import { describeErrorCode } from '../../api/errorMessages'
+import { DEFAULT_REFUSAL_TITLE, MOVE_REFUSAL_TITLES } from '../lib/moveRefusalTitles'
 
 import styles from './MoveRefusalDialog.module.css'
-import { DEFAULT_REFUSAL_TITLE, MOVE_REFUSAL_TITLES } from './moveRefusalTitles'
 
 interface MoveRefusalDialogProps {
   code: string | null

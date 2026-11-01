@@ -1,4 +1,4 @@
-import type { ValidateRes } from '../api/types'
+import type { ValidateRes } from '../../api/types'
 
 /**
  * Maps the envelope's `validates` array (`Request.Validation.Failed` —

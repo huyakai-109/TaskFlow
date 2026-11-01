@@ -1,16 +1,16 @@
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { ApiError } from '../../api/client'
-import { describeError } from '../../api/errorMessages'
-import type { CreateTaskInput } from '../../api/tasks'
-import type { TaskPriority } from '../../api/types'
-import { AssigneeSelect } from '../../shared/AssigneeSelect'
-import { fieldErrorMap } from '../../shared/fieldErrors'
-import { useDialogA11y } from '../../shared/useDialogA11y'
+import { ApiError } from '../../../api/client'
+import { describeError } from '../../../api/errorMessages'
+import type { CreateTaskInput } from '../../../api/tasks'
+import type { TaskPriority } from '../../../api/types'
+import { AssigneeSelect } from '../../../shared/components/AssigneeSelect'
+import { fieldErrorMap } from '../../../shared/lib/fieldErrors'
+import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
+import { useCreateTaskMutation } from '../hooks/useCreateTaskMutation'
 
 import styles from './NewTaskDialog.module.css'
-import { useCreateTaskMutation } from './useCreateTaskMutation'
 
 // Mirrors TaskCreateReq's [MaxLength] attributes (coding-standards.md "limits
 // agree across layers") — the server is still the real enforcer.
