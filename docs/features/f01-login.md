@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Source** | Gap found after slices 1.5–1.7: the board calls the API with no token, so every call gets a 401. No BRS section owns login directly — it is the primitive the F01 permission table (`docs/features/f01-workflow.md` → *Permissions*) needs on the client. |
-| **Status** | Built |
+| **Status** | Ready for Review — `review-change`: APPROVE WITH RECOMMENDATIONS on `c606862`, 2026-11-04 (no Must-fix; see commit for detail) |
 | **Depends on** | `BE` slice 0.4 (httpOnly refresh cookie, `permissions: string[]` on login/refresh — done) |
 | **Related** | `docs/features/f01-workflow.md` *Permissions* (the `Tasks` permission set this slice stores and reads) |
 
