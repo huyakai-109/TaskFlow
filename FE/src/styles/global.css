@@ -2,6 +2,98 @@
 @import '@fontsource-variable/geist';
 @import '@fontsource-variable/geist-mono';
 @import './tokens.css';
+@import 'tailwindcss';
+
+/*
+ * `tokens.css` stays the one source of truth for every value (CLAUDE.md UI
+ * conventions). `@theme inline` does not copy those values in: each entry
+ * keeps referencing the `--color-*`/`--space-*`/… custom property by name, so
+ * a Tailwind utility like `bg-bg` still resolves through `var(--color-bg)`
+ * and repaints with it — under `prefers-color-scheme` or `[data-theme]` —
+ * exactly like every CSS Module rule did before this migration.
+ */
+@theme inline {
+  --color-bg: var(--color-bg);
+  --color-sidebar: var(--color-sidebar);
+  --color-column: var(--color-column);
+  --color-surface: var(--color-surface);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-inverse: var(--color-text-inverse);
+  --color-kbd: var(--color-kbd);
+
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-accent-ink: var(--color-accent-ink);
+  --color-on-accent: var(--color-on-accent);
+  --color-focus: var(--color-focus);
+
+  --color-danger: var(--color-danger);
+  --color-danger-surface: var(--color-danger-surface);
+  --color-danger-border: var(--color-danger-border);
+  --color-warning: var(--color-warning);
+  --color-warning-surface: var(--color-warning-surface);
+  --color-success: var(--color-success);
+  --color-success-surface: var(--color-success-surface);
+
+  --color-priority-urgent: var(--color-priority-urgent);
+  --color-priority-high: var(--color-priority-high);
+  --color-priority-normal: var(--color-priority-normal);
+
+  --color-overdue: var(--color-overdue);
+  --color-overdue-surface: var(--color-overdue-surface);
+  --color-overdue-border: var(--color-overdue-border);
+
+  --color-meter-empty: var(--color-meter-empty);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-raised: var(--shadow-raised);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-pill: var(--radius-pill);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+/*
+ * Spacing (`--space-*`) and font size (`--font-size-*`) are deliberately not
+ * remapped into Tailwind's `--spacing-*`/`--text-*` theme namespaces: both are
+ * multi-value scales in Tailwind v4 (spacing drives a single multiplier used
+ * well beyond padding/gap; each `--text-*` size carries a paired
+ * `--text-*--line-height`), and only reassigning the keys this app happens to
+ * use risks a silent mismatch somewhere else in that scale. Components use
+ * the exact token through Tailwind's arbitrary-value syntax instead, e.g.
+ * `p-[var(--space-3)]` / `text-[length:var(--font-size-sm)]` — same value,
+ * no scale override.
+ */
+
+/*
+ * `tokens.css` switches dark values two ways: the OS preference
+ * (`prefers-color-scheme: dark`, unless `[data-theme="light"]` overrides it
+ * back) and an explicit `[data-theme="dark"]` override regardless of the OS.
+ * This variant reproduces the exact same two rules so `dark:` utilities only
+ * ever apply when a token's own dark value would also apply — see
+ * `docs/ui.md` "Theming".
+ */
+@custom-variant dark {
+  &:where(:root[data-theme='dark'], :root[data-theme='dark'] *) {
+    @slot;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme='light']), :root:not([data-theme='light']) *) {
+      @slot;
+    }
+  }
+}
 
 *,
 *::before,

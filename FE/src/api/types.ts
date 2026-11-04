@@ -47,28 +47,102 @@ export interface PaginationResultRes<T> extends ResultRes<T> {
   pagination?: PaginationRes | null
 }
 
+/** `AssigneeRes` */
+export interface Assignee {
+  id: number
+  userName: string
+}
+
 /**
- * The fields below come from the agreed task model in F01. The exact JSON of each
- * read endpoint — what a board response nests, and which extra display fields it
- * carries — is NOT agreed yet, so nothing is built against this shape until the
- * API contract for F01 is written. Treat it as the model, not as the wire format.
+ * `AllowedTransitionRes` — one legal next move for *this* caller, with the
+ * transition table, permissions and the "someone else moves it out of Review"
+ * rule already applied server-side (F01 D10). `operation` distinguishes an
+ * ordinary move from the reopen operation, which `requiresReason`. Never
+ * re-derive the transition table on the client — only read this list.
  */
+export interface AllowedTransition {
+  status: TaskStatus
+  operation: 'Move' | 'Reopen'
+  requiresReason: boolean
+}
+
+/** `TaskSummaryRes` — board card, per `docs/features/f01-workflow.md` T5. */
 export interface TaskSummary {
   id: number
   title: string
   status: TaskStatus
   priority: TaskPriority
-  assigneeId: number | null
+  assignee: Assignee | null
   /** Calendar date, `yyyy-MM-dd`, or null. Never a timestamp — see F05. */
   dueDate: string | null
   isOverdue: boolean
   /** UTC instant, set when the task was approved into `Done`. */
   completedAt: string | null
-  /**
-   * The statuses *this* caller may move the task to right now, with permissions,
-   * the transition table and the "someone else moves it out of Review" rule already
-   * applied (F01 D10). The board uses it to decide which drop targets are live —
-   * never re-derive it on the client.
-   */
-  allowedTransitions: TaskStatus[]
+  /** Concurrency token; sent back on every write (not used until slice 1.6). */
+  version: string
+  allowedTransitions: AllowedTransition[]
+}
+
+/** `BoardColumnRes` — always present for all five statuses, even when empty. */
+export interface BoardColumn {
+  status: TaskStatus
+  items: TaskSummary[]
+  pagination: PaginationRes | null
+}
+
+/** `BoardRes` */
+export interface Board {
+  columns: BoardColumn[]
+}
+
+/** `TaskDetailRes` — `TaskSummaryRes` plus the detail-only fields (T5 endpoint 2). */
+export interface TaskDetail extends TaskSummary {
+  description: string | null
+  createdAt: string
+  createdBy: number
+  updatedAt: string
+}
+
+/** `TaskHistoryEvent` enum, wire names (`f01-workflow.md` T1). */
+export type TaskHistoryEvent =
+  | 'Created'
+  | 'StatusChanged'
+  | 'AssigneeChanged'
+  | 'PriorityChanged'
+  | 'DueDateChanged'
+  | 'Reopened'
+  | 'OverdueMarked'
+  | 'Deleted'
+
+/**
+ * `TaskHistoryRes` — one append-only entry (F04). `message` is already a
+ * human-readable sentence built server-side (`TaskHistoryMessages.Build`);
+ * the client renders it as-is rather than re-deriving copy from the
+ * structured fields.
+ */
+export interface TaskHistoryEntry {
+  id: number
+  taskId: number
+  event: TaskHistoryEvent
+  actorUserId: number | null
+  actorName: string | null
+  fromValue: string | null
+  toValue: string | null
+  reason: string | null
+  occurredAt: string
+  occurredAtLocal: string
+  message: string
+}
+
+/** `TaskNotificationEvent` enum — `ReturnedForRework` is the only MVP value (F01 D7). */
+export type TaskNotificationEvent = 'ReturnedForRework'
+
+/** `NotificationRes` */
+export interface TaskNotification {
+  id: number
+  taskId: number
+  event: TaskNotificationEvent
+  isRead: boolean
+  readAt: string | null
+  createdAt: string
 }
