@@ -60,6 +60,35 @@ export function describeErrorCode(code: string | null): string {
   return GENERIC_FALLBACK
 }
 
+/**
+ * The three literal `error` strings `AuthController.Login` returns — auth sets
+ * no `errorCode` (`docs/features/f01-login.md` "Contract used"), so this is
+ * the one place they map to copy, R4's sibling rule applied to a literal
+ * string instead of a code. Exported so `LoginPage` can also branch on
+ * invalid-credential (clear the password field, AC2) and will-lock-out
+ * (warning tone, AC3) without re-typing the raw strings.
+ */
+export const LOGIN_INVALID_CREDENTIAL = 'Invalid credential'
+export const LOGIN_WILL_LOCK_OUT = 'Your account will be locked out'
+const LOGIN_LOCKED_OUT = 'Your account has been locked out'
+
+const LOGIN_ERROR_MESSAGES: Record<string, string> = {
+  [LOGIN_INVALID_CREDENTIAL]: 'Incorrect username or password.',
+  [LOGIN_WILL_LOCK_OUT]: 'One more failed attempt will lock your account. Contact an administrator if you are not sure of your password.',
+  [LOGIN_LOCKED_OUT]: 'Your account has been locked out. Contact an administrator to unlock it.',
+}
+
+const GENERIC_LOGIN_FALLBACK = 'Could not reach the server. Check your connection and try again.'
+
+/** For the login screen's raw `error` string (`null` for a network/transport failure or an unmapped value). */
+export function describeLoginError(error: string | null): string {
+  if (error !== null && error in LOGIN_ERROR_MESSAGES) {
+    return LOGIN_ERROR_MESSAGES[error]
+  }
+
+  return GENERIC_LOGIN_FALLBACK
+}
+
 export function describeError(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 401) {

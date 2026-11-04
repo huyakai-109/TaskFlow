@@ -41,6 +41,7 @@ Contract: `docs/features/f01-workflow.md` → *Technical contract* (shared) and 
 | 1.5 | Board, read-only | `feature/f01-board` | frontend-lead | Built | `GET /tasks/board` wired through TanStack Query; five columns always rendered, cards with priority/due/overdue chips and a per-card "can move to" list derived from `allowedTransitions`; `FE/src/api/types.ts` updated to the real `allowedTransitions`-as-objects/`assignee`-object/`version` contract; one error-code→copy map (`FE/src/api/errorMessages.ts`). No drag interaction yet (1.6) |
 | 1.6 | Drag-and-drop + detail | `feature/f01-dnd` | frontend-lead | Built | `@dnd-kit/core` wired for real drag-and-drop with a per-card non-drag button path; optimistic move + rollback + unconditional refetch (`Task.Move.Conflict`/`.NotFound`); blocking refusal dialogs for `InvalidTransition`/`SameStatus`/`ActorIsAssignee`; `/tasks/:id` detail page (workflow strip with every legal move, read-only F04 timeline, properties panel, Manager/Admin reopen dialog); minimal notification bell (not wireframed — `docs/ui.md` "Not designed yet") |
 | 1.7 | Create / edit / assign UI | `feature/f01-task-forms` | frontend-lead | Built | New-task dialog (`POST /tasks`), edit title/description (`PUT /tasks/{id}`), inline priority and due-date controls on the properties panel (`PUT …/priority`, `PUT …/due-date`), assignee picker (`PUT …/assignee`); server field errors (`Request.Validation.Failed`'s `validates`) shown per field. No `UsersController` exists on this branch despite the contract sign-off, so the picker is built from assignees already visible on the board (`useKnownAssignees`), sorted alphabetically with nobody disabled — a stopgap pending both `GET /users` and F02 |
+| 1.8 | Login, session and permission gating | `feature/f01-login` | frontend-lead | Planned | Login screen (`POST /auth/login`), `refreshAccessToken` wired to `PUT /auth/refresh` with a single-flight, one-shot 401-retry, a `deviceGuid` persisted per browser installation, a route guard that redirects to `/login` and back (reload always re-prompts under today's contract — see Known follow-ups), a client-side `permissions[]` store (no UI consumer yet) and client-only logout. Spec: [f01-login.md](features/f01-login.md) |
 
 Slice 1.5 may run beside the backend slices once the contract is approved; one working tree keeps the backend slices sequential. Slice 1.2 is the gate — nothing else starts before its concurrency test passes against real MySQL.
 
@@ -113,6 +114,15 @@ Found by reading the scaffold against the specs.
 - R7 `Logger.LogError("… {ex}", ex)` in `AuthController` and `ExampleController` → `Logger.LogError(ex, "…")`.
 - R8 `/healthz` registers no checks — add a database check when `/ship setup` defines the deployment.
 - R9 Dev compose pins MinIO, Redis, Loki, Grafana and Prometheus to `latest` and defines no health checks for them. **The MySQL half is Done** (2026-10-25, below), including `taskflow.api` → `taskflow.mysql` `condition: service_healthy`. The `latest` tags and the other services' health checks still stand.
+
+## Backend follow-ups raised by slice 1.8 (login), not yet scheduled
+
+Found while planning the FE login slice (`docs/features/f01-login.md`, Q1/Q3). Auth is a risk area (permissions/auth — `workflow.md` risk list), so route through `architect` before building:
+
+- **Session can't silently survive a reload.** `PUT /auth/refresh` requires the caller's own (expired) access token in the body and 400s before ever reading the httpOnly refresh cookie if that field is empty. Since the access token lives only in memory, a real page reload has already lost it, so reload always lands back on `/login` even with a valid refresh cookie. Fix candidate: make `RefreshTokenReq.Token` optional and let the cookie alone identify the `UserToken` row when there is no token to validate. Slice 1.8 ships without this fix (reload re-prompts for credentials, accepted for MVP) and leaves the client-side hook point in place to pick it up automatically once the contract changes.
+- **No server-side logout.** `AuthController` has only `login`, `refresh`, `check` — nothing revokes a `UserToken`/refresh cookie. Slice 1.8's logout is client-only (clears local state); the refresh cookie remains valid server-side until it expires. Fix candidate: a `POST /auth/logout` that deletes the caller's `UserToken` row and clears the cookie.
+
+Both are proposed as one combined backend slice (same controller, same `AuthService`, same tests), not two.
 
 ## Known follow-ups, not yet scheduled
 

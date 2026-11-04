@@ -45,6 +45,15 @@
           { "patterns": ["**/board/**", "**/task-detail/**", "**/app/**"] }
         ]
       }
+    },
+    {
+      "files": ["src/features/auth/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          { "patterns": ["**/board/**", "**/task-detail/**", "**/notifications/**", "**/app/**"] }
+        ]
+      }
     }
   ]
 }
