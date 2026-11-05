@@ -123,4 +123,12 @@ None.
 
 - None new. The `FindById`/soft-delete assumption flagged in 3.1's QA pass is now a permanent regression test (`UserRepositorySoftDeleteTests.cs`) rather than an open question.
 
-Not reviewed: CI run on this branch, independent `qa-lead` pass (scheduled for gate B after slice 3.3, per the user's batch instructions), browser/manual exercise beyond the xUnit HTTP-level suite.
+Not reviewed: CI run on this branch, browser/manual exercise beyond the xUnit HTTP-level suite.
+
+## Independent QA verification (qa-lead, gate B, 2026-11-05, covering 3.1+3.2+3.3 together)
+
+**Verdict: READY, no Must-fix.** Full suite re-run independently twice (133/133 both times, ~1m51s and ~1m41s); the Move|Assign concurrency filter re-run 3 more independent rounds (70/70 each round, no flake) covering every AC18 variant including the cross-slice race (`Assign_OneAssignAndOneMove_RacingForSameAssignee_ExactlyOneWins_CountNeverExceedsLimit`). All in-scope AC (AC7–AC10, AC12–AC14 incl. `Done`, AC16(assign), AC17, AC18 assign + cross-slice variants, AC22(assign)) individually confirmed MET against `TaskService.cs:585-677`.
+
+Confirmed, not just trusted: the `TaskTransitions.cs` dead-field comment exists and is accurate; both `targetAssignee!.Id` invariant comments (Move at `TaskService.cs:215-221` and Assign at `:626-633`) exist and are consistent with each other; `UserRepositorySoftDeleteTests.cs` genuinely pins the intended behavior (soft-delete via `IUnitOfWork`, never the field set by hand, read back from a brand-new `DbContext`). Cross-slice check: `CountActiveInProgress` is a single shared implementation (no duplication between Move and Assign), `ConcurrencyStamp` never bumped twice in one operation, no new N+1 or unindexed scan from the two operations coexisting.
+
+No new Must-fix or Recommendation beyond what review-change already recorded above. See `docs/reports/slice-3.3.md` for the same gate B pass's slice-3.3-specific findings and `docs/ROADMAP.md`'s Unit 3 rows for the consolidated gate B verdict.

@@ -105,4 +105,10 @@ None.
 
 - None.
 
-Not reviewed: CI run on this branch, independent `qa-lead` pass (next: gate B, covering 3.1–3.3 together), browser/manual exercise beyond the xUnit HTTP-level suite.
+Not reviewed: CI run on this branch, browser/manual exercise beyond the xUnit HTTP-level suite.
+
+## Independent QA verification (qa-lead, gate B, 2026-11-05, covering 3.1+3.2+3.3 together)
+
+**Verdict: READY, no Must-fix.** Route, policy (`ViewTasks`, already seeded for every role, no migration needed as claimed), response shape `{id, userName, role}` (no email or other sensitive field), soft-delete exclusion and `userName` ordering all independently confirmed against T4 by reading `UsersController.cs`/`UserService.cs` directly, with the three dedicated tests (seeded-users-with-role-ordered, excludes-soft-deleted, 401-anonymous) re-run as part of the 133/133 full-suite re-runs (2 independent runs, no flake). The one recommendation already on record (undocumented empty-`Role` fallback for a hypothetical roleless user) stands as a non-blocking observation, not a defect — no code path produces it today.
+
+See `docs/reports/slice-3.2.md` for the same gate B pass's cross-slice checks (shared `CountActiveInProgress`, no double `ConcurrencyStamp` bump, no new N+1) and `docs/ROADMAP.md`'s Unit 3 rows for the consolidated gate B verdict across 3.1/3.2/3.3.
