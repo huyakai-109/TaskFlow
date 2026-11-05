@@ -74,7 +74,7 @@ Contract: `docs/features/f02-capacity.md` → *Technical contract* (design by `a
 
 ### Unit 4 — F03 Priority-based auto-sorting
 
-Contract: `docs/features/f03-sorting.md` → *Technical contract* (design by `architect`, 2026-11-05 — awaiting user sign-off). Status **Planned**.
+Contract: `docs/features/f03-sorting.md` → *Technical contract* (design by `architect`, 2026-11-05, both sign-off items approved by the user 2026-11-05). Status **Planned**.
 
 **Design**
 
@@ -83,8 +83,9 @@ Contract: `docs/features/f03-sorting.md` → *Technical contract* (design by `ar
 - **`Done` column (D4)** — `CompletedAt` desc, then `Id` desc (deterministic tie-break), `Take(20)`. Never falls back to `UpdatedAt`.
 - **Indexes — none added.** `IX_Tasks_IsDeleted_Status_Priority_DueDate` (existing) serves the active-column equality prefix and count; the remaining tie-break columns sort in memory, accepted at board scale. `IX_Tasks_IsDeleted_Status_CompletedAt` (existing) fully serves `Done`. A generated-column index was considered and rejected as speculative (`database.md` §3); record `EXPLAIN` for both queries as the escape-hatch evidence if ever revisited.
 - **Pagination (D5)** — offset, via the existing `Pagination<T>.CreateAsync` (kit Recipe 1) and F01 T5's `start`/`length` vocabulary; no new paging style. `GET /tasks/board` and `GET /tasks?status=&start=&length=` keep their shape; only values change (`Done`'s `pageSize` becomes 20).
-- **[SIGN-OFF]** `Done`'s `pagination.totalItems = min(count, 20)`, not the true count — keeps the client's generic "more exists" check free of a `Done` special case.
-- **[SIGN-OFF]** ASSUMPTION: `GET /tasks` with no `status` filter applies the active-column rule, no `Done` window. No current caller does this.
+- **[SIGN-OFF, approved 2026-11-05]** `Done`'s `pagination.totalItems = min(count, 20)`, not the true count — keeps the client's generic "more exists" check free of a `Done` special case.
+- **[SIGN-OFF, approved 2026-11-05]** `GET /tasks` with no `status` filter applies the active-column rule, no `Done` window. No current caller does this.
+- **Branches** — all three slices share `feature/f03-active-order`, per the user's decision 2026-11-05 (same pattern as Unit 3/F02).
 - **Frontend** — per-column "show more": `getTaskPage(status, start, length)` + a `useInfiniteQuery` keyed under `['board', ...]` so existing `['board']` invalidations (move, create, priority, due date, assign, reopen) also refresh loaded pages. A real `<button>` (optionally auto-triggered by an `IntersectionObserver` sentinel), no virtualisation, no new dependency. `length` sent must equal the board's `pagination.pageSize`, never a literal.
 - **Must-fix, folded into the slices** — `FE/src/features/board/components/BoardColumn.tsx` shows `items.length` instead of `pagination.totalItems`; the board's drag-and-drop task lookup only covers page 1.
 - **No ADR** — offset paging was already decided in F01 T5; no index, column or dependency added; the `Done` total is a one-line, cheap-to-reverse call.
@@ -92,12 +93,10 @@ Contract: `docs/features/f03-sorting.md` → *Technical contract* (design by `ar
 | # | Slice | Branch | Owner | Status | Closes |
 |---|---|---|---|---|---|
 | 4.1 | Active-column order — **the gate** | `feature/f03-active-order` | backend-lead | Planned | One `ApplyColumnOrder` method used by `GetBoard` and `GetList`, replacing the duplicate `OrderBy` in `TaskService`. F03 AC1–AC7, AC13–AC15 (server), AC17–AC20; AC12/AC16 as regression. No migration. `EXPLAIN` for the active-column query recorded in `docs/reports/slice-4.1.md` |
-| 4.2 | `Done` column window | `feature/f03-done-column` | backend-lead | Planned | `CompletedAt desc, Id desc`, `Take(20)` on board and list (`status=Done`); `pageSize = 20`; `totalItems = min(count, 20)` pending sign-off. F03 AC8–AC11. `EXPLAIN` for the `Done` query recorded |
-| 4.3 | Board "show more" per column | `feature/f03-board-load-more` | frontend-lead | Planned | `getTaskPage`, `useColumnPagesQuery` (`useInfiniteQuery`, key under `['board']`), id-deduplicated merge, "Show more" button, header count from `pagination.totalItems`, drag lookup across loaded pages. F03 AC15 (client), AC12/AC16 rendering. No new dependency |
+| 4.2 | `Done` column window | `feature/f03-active-order` (shared branch, per user decision 2026-11-05) | backend-lead | Planned | `CompletedAt desc, Id desc`, `Take(20)` on board and list (`status=Done`); `pageSize = 20`; `totalItems = min(count, 20)`. F03 AC8–AC11. `EXPLAIN` for the `Done` query recorded |
+| 4.3 | Board "show more" per column | `feature/f03-active-order` (shared branch, per user decision 2026-11-05) | frontend-lead | Planned | `getTaskPage`, `useColumnPagesQuery` (`useInfiniteQuery`, key under `['board']`), id-deduplicated merge, "Show more" button, header count from `pagination.totalItems`, drag lookup across loaded pages. F03 AC15 (client), AC12/AC16 rendering. No new dependency |
 
 **Tests** — new class `BE/TaskFlow.Tests/Http/TasksBoardOrderingControllerTests.cs`, `[Collection(DatabaseCollection.Name)]`, resetting `TaskNotifications`/`TaskHistories`/`Tasks` per test (precedent `TasksReadsEditsControllerTests.cs:42-45`); bulk/tie fixtures seeded with explicit timestamps (precedent `TasksMoveControllerTests.cs:900-934`). 4.2 and 4.3 start only after 4.1's tests pass 3× consecutively locally and in CI. 4.3 can run beside the backend slices (no wire change) but shares the one working tree, so runs after them in practice. Each slice finishes with `review-change`; `qa-lead` verifies independently before acceptance (gates as in Unit 3).
-
-**Open for the user before any slice starts:** the two [SIGN-OFF] items above, and whether 4.1–4.3 share one branch (as Unit 3 did) or run on the three separate branch names listed.
 
 ## Order and parallelism
 
