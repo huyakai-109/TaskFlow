@@ -106,7 +106,7 @@ Status: **Built** — not yet independently reviewed or accepted.
 
 ## Review
 
-`Review: APPROVE WITH RECOMMENDATIONS on <pending commit, see below>, 2026-11-05`
+`Review: APPROVE WITH RECOMMENDATIONS on d553958, 2026-11-05`
 
 Re-verified by re-reading `git diff a2344c4..fd649f1` (the 3.2 commits) file-by-file against `docs/features/f02-capacity.md` Technical contract T3/T4 and ADR 0002; did not re-run the full test suite (already green 3×/3× for the Assign filter + full suite, same base commits, clean working tree before the one fix below).
 
