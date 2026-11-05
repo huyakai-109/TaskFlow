@@ -343,7 +343,189 @@ namespace TaskFlow.Tests.Http
             Assert.Single(backlog.Items);
         }
 
+        // ---- Slice 4.2: GET /tasks with no status filter applies the active
+        // rule across every non-Done status, with no Done window (the gap
+        // qa-lead flagged on slice 4.1 as code-correct but untested) ----
+
+        [Fact]
+        public async Task List_NoStatusFilter_AppliesActiveRuleAcrossEveryStatus_NoDoneWindow()
+        {
+            var normalFarDue = await SeedTaskAsync("Normal far due date, Backlog", TaskPriority.Normal, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(10)), status: TaskWorkflowStatus.Backlog);
+            var normalDueToday = await SeedTaskAsync("Normal due today, Review", TaskPriority.Normal, DateOnly.FromDateTime(DateTime.UtcNow), status: TaskWorkflowStatus.Review);
+            var highDueTomorrow = await SeedTaskAsync("High due tomorrow, InProgress", TaskPriority.High, DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1)), status: TaskWorkflowStatus.InProgress);
+            var urgentUndated = await SeedTaskAsync("Urgent undated, Todo", TaskPriority.Urgent, dueDate: null, status: TaskWorkflowStatus.Todo);
+            var highUndatedDone = await SeedTaskAsync("High undated, already Done", TaskPriority.High, dueDate: null, status: TaskWorkflowStatus.Done, completedAt: DateTimeOffset.UtcNow.AddDays(-7));
+
+            var member = await CreateAuthenticatedClientAsync("Member");
+            var response = await member.Client.GetAsync("api/v1/tasks?start=1&length=100");
+            var body = await response.Content.ReadFromJsonAsync<PaginationResultRes<List<TaskSummaryRes>>>(JsonOptions);
+
+            Assert.True(response.IsSuccessStatusCode && body!.Success, body?.ErrorCode);
+
+            // Active rule, applied globally: Urgent (Todo) first; then the High
+            // group, dated before undated (InProgress before the Done task -
+            // CompletedAt plays no part because no status filter was given);
+            // then the Normal group, earlier due date first.
+            AssertOrder(
+                body.Result!,
+                urgentUndated.Id,
+                highDueTomorrow.Id,
+                highUndatedDone.Id,
+                normalDueToday.Id,
+                normalFarDue.Id);
+        }
+
+        // ---- Done column (D4): AC8, AC9, AC10, AC11, tie-break, GetList ----
+
+        // ---- AC8: ordered by CompletedAt desc, priority plays no part ----
+
+        [Fact]
+        public async Task Board_Done_OrderedByCompletedAtDesc_IgnoringPriority()
+        {
+            var urgentCompletedEarlier = await SeedTaskAsync(
+                "Urgent completed earlier", TaskPriority.Urgent, dueDate: null, status: TaskWorkflowStatus.Done,
+                completedAt: DateTimeOffset.UtcNow.AddDays(-5));
+            var normalCompletedLater = await SeedTaskAsync(
+                "Normal completed later", TaskPriority.Normal, dueDate: null, status: TaskWorkflowStatus.Done,
+                completedAt: DateTimeOffset.UtcNow.AddDays(-1));
+
+            var items = await GetDoneColumnAsync();
+
+            AssertOrder(items, normalCompletedLater.Id, urgentCompletedEarlier.Id);
+        }
+
+        // ---- AC9: 25 completed tasks -> exactly 20, totalItems/pageSize = 20 ----
+
+        [Fact]
+        public async Task Board_Done_25CompletedTasks_ReturnsExactly20_TotalItemsAndPageSize20()
+        {
+            for (var i = 0; i < 25; i++)
+            {
+                await SeedTaskAsync(
+                    $"Completed {i}", TaskPriority.Normal, dueDate: null, status: TaskWorkflowStatus.Done,
+                    completedAt: DateTimeOffset.UtcNow.AddMinutes(-i));
+            }
+
+            var member = await CreateAuthenticatedClientAsync("Member");
+            var response = await member.Client.GetAsync("api/v1/tasks/board");
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<BoardRes>>(JsonOptions);
+
+            Assert.True(response.IsSuccessStatusCode && body!.Success, body?.ErrorCode);
+            var done = body.Result!.Columns.Single(c => c.Status == TaskWorkflowStatus.Done);
+
+            Assert.Equal(20, done.Items.Count);
+            Assert.Equal(20, done.Pagination!.TotalItems);
+            Assert.Equal(20, done.Pagination.PageSize);
+        }
+
+        // ---- AC10: priority never overrides the Done rule ----
+
+        [Fact]
+        public async Task Board_Done_UrgentCompletedLastWeek_NormalCompletedToday_NormalFirst()
+        {
+            var urgentLastWeek = await SeedTaskAsync(
+                "Urgent completed last week", TaskPriority.Urgent, dueDate: null, status: TaskWorkflowStatus.Done,
+                completedAt: DateTimeOffset.UtcNow.AddDays(-7));
+            var normalToday = await SeedTaskAsync(
+                "Normal completed today", TaskPriority.Normal, dueDate: null, status: TaskWorkflowStatus.Done,
+                completedAt: DateTimeOffset.UtcNow);
+
+            var items = await GetDoneColumnAsync();
+
+            AssertOrder(items, normalToday.Id, urgentLastWeek.Id);
+        }
+
+        // ---- AC11: reopened then re-completed task sits at its NEW CompletedAt position ----
+
+        [Fact]
+        public async Task Board_Done_ReopenedAndReCompletedTask_AppearsAtNewCompletedAtPosition()
+        {
+            var assignee = await CreateAuthenticatedClientAsync("Member");
+            var closer = await CreateAuthenticatedClientAsync("Manager");
+            var reopener = await CreateAuthenticatedClientAsync("Manager");
+
+            var reopened = await SeedTaskAsync(
+                "Reopened then re-completed", TaskPriority.Normal, dueDate: null, status: TaskWorkflowStatus.Done,
+                completedAt: DateTimeOffset.UtcNow.AddDays(-10));
+            var staysDone = await SeedTaskAsync(
+                "Completed once, more recently than the original completion", TaskPriority.Normal, dueDate: null, status: TaskWorkflowStatus.Done,
+                completedAt: DateTimeOffset.UtcNow.AddDays(-3));
+
+            // F02 D5: Done requires a resolvable assignee - give the seeded,
+            // unassigned task one before reopening it (Reopen itself does not
+            // check this).
+            Guid version;
+            await using (var context = _dbFixture.CreateContext())
+            {
+                var reloaded = await context.Set<TaskItem>().SingleAsync(t => t.Id == reopened.Id);
+                reloaded.AssigneeId = assignee.UserId;
+                reloaded.Version = Guid.NewGuid();
+                await context.SaveChangesAsync();
+                version = reloaded.Version;
+            }
+
+            var reopenResponse = await reopener.Client.PutAsJsonAsync(
+                $"api/v1/tasks/{reopened.Id}/reopen", new { reason = "Needs another look", version });
+            var reopenBody = await reopenResponse.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
+            Assert.True(reopenResponse.IsSuccessStatusCode && reopenBody!.Success, reopenBody?.ErrorCode);
+
+            // F01 D5: Review -> Done must be moved by someone other than the
+            // assignee - closer (a Manager) is not the assignee.
+            var doneResponse = await closer.Client.PutAsJsonAsync(
+                $"api/v1/tasks/{reopened.Id}/status", new { status = "Done", version = reopenBody.Result!.Version });
+            var doneBody = await doneResponse.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
+            Assert.True(doneResponse.IsSuccessStatusCode && doneBody!.Success, doneBody?.ErrorCode);
+
+            // Re-completed just now - must now rank ahead of staysDone, which was
+            // completed 3 days ago and never touched again.
+            var items = await GetDoneColumnAsync();
+            AssertOrder(items, reopened.Id, staysDone.Id);
+        }
+
+        // ---- Tie-break: identical CompletedAt -> Id descending ----
+
+        [Fact]
+        public async Task Board_Done_IdenticalCompletedAt_OrderedByIdDescending()
+        {
+            var sameInstant = DateTimeOffset.UtcNow.AddHours(-1);
+            var first = await SeedTaskAsync("Tie A", TaskPriority.Normal, dueDate: null, status: TaskWorkflowStatus.Done, completedAt: sameInstant);
+            var second = await SeedTaskAsync("Tie B", TaskPriority.Normal, dueDate: null, status: TaskWorkflowStatus.Done, completedAt: sameInstant);
+
+            var items = await GetDoneColumnAsync();
+
+            var higherId = Math.Max(first.Id, second.Id);
+            var lowerId = Math.Min(first.Id, second.Id);
+            AssertOrder(items, higherId, lowerId);
+        }
+
+        // ---- GetList with status=Done applies the same window/order as the board ----
+
+        [Fact]
+        public async Task List_StatusDone_AppliesSameWindowAndOrder_AsBoard()
+        {
+            var older = await SeedTaskAsync("Older completion", TaskPriority.Urgent, dueDate: null, status: TaskWorkflowStatus.Done, completedAt: DateTimeOffset.UtcNow.AddDays(-2));
+            var newer = await SeedTaskAsync("Newer completion", TaskPriority.Normal, dueDate: null, status: TaskWorkflowStatus.Done, completedAt: DateTimeOffset.UtcNow.AddDays(-1));
+
+            var member = await CreateAuthenticatedClientAsync("Member");
+            var response = await member.Client.GetAsync("api/v1/tasks?status=Done&start=1&length=50");
+            var body = await response.Content.ReadFromJsonAsync<PaginationResultRes<List<TaskSummaryRes>>>(JsonOptions);
+
+            Assert.True(response.IsSuccessStatusCode && body!.Success, body?.ErrorCode);
+            Assert.Equal(20, body.Pagination!.PageSize);
+            Assert.Equal(2, body.Pagination.TotalItems);
+            AssertOrder(body.Result!, newer.Id, older.Id);
+        }
+
         // ---- Helpers ----
+
+        private async Task<List<TaskSummaryRes>> GetDoneColumnAsync()
+        {
+            var member = await CreateAuthenticatedClientAsync("Member");
+            var response = await member.Client.GetAsync("api/v1/tasks/board");
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<BoardRes>>(JsonOptions);
+            Assert.True(response.IsSuccessStatusCode && body!.Success, body?.ErrorCode);
+            return body.Result!.Columns.Single(c => c.Status == TaskWorkflowStatus.Done).Items;
+        }
 
         private static void AssertOrder(List<TaskSummaryRes> items, params long[] expectedIdsInOrder)
         {
@@ -368,7 +550,8 @@ namespace TaskFlow.Tests.Http
             TaskPriority priority,
             DateOnly? dueDate,
             DateTimeOffset? createdAt = null,
-            TaskWorkflowStatus status = TaskWorkflowStatus.Backlog)
+            TaskWorkflowStatus status = TaskWorkflowStatus.Backlog,
+            DateTimeOffset? completedAt = null)
         {
             await using var context = _dbFixture.CreateContext();
             var task = new TaskItem
@@ -379,6 +562,7 @@ namespace TaskFlow.Tests.Http
                 DueDate = dueDate,
                 Version = Guid.NewGuid(),
                 CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
+                CompletedAt = completedAt,
             };
             context.Add(task);
             await context.SaveChangesAsync();
