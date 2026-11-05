@@ -724,9 +724,9 @@ namespace TaskFlow.BusinessLogic.Services
         }
 
         // f01-workflow.md T5 endpoint 3: always five columns in lifecycle
-        // order, empty ones present with zero totals. F01 ships CreatedAt
-        // asc, Id asc and 50/column; F03 changes the order-by and the page
-        // sizes later, additive on this same shape.
+        // order, empty ones present with zero totals. F03 Technical contract:
+        // active columns use ApplyColumnOrder; Done keeps CreatedAt/Id until
+        // slice 4.2 adds its CompletedAt-desc window.
         public async Task<BoardResDto> GetBoard(long actorUserId, string[] callerPermissions)
         {
             var board = new BoardResDto();
@@ -734,7 +734,13 @@ namespace TaskFlow.BusinessLogic.Services
             foreach (var status in BoardColumnOrder)
             {
                 var query = await unitOfWork.GetRepository<TaskItem>().QueryCondition(i => i.Status == status);
-                query = query.OrderBy(i => i.CreatedAt).ThenBy(i => i.Id);
+
+                // Done is out of this slice's scope (slice 4.2 adds its own
+                // CompletedAt-desc window) - its CreatedAt/Id ordering from F01
+                // is left untouched.
+                query = status == TaskWorkflowStatus.Done
+                    ? query.OrderBy(i => i.CreatedAt).ThenBy(i => i.Id)
+                    : ApplyColumnOrder(query);
 
                 var totalItems = await query.CountAsync();
                 var pageItems = await query.Take(BoardColumnPageSize).ToListAsync();
@@ -753,9 +759,9 @@ namespace TaskFlow.BusinessLogic.Services
             return board;
         }
 
-        // f01-workflow.md T5 endpoint 4: page 2+ of one column, same
-        // CreatedAt asc, Id asc ordering as the board (F03 changes the
-        // order-by later, additive).
+        // f01-workflow.md T5 endpoint 4: page 2+ of one column, same ordering
+        // rule as the board (ApplyColumnOrder). Done is out of this slice's
+        // scope and keeps its CreatedAt/Id ordering until 4.2.
         public async Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, int start, int length, long actorUserId, string[] callerPermissions)
         {
             var query = await unitOfWork.GetRepository<TaskItem>().QueryAll();
@@ -765,7 +771,9 @@ namespace TaskFlow.BusinessLogic.Services
                 query = query.Where(i => i.Status == status.Value);
             }
 
-            query = query.OrderBy(i => i.CreatedAt).ThenBy(i => i.Id);
+            query = status == TaskWorkflowStatus.Done
+                ? query.OrderBy(i => i.CreatedAt).ThenBy(i => i.Id)
+                : ApplyColumnOrder(query);
 
             var page = await Pagination<TaskItem>.CreateAsync(query, start, length);
             var items = await BuildSummariesAsync(page.Items, actorUserId, callerPermissions);
@@ -778,6 +786,23 @@ namespace TaskFlow.BusinessLogic.Services
                 TotalPages = page.TotalPages,
                 Items = items,
             };
+        }
+
+        // f03-sorting.md Technical contract: the active-column ordering rule,
+        // shared by GetBoard and GetList so there is exactly one OrderBy to
+        // maintain. Expressed entirely in SQL (no in-memory sort) so AC13
+        // holds: Priority asc (D2, rank already explicit on the enum) -> "has
+        // no due date" asc, so undated sorts after dated (D3 - MySQL sorts
+        // NULL first on a plain ascending DueDate) -> DueDate asc -> CreatedAt
+        // asc -> Id asc (D3's tie-break, required for stable pagination).
+        private static IQueryable<TaskItem> ApplyColumnOrder(IQueryable<TaskItem> query)
+        {
+            return query
+                .OrderBy(i => i.Priority)
+                .ThenBy(i => i.DueDate == null)
+                .ThenBy(i => i.DueDate)
+                .ThenBy(i => i.CreatedAt)
+                .ThenBy(i => i.Id);
         }
 
         private async Task<List<TaskSummaryResDto>> BuildSummariesAsync(List<TaskItem> tasks, long actorUserId, string[] callerPermissions)
