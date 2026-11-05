@@ -108,7 +108,7 @@ namespace TaskFlow.BusinessLogic.Services
             loginResult.Permissions = authorizationClaims;
 
             var userTokenRepo = await unitOfWork.GetRepository<UserToken>().QueryAll();
-            var userToken = await userTokenRepo.FirstOrDefaultAsync(x => x.DeviceGuid == deviceGuid);
+            var userToken = await userTokenRepo.FirstOrDefaultAsync(x => x.DeviceGuid == deviceGuid && x.UserId == user.Id);
             if (userToken == null)
             {
                 userToken = new UserToken
