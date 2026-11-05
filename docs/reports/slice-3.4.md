@@ -141,3 +141,31 @@ the UI half, the way it already closed it for slices 3.1–3.3's backend half.
   here in case a reviewer wonders why it isn't a thrown `Error` subclass; a plain
   tagged object was simpler and `onError`'s `TError` generic does not require `Error`.
 
+## Review
+
+`Review: APPROVE on cb27821, 2026-11-05`
+
+Re-verified independently: re-ran `npm --prefix FE run typecheck` (PASS, clean), `npm --prefix FE run lint` (PASS, same single pre-existing `useDialogA11y.ts` warning, nothing new), `npm --prefix FE run build` (PASS, 123 modules, no errors). Read every changed file (`errorMessages.ts`, `types.ts`, `users.ts`, `useUsersQuery.ts`, `useAssignAndMoveTaskMutation.ts`, `AssignAndMoveDialog.tsx`, `AssigneePickerDialog.tsx`, `AssigneeSelect.tsx`, `MoveRefusalDialog.tsx`, `moveRefusalTitles.ts`, `BoardPage.tsx`, `TaskDetailPage.tsx`, `NewTaskDialog.tsx`, `useAssignTaskMutation.ts`, `useMoveTaskMutation.ts`) against T4 and `docs/ui.md`.
+
+### Must fix
+
+None.
+
+### Recommendations
+
+None beyond what the implementer already flagged in *Risks / open items* above (no "has room" ordering in the roster — explicit scope cut; the `{step, error}` thrown-value shape — a reasonable internal choice).
+
+### Pre-existing / out of scope
+
+- None new. `useKnownAssignees.ts` confirmed fully removed — `grep -rn "useKnownAssignees" FE/src/` returns only two comments referencing it historically, no remaining imports or call sites.
+
+### Specific checks
+
+- Rollback on any move refusal (including the two new F02 codes) is unconditional in `useMoveTaskMutation`'s `onError`, which runs before the code-specific branching — F01 AC20 / F02 AC22 hold for every code, not just the ones this slice added.
+- `*.CapacityReached` shows the server's own `error` string verbatim (`describeErrorCode`'s `CAPACITY_REACHED_CODES` check), never a client-composed message — matches T4's sign-off exactly.
+- `Task.Move.AssigneeRequired` routing to `AssignAndMoveDialog` instead of `MoveRefusalDialog` is handled identically in both `BoardPage.tsx` (drag) and `TaskDetailPage.tsx` (button) — no divergence between the two entry points.
+- Assign-then-move chaining uses the assign step's own returned `version`, not the stale one the failed move carried — correct per the optimistic-concurrency contract (a stale version would itself trigger a spurious `Conflict` on the move step).
+- No new dependency, no barrel file, no cross-feature import (`AssignAndMoveDialog`/`useAssignAndMoveTaskMutation`/`useUsersQuery` correctly live in `shared/` since both `board` and `task-detail` need them), no `localStorage` use, no API contract change.
+
+Not reviewed (same gap the implementer flagged): actual browser behavior — loading/empty/error/success states of the new dialog, the full assign→move flow against a running backend, drag-triggered `AssigneeRequired`, focus/keyboard behavior, and the 390/768/1440px breakpoints. Scheduled for `qa-lead` next.
+
