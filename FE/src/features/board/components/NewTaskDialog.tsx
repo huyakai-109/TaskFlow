@@ -218,9 +218,7 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
               disabled={mutation.isPending}
               onChange={setAssigneeId}
             />
-            <span className={hintClass}>
-              Only people already assigned to a task are listed — there is no user directory yet.
-            </span>
+            <span className={hintClass}>Leave unassigned and set it later from the task detail page.</span>
             {fieldErrors.assigneeid !== undefined && (
               <span role="alert" className={fieldErrorClass}>
                 {fieldErrors.assigneeid}

@@ -6,8 +6,10 @@ import { useNavigate } from 'react-router-dom'
 import { BOARD_COLUMNS } from '../../api/types'
 import type { TaskStatus, TaskSummary } from '../../api/types'
 import { describeError, describeErrorCode } from '../../api/errorMessages'
+import { AssignAndMoveDialog } from '../../shared/components/AssignAndMoveDialog'
 import { MoveRefusalDialog } from '../../shared/components/MoveRefusalDialog'
 import { MoveToast } from '../../shared/components/MoveToast'
+import { useAssignAndMoveTaskMutation } from '../../shared/hooks/useAssignAndMoveTaskMutation'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 
@@ -77,20 +79,55 @@ export function BoardPage() {
   const navigate = useNavigate()
   const boardQuery = useBoardQuery()
   const [activeTask, setActiveTask] = useState<TaskSummary | null>(null)
-  const [refusal, setRefusal] = useState<{ code: string | null; taskTitle: string } | null>(null)
+  const [refusal, setRefusal] = useState<{ code: string | null; taskTitle: string; message: string | null } | null>(
+    null,
+  )
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [assignAndMove, setAssignAndMove] = useState<{
+    taskId: number
+    toStatus: TaskStatus
+    taskTitle: string
+    version: string
+  } | null>(null)
+  const [assignAndMoveErrorCode, setAssignAndMoveErrorCode] = useState<string | null>(null)
+  const [assignAndMoveErrorMessage, setAssignAndMoveErrorMessage] = useState<string | null>(null)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   const moveMutation = useMoveTaskMutation({
-    onRefused: (code, taskTitle) => {
+    onRefused: (code, variables, message) => {
       if (code !== null && CONFLICT_CODES.has(code)) {
-        setToastMessage(describeErrorCode(code))
+        setToastMessage(describeErrorCode(code, message))
         return
       }
 
-      setRefusal({ code, taskTitle })
+      if (code === 'Task.Move.AssigneeRequired') {
+        setAssignAndMoveErrorCode(null)
+        setAssignAndMoveErrorMessage(null)
+        setAssignAndMove({
+          taskId: variables.taskId,
+          toStatus: variables.toStatus,
+          taskTitle: variables.taskTitle,
+          version: variables.version,
+        })
+        return
+      }
+
+      setRefusal({ code, taskTitle: variables.taskTitle, message })
+    },
+  })
+
+  const assignAndMoveMutation = useAssignAndMoveTaskMutation({
+    onRefused: (failure) => {
+      if (failure.step === 'move') {
+        setAssignAndMove(null)
+        setToastMessage(describeErrorCode(failure.code, failure.message))
+        return
+      }
+
+      setAssignAndMoveErrorCode(failure.code)
+      setAssignAndMoveErrorMessage(failure.message)
     },
   })
 
@@ -200,10 +237,37 @@ export function BoardPage() {
       )}
 
       {refusal !== null && (
-        <MoveRefusalDialog code={refusal.code} taskTitle={refusal.taskTitle} onClose={() => setRefusal(null)} />
+        <MoveRefusalDialog
+          code={refusal.code}
+          taskTitle={refusal.taskTitle}
+          message={refusal.message}
+          onClose={() => setRefusal(null)}
+        />
       )}
 
       {toastMessage !== null && <MoveToast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
+
+      {assignAndMove !== null && (
+        <AssignAndMoveDialog
+          taskTitle={assignAndMove.taskTitle}
+          toStatusLabel={STATUS_LABELS[assignAndMove.toStatus]}
+          isPending={assignAndMoveMutation.isPending}
+          errorCode={assignAndMoveErrorCode}
+          errorMessage={assignAndMoveErrorMessage}
+          onClose={() => setAssignAndMove(null)}
+          onSelect={(assigneeId) =>
+            assignAndMoveMutation.mutate(
+              {
+                taskId: assignAndMove.taskId,
+                toStatus: assignAndMove.toStatus,
+                assigneeId,
+                version: assignAndMove.version,
+              },
+              { onSuccess: () => setAssignAndMove(null) },
+            )
+          }
+        />
+      )}
 
       {createOpen && (
         <NewTaskDialog

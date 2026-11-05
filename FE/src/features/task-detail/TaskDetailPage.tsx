@@ -2,10 +2,13 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { describeError, describeErrorCode } from '../../api/errorMessages'
-import type { TaskPriority } from '../../api/types'
+import type { TaskPriority, TaskStatus } from '../../api/types'
+import { AssignAndMoveDialog } from '../../shared/components/AssignAndMoveDialog'
 import { MoveRefusalDialog } from '../../shared/components/MoveRefusalDialog'
 import { MoveToast } from '../../shared/components/MoveToast'
+import { useAssignAndMoveTaskMutation } from '../../shared/hooks/useAssignAndMoveTaskMutation'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
+import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 
 import { AssigneePickerDialog } from './components/AssigneePickerDialog'
 import { EditTaskDialog } from './components/EditTaskDialog'
@@ -43,7 +46,9 @@ export function TaskDetailPage() {
   const taskQuery = useTaskQuery(taskId)
   const historyQuery = useTaskHistoryQuery(taskId)
 
-  const [refusal, setRefusal] = useState<{ code: string | null; taskTitle: string } | null>(null)
+  const [refusal, setRefusal] = useState<{ code: string | null; taskTitle: string; message: string | null } | null>(
+    null,
+  )
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [reopenOpen, setReopenOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -51,15 +56,39 @@ export function TaskDetailPage() {
   const [priorityError, setPriorityError] = useState<string | null>(null)
   const [dueDateError, setDueDateError] = useState<string | null>(null)
   const [assignErrorCode, setAssignErrorCode] = useState<string | null>(null)
+  const [assignErrorMessage, setAssignErrorMessage] = useState<string | null>(null)
+  const [assignAndMove, setAssignAndMove] = useState<{ toStatus: TaskStatus; version: string } | null>(null)
+  const [assignAndMoveErrorCode, setAssignAndMoveErrorCode] = useState<string | null>(null)
+  const [assignAndMoveErrorMessage, setAssignAndMoveErrorMessage] = useState<string | null>(null)
 
   const moveMutation = useMoveTaskMutation({
-    onRefused: (code, taskTitle) => {
+    onRefused: (code, variables, message) => {
       if (code !== null && CONFLICT_CODES.has(code)) {
-        setToastMessage(describeErrorCode(code))
+        setToastMessage(describeErrorCode(code, message))
         return
       }
 
-      setRefusal({ code, taskTitle })
+      if (code === 'Task.Move.AssigneeRequired') {
+        setAssignAndMoveErrorCode(null)
+        setAssignAndMoveErrorMessage(null)
+        setAssignAndMove({ toStatus: variables.toStatus, version: variables.version })
+        return
+      }
+
+      setRefusal({ code, taskTitle: variables.taskTitle, message })
+    },
+  })
+
+  const assignAndMoveMutation = useAssignAndMoveTaskMutation({
+    onRefused: (failure) => {
+      if (failure.step === 'move') {
+        setAssignAndMove(null)
+        setToastMessage(describeErrorCode(failure.code, failure.message))
+        return
+      }
+
+      setAssignAndMoveErrorCode(failure.code)
+      setAssignAndMoveErrorMessage(failure.message)
     },
   })
 
@@ -90,14 +119,15 @@ export function TaskDetailPage() {
   })
 
   const assignMutation = useAssignTaskMutation({
-    onRefused: (code) => {
+    onRefused: (code, message) => {
       if (isConflictLike(code)) {
-        setToastMessage(describeErrorCode(code))
+        setToastMessage(describeErrorCode(code, message))
         setAssigneePickerOpen(false)
         return
       }
 
       setAssignErrorCode(code)
+      setAssignErrorMessage(message)
     },
   })
 
@@ -134,6 +164,7 @@ export function TaskDetailPage() {
 
   function handleAssign(assigneeId: number | null) {
     setAssignErrorCode(null)
+    setAssignErrorMessage(null)
     assignMutation.mutate(
       { taskId: task.id, assigneeId, version: task.version },
       { onSuccess: () => setAssigneePickerOpen(false) },
@@ -242,13 +273,36 @@ export function TaskDetailPage() {
           currentAssigneeId={task.assignee?.id ?? null}
           isPending={assignMutation.isPending}
           errorCode={assignErrorCode}
+          errorMessage={assignErrorMessage}
           onClose={() => setAssigneePickerOpen(false)}
           onSelect={handleAssign}
         />
       )}
 
+      {assignAndMove !== null && (
+        <AssignAndMoveDialog
+          taskTitle={task.title}
+          toStatusLabel={STATUS_LABELS[assignAndMove.toStatus]}
+          isPending={assignAndMoveMutation.isPending}
+          errorCode={assignAndMoveErrorCode}
+          errorMessage={assignAndMoveErrorMessage}
+          onClose={() => setAssignAndMove(null)}
+          onSelect={(assigneeId) =>
+            assignAndMoveMutation.mutate(
+              { taskId: task.id, toStatus: assignAndMove.toStatus, assigneeId, version: assignAndMove.version },
+              { onSuccess: () => setAssignAndMove(null) },
+            )
+          }
+        />
+      )}
+
       {refusal !== null && (
-        <MoveRefusalDialog code={refusal.code} taskTitle={refusal.taskTitle} onClose={() => setRefusal(null)} />
+        <MoveRefusalDialog
+          code={refusal.code}
+          taskTitle={refusal.taskTitle}
+          message={refusal.message}
+          onClose={() => setRefusal(null)}
+        />
       )}
 
       {toastMessage !== null && <MoveToast message={toastMessage} onDismiss={() => setToastMessage(null)} />}

@@ -10,14 +10,14 @@
  * failing"), so those get a toast instead of a dialog (`MoveToast` in
  * `BoardPage`/`TaskDetailPage`).
  *
- * `Task.Move.AssigneeRequired` / `.CapacityReached` (F02's capacity guard) are
- * not here: F02 is not built yet, the backend cannot return them today, and
- * `TaskControllerMS.Move` has no such members on this branch.
+ * `Task.Move.AssigneeRequired` is deliberately absent: `BoardPage`/`TaskDetailPage`
+ * open `AssignAndMoveDialog` for that code instead of this dialog (F02, slice 3.4).
  */
 export const MOVE_REFUSAL_TITLES: Record<string, string> = {
   'Task.Move.InvalidTransition': 'Move it one step at a time',
   'Task.Move.SameStatus': 'Already there',
   'Task.Move.ActorIsAssignee': "You're the assignee",
+  'Task.Move.CapacityReached': 'At capacity',
 }
 
 export const DEFAULT_REFUSAL_TITLE = 'The move could not be completed'

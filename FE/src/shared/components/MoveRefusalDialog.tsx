@@ -6,6 +6,8 @@ import { DEFAULT_REFUSAL_TITLE, MOVE_REFUSAL_TITLES } from '../lib/moveRefusalTi
 interface MoveRefusalDialogProps {
   code: string | null
   taskTitle: string
+  /** The server's raw `error` string — shown verbatim for `*.CapacityReached` (see `describeErrorCode`). */
+  message?: string | null
   onClose: () => void
 }
 
@@ -17,7 +19,7 @@ interface MoveRefusalDialogProps {
  * `role="alertdialog"` moves focus in on open and returns it on close
  * (`frontend.md` §8).
  */
-export function MoveRefusalDialog({ code, taskTitle, onClose }: MoveRefusalDialogProps) {
+export function MoveRefusalDialog({ code, taskTitle, message = null, onClose }: MoveRefusalDialogProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const previouslyFocused = useRef<Element | null>(null)
 
@@ -60,7 +62,7 @@ export function MoveRefusalDialog({ code, taskTitle, onClose }: MoveRefusalDialo
           {title}
         </h2>
         <p id="move-refusal-description" className="text-text-muted [line-height:var(--line-height)]">
-          &ldquo;{taskTitle}&rdquo; — {describeErrorCode(code)}
+          &ldquo;{taskTitle}&rdquo; — {describeErrorCode(code, message)}
         </p>
         <button
           type="button"

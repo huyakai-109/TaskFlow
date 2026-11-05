@@ -1,0 +1,143 @@
+# Slice 3.4 — Capacity UI
+
+## Plan (written before coding)
+
+**Goal.** Four new F02 error codes are mapped to copy; `*.CapacityReached` shows the
+server's own `error` string (already name + limit, per T4 sign-off) in the existing
+blocking refusal dialog and the card rolls back (reuses F01's optimistic-update
+rollback, unchanged); `Task.Move.AssigneeRequired` opens an assignee picker instead of
+a plain refusal, chains `PUT …/assignee` then `PUT …/status` on selection
+("Assign to … and start", `docs/ui.md` line 90); the picker (new chain dialog, plus
+the two existing pickers left over from slice 1.7's stopgap) reads `GET /users`
+instead of `useKnownAssignees`, which is deleted once nothing calls it.
+
+**Files expected to change:**
+- `FE/src/api/types.ts` — `UserListItem` type for `GET /users`.
+- `FE/src/api/users.ts` (new) — `getUsers()`.
+- `FE/src/shared/hooks/useUsersQuery.ts` (new) — TanStack Query wrapper.
+- `FE/src/shared/hooks/useAssignAndMoveTaskMutation.ts` (new) — chains assign → move,
+  reports which step failed.
+- `FE/src/shared/components/AssignAndMoveDialog.tsx` (new) — the picker for the
+  `AssigneeRequired` chain, modelled on `AssigneePickerDialog`/`MoveRefusalDialog`.
+- `FE/src/api/errorMessages.ts` — four new codes; `describeErrorCode` takes an
+  optional raw server message, used only for `*.CapacityReached`.
+- `FE/src/shared/lib/moveRefusalTitles.ts` — a title for `Task.Move.CapacityReached`.
+- `FE/src/shared/hooks/useMoveTaskMutation.ts` — `onRefused` gains the move
+  variables (so a caller can re-open with the same `taskId`/`toStatus`/`version`)
+  and the raw server message.
+- `FE/src/shared/components/MoveRefusalDialog.tsx` — optional `message` override.
+- `FE/src/features/task-detail/hooks/useAssignTaskMutation.ts` — same message
+  threading as move.
+- `FE/src/features/task-detail/components/AssigneePickerDialog.tsx` — `useUsersQuery`
+  instead of `useKnownAssignees`; raw-message support for its own `CapacityReached`.
+- `FE/src/shared/components/AssigneeSelect.tsx` — `useUsersQuery` instead of
+  `useKnownAssignees`.
+- `FE/src/features/board/BoardPage.tsx`, `FE/src/features/task-detail/TaskDetailPage.tsx`
+  — wire the new dialog into both places a move can hit `AssigneeRequired` (drag and
+  the button path).
+- `FE/src/features/board/components/NewTaskDialog.tsx` — drop the stopgap hint copy
+  ("only people already assigned…") now that the picker is the real roster.
+- `FE/src/shared/hooks/useKnownAssignees.ts` — deleted (no remaining caller).
+- `docs/ROADMAP.md` — slice 3.4 row → Built.
+
+**Verify:** `npm --prefix FE run typecheck`, `run lint`, `run build`. No Vitest in
+this repo yet (per `CLAUDE.md`), so no automated UI test; real-browser pass is
+attempted if the backend + dev server can be brought up, else `NOT VERIFIED` with
+the reason.
+
+## Result
+
+Built as planned, with one addition not foreseen at planning time: `MoveRefusalDialog`,
+`useMoveTaskMutation` and `useAssignTaskMutation` needed to thread the server's raw
+`error` string through to the dialog (previously only the bare `errorCode` reached
+the UI), because `*.CapacityReached`'s contract is to show that exact server-built
+sentence (name + limit), not a client-authored one. `describeErrorCode` gained an
+optional second parameter for this and is otherwise unchanged for every other code.
+
+**Files changed**
+- `FE/src/api/types.ts` — `UserListItem` (`{ id, userName, role }`).
+- `FE/src/api/users.ts` (new) — `getUsers()`.
+- `FE/src/shared/hooks/useUsersQuery.ts` (new).
+- `FE/src/shared/hooks/useAssignAndMoveTaskMutation.ts` (new) — chains assign → move,
+  reports `{ step: 'assign' | 'move', code, message }` on failure; always invalidates
+  `['board']`/`['task', id]` on error because the assign half may have already landed.
+- `FE/src/shared/components/AssignAndMoveDialog.tsx` (new) — the `AssigneeRequired`
+  picker, "Assign to … and start" per button, no "Unassigned" option.
+- `FE/src/api/errorMessages.ts` — four new codes; `describeErrorCode(code, rawMessage?)`
+  prefers `rawMessage` for `Task.Move.CapacityReached` / `Task.Assign.CapacityReached`
+  only; `describeError` passes `error.message` through for every code now (behaviour
+  unchanged for non-capacity codes, since they ignore the second argument).
+- `FE/src/shared/lib/moveRefusalTitles.ts` — title for `Task.Move.CapacityReached`
+  ("At capacity"); `Task.Move.AssigneeRequired` stays absent (routed to the new
+  dialog instead of this one).
+- `FE/src/shared/hooks/useMoveTaskMutation.ts` — `onRefused` now receives the full
+  `MoveVariables` (so a caller can re-open with the same `taskId`/`toStatus`/`version`)
+  plus the raw message, instead of just `taskTitle`.
+- `FE/src/shared/components/MoveRefusalDialog.tsx` — optional `message` prop.
+- `FE/src/features/task-detail/hooks/useAssignTaskMutation.ts` — `onRefused` gains
+  the raw message.
+- `FE/src/features/task-detail/components/AssigneePickerDialog.tsx` — `useUsersQuery`
+  instead of `useKnownAssignees`; loading/error states for the now-async roster;
+  `errorMessage` prop for its own `CapacityReached` (reassigning an `InProgress` task).
+- `FE/src/shared/components/AssigneeSelect.tsx` — `useUsersQuery` instead of
+  `useKnownAssignees`; disabled + "Loading…"/"Could not load" options while the
+  query is pending/errored (it was synchronous before, reading the board cache).
+- `FE/src/features/board/BoardPage.tsx` — `moveMutation.onRefused` branches on
+  `Task.Move.AssigneeRequired` to open `AssignAndMoveDialog` (remembers
+  `taskId`/`toStatus`/`taskTitle`/`version` from the failed move's own variables);
+  wires `useAssignAndMoveTaskMutation`, closing the dialog on success, toasting on a
+  move-step failure (assignment already landed), showing the error inline on an
+  assign-step failure.
+- `FE/src/features/task-detail/TaskDetailPage.tsx` — same wiring for the move button
+  path (`WorkflowStrip`'s "Move to In Progress"), plus `assignMutation`'s existing
+  `AssigneePickerDialog` gets the same `errorMessage` threading.
+- `FE/src/features/board/components/NewTaskDialog.tsx` — dropped the slice-1.7 hint
+  ("only people already assigned… no user directory yet"), now untrue.
+- `FE/src/shared/hooks/useKnownAssignees.ts` — deleted; its only two callers
+  (`AssigneeSelect`, `AssigneePickerDialog`) both moved to `useUsersQuery`.
+- `docs/ROADMAP.md` — slice 3.4 row → Built.
+
+**Design notes / decisions made while building**
+- `Task.Move.AssigneeRequired` only ever occurs on a move targeting `InProgress`
+  (the only `Move` edge needing `RequiresAssignee`, per F02 T3's "no-op reassignment"
+  reading and D5), so `AssignAndMoveDialog`'s hardcoded "...and start" copy is safe —
+  it is never shown for any other target status.
+- On a move-step failure after a successful assign (e.g. the limit filled while the
+  user was picking), the dialog closes and a toast explains the move did not go
+  through, per `docs/ui.md` line 90 ("if the second fails, say so — the assignment
+  stays"); the board/task queries are already invalidated so the UI reflects the new
+  assignee even though the status did not change.
+- No slice 3.5 scope added anywhere: no sorting by room, no "N/3" counts, nobody
+  disabled in any picker — `GET /users` carries no load data to show even if we
+  wanted to.
+
+**Verification**
+```
+Typecheck: PASS   npm --prefix FE run typecheck  (tsc -b --noEmit, no errors)
+Lint:      PASS   npm --prefix FE run lint       (oxlint; one pre-existing warning,
+                   react-hooks/exhaustive-deps in useDialogA11y.ts, unrelated to this
+                   change and not touched)
+Build:     PASS   npm --prefix FE run build      (tsc -b && vite build, 123 modules,
+                   built in 2.21s)
+```
+
+**NOT VERIFIED:** actual UI behaviour in a browser — loading/empty/error/success
+states of the new dialog, the assign→move chain against a real backend, drag-and-drop
+triggering `AssigneeRequired`, keyboard operation and focus return on
+`AssignAndMoveDialog`, and the 390/768/1440 widths. Neither the backend nor
+`npm --prefix FE run dev` was started this session (would need MySQL/Redis/MinIO up
+and the API running); only typecheck/lint/build were run, as called out in the task.
+This is the same gap `qa-lead`'s independent verification is expected to close for
+the UI half, the way it already closed it for slices 3.1–3.3's backend half.
+
+**Risks / open items**
+- `AssignAndMoveDialog`'s roster has no "has room" ordering (by design, slice 3.5
+  rejected) — on a board with many users this could be a long alphabetical list with
+  no indication of who can actually accept more work before the capacity check runs
+  server-side on selection. Acceptable per the user's explicit scope cut, but worth
+  the user knowing it is a UX trade-off, not an oversight.
+- `useAssignAndMoveTaskMutation`'s thrown-value shape (`{ step, error }`) is an
+  internal implementation detail of that one hook, not a general pattern — flagged
+  here in case a reviewer wonders why it isn't a thrown `Error` subclass; a plain
+  tagged object was simpler and `onError`'s `TError` generic does not require `Error`.
+
