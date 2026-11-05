@@ -41,6 +41,14 @@ const ERROR_MESSAGES: Record<string, string> = {
   'Task.Assign.Conflict': 'Someone else changed this task. Refreshing it now.',
   'Task.Assign.AssigneeNotFound': 'That person could not be found. Pick someone from the list.',
   'Task.Assign.Exception': 'The assignment could not be saved. Try again in a moment.',
+  'Task.Move.AssigneeRequired': 'This task needs an assignee before it can move to In Progress. Pick someone to start it.',
+  'Task.Assign.AssigneeRequired': 'The assignee can’t be cleared while this task is active.',
+  // *.CapacityReached: the server's own `error` string already names the person and
+  // the limit (`docs/features/f02-capacity.md` T4 sign-off) — `describeErrorCode`
+  // below prefers that raw message over this fallback, which only shows if it is
+  // ever missing.
+  'Task.Move.CapacityReached': 'That person is already at the in-progress limit.',
+  'Task.Assign.CapacityReached': 'That person is already at the in-progress limit.',
   'Request.Validation.Failed': 'Check the highlighted fields.',
   'TaskHistory.GetList.TaskNotFound': 'This task no longer exists.',
   'TaskHistory.GetList.Exception': 'The history could not be loaded. Try again in a moment.',
@@ -51,8 +59,24 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 const GENERIC_FALLBACK = 'Something went wrong. Try again.'
 
-/** For a bare error code already pulled off an `ApiError` (a mutation's `onError`, typically). */
-export function describeErrorCode(code: string | null): string {
+/**
+ * `*.CapacityReached` is server-templated with the assignee's name and the
+ * configured limit (`TaskControllerMS.Templates.CapacityReached`) — shown
+ * verbatim rather than re-derived from the code, per F02's technical contract.
+ */
+const CAPACITY_REACHED_CODES = new Set(['Task.Move.CapacityReached', 'Task.Assign.CapacityReached'])
+
+/**
+ * For a bare error code already pulled off an `ApiError` (a mutation's
+ * `onError`, typically). `rawMessage` is the server's own `error` string;
+ * it is shown as-is for a capacity refusal and otherwise ignored, so every
+ * other code keeps going through the fixed copy above.
+ */
+export function describeErrorCode(code: string | null, rawMessage?: string | null): string {
+  if (code !== null && CAPACITY_REACHED_CODES.has(code) && rawMessage != null && rawMessage.length > 0) {
+    return rawMessage
+  }
+
   if (code !== null && code in ERROR_MESSAGES) {
     return ERROR_MESSAGES[code]
   }
@@ -100,7 +124,7 @@ export function describeError(error: unknown): string {
     }
 
     if (error.errorCode !== null && error.errorCode in ERROR_MESSAGES) {
-      return ERROR_MESSAGES[error.errorCode]
+      return describeErrorCode(error.errorCode, error.message)
     }
 
     return error.message

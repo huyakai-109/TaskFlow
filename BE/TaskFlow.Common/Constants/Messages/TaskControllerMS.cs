@@ -16,8 +16,8 @@ namespace TaskFlow.Common.Constants.Messages
             public const string Exception = "Task.Get.Exception";
         }
 
-        // AssigneeRequired / CapacityReached are reserved for F02 (slice 1.2's
-        // move does not enforce RequiresAssignee/ConsumesCapacity yet, f01-workflow.md T3).
+        // AssigneeRequired / CapacityReached: F02 slice 3.1 (f02-capacity.md
+        // Technical contract T3/T4).
         public struct Move
         {
             public const string NotFound = "Task.Move.NotFound";
@@ -25,7 +25,18 @@ namespace TaskFlow.Common.Constants.Messages
             public const string InvalidTransition = "Task.Move.InvalidTransition";
             public const string SameStatus = "Task.Move.SameStatus";
             public const string ActorIsAssignee = "Task.Move.ActorIsAssignee";
+            public const string AssigneeRequired = "Task.Move.AssigneeRequired";
+            public const string CapacityReached = "Task.Move.CapacityReached";
             public const string Exception = "Task.Move.Exception";
+        }
+
+        // f02-capacity.md Technical contract T4 [SIGN-OFF]: the envelope's
+        // error field for *.CapacityReached is formatted from this template,
+        // naming the assignee and the configured limit - never a literal at
+        // the call site.
+        public struct Templates
+        {
+            public const string CapacityReached = "{0} already has {1} tasks in progress, which is the limit.";
         }
 
         // Done -> Review only, validated against TaskTransitions.Reopens, not
@@ -62,13 +73,15 @@ namespace TaskFlow.Common.Constants.Messages
             public const string Exception = "Task.UpdateDueDate.Exception";
         }
 
-        // AssigneeRequired / CapacityReached are reserved for F02 - not
-        // implemented here (f01-workflow.md T3).
+        // AssigneeRequired / CapacityReached: F02 slice 3.2 (f02-capacity.md
+        // Technical contract T3/T4).
         public struct Assign
         {
             public const string NotFound = "Task.Assign.NotFound";
             public const string Conflict = "Task.Assign.Conflict";
             public const string AssigneeNotFound = "Task.Assign.AssigneeNotFound";
+            public const string AssigneeRequired = "Task.Assign.AssigneeRequired";
+            public const string CapacityReached = "Task.Assign.CapacityReached";
             public const string Exception = "Task.Assign.Exception";
         }
 

@@ -33,6 +33,16 @@ builder.Services.AddCors(options => options
         .WithOrigins(allowedOrigins)
     ));
 
+// f02-capacity.md Technical contract T3 (D1): the limit is never a literal at
+// the call site - TaskService reads it from configuration once, so it must
+// exist and be sane at startup, the same way the CORS allow-list is checked
+// above.
+var maxInProgressPerAssignee = config.GetSection(ConfigKeys.Workflow.MaxInProgressPerAssignee).Get<int?>();
+if (maxInProgressPerAssignee is null or < 1)
+{
+    throw new InvalidOperationException($"'{ConfigKeys.Workflow.MaxInProgressPerAssignee}' must be configured with a value of at least 1.");
+}
+
 builder.Services.AddAutoMapper(cfg =>
 {
     cfg.AddMaps(typeof(Program).Assembly);

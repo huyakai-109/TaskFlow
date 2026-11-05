@@ -54,6 +54,18 @@ export interface Assignee {
 }
 
 /**
+ * `UserRes` — `GET /users` (`docs/features/f02-capacity.md` T4), the assignee
+ * picker's roster. `role` is the role's display name (`UserResDto.Role`), a
+ * plain string on the wire, not an enum `JsonStringEnumConverter` controls —
+ * unlike `TaskStatus`/`TaskPriority` above.
+ */
+export interface UserListItem {
+  id: number
+  userName: string
+  role: string
+}
+
+/**
  * `AllowedTransitionRes` — one legal next move for *this* caller, with the
  * transition table, permissions and the "someone else moves it out of Review"
  * rule already applied server-side (F01 D10). `operation` distinguishes an

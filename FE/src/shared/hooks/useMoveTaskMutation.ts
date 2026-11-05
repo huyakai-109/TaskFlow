@@ -24,7 +24,9 @@ interface MoveContext {
  * refetch is what brings the board back to the server's truth whether the
  * move succeeded or not).
  */
-export function useMoveTaskMutation(options: { onRefused: (code: string | null, taskTitle: string) => void }) {
+export function useMoveTaskMutation(options: {
+  onRefused: (code: string | null, variables: MoveVariables, message: string | null) => void
+}) {
   const queryClient = useQueryClient()
 
   return useMutation<unknown, unknown, MoveVariables, MoveContext>({
@@ -73,7 +75,8 @@ export function useMoveTaskMutation(options: { onRefused: (code: string | null, 
       }
 
       const code = error instanceof ApiError ? error.errorCode : null
-      options.onRefused(code, variables.taskTitle)
+      const message = error instanceof ApiError ? error.message : null
+      options.onRefused(code, variables, message)
     },
     onSettled: (_data, _error, variables) => {
       void queryClient.invalidateQueries({ queryKey: ['board'] })

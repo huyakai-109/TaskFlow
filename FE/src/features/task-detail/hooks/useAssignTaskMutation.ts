@@ -12,7 +12,7 @@ interface Variables {
 const CONFLICT_CODES = new Set(['Task.Assign.Conflict', 'Task.Assign.NotFound'])
 
 /** `PUT /tasks/{id}/assignee` — the assignee picker. `assigneeId: null` unassigns. */
-export function useAssignTaskMutation(options: { onRefused: (code: string | null) => void }) {
+export function useAssignTaskMutation(options: { onRefused: (code: string | null, message: string | null) => void }) {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -23,7 +23,8 @@ export function useAssignTaskMutation(options: { onRefused: (code: string | null
     },
     onError: (error, variables) => {
       const code = error instanceof ApiError ? error.errorCode : null
-      options.onRefused(code)
+      const message = error instanceof ApiError ? error.message : null
+      options.onRefused(code, message)
 
       if (code !== null && CONFLICT_CODES.has(code)) {
         void queryClient.invalidateQueries({ queryKey: ['task', variables.taskId] })

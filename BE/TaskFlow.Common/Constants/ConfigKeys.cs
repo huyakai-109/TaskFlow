@@ -44,6 +44,7 @@
         public struct Workflow
         {
             public const string TimeZone = "Workflow:TimeZone";
+            public const string MaxInProgressPerAssignee = "Workflow:MaxInProgressPerAssignee";
         }
 
         public struct MinIO

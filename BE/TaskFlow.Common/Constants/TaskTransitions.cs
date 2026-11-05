@@ -6,6 +6,17 @@ namespace TaskFlow.Common.Constants
     // Do not scatter "if (status == ...)" checks across services - the move
     // and reopen endpoints validate against this table, and AllowedFor is the
     // same computation the client's drag-and-drop legality (D10) relies on.
+    // RequiresAssignee and ConsumesCapacity are declared per edge but are not
+    // read anywhere (confirmed by grep, f02-capacity.md slice 3.1 review,
+    // 2026-11-05): TaskService.Move/Assign gate on
+    // TaskCapacityRule.AssigneeRequiredWhile(toStatus)/OccupiesSlot(toStatus)
+    // instead - a target-status-only rule, not a per-edge one - so these two
+    // fields have drifted from actual behaviour (e.g. InProgress->Review
+    // declares RequiresAssignee: false, but F02 refuses that move today
+    // without a resolvable assignee). Left in place, not removed, to avoid
+    // reshaping this data table outside F02's assigned scope; the real
+    // source of truth for "needs an assignee" / "occupies a capacity slot"
+    // is TaskCapacityRule, not these fields.
     public sealed record TaskTransition(
         TaskWorkflowStatus From,
         TaskWorkflowStatus To,

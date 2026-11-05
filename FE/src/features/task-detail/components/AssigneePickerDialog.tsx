@@ -2,13 +2,15 @@ import clsx from 'clsx'
 import { useRef } from 'react'
 
 import { describeErrorCode } from '../../../api/errorMessages'
-import { useKnownAssignees } from '../../../shared/hooks/useKnownAssignees'
+import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 
 interface AssigneePickerDialogProps {
   currentAssigneeId: number | null
   isPending: boolean
   errorCode: string | null
+  /** The server's raw `error` string — shown verbatim for `Task.Assign.CapacityReached`. */
+  errorMessage?: string | null
   onClose: () => void
   onSelect: (assigneeId: number | null) => void
 }
@@ -18,20 +20,23 @@ const optionClass =
 
 /**
  * `docs/ui/screens/AssignPicker.dc.html`, minus its "has room" sort and
- * "at capacity" disabling: both are F02, not built yet (`useKnownAssignees`).
- * Listed alphabetically; everyone enabled. Stays open on a non-conflict
- * failure (e.g. `AssigneeNotFound`) so the user can pick again; a conflict
- * closes it, because the page's own refusal handler already refreshes the
- * task.
+ * "at capacity" disabling — both are F02's rejected slice 3.5 ("Workload in
+ * the picker", not scheduled, `docs/ROADMAP.md` unit 3). Listed
+ * alphabetically; everyone enabled. Stays open on a non-conflict failure
+ * (e.g. `AssigneeNotFound`, `CapacityReached`) so the user can pick again; a
+ * conflict closes it, because the page's own refusal handler already
+ * refreshes the task.
  */
 export function AssigneePickerDialog({
   currentAssigneeId,
   isPending,
   errorCode,
+  errorMessage = null,
   onClose,
   onSelect,
 }: AssigneePickerDialogProps) {
-  const assignees = useKnownAssignees()
+  const usersQuery = useUsersQuery()
+  const assignees = usersQuery.data ?? []
   const closeButtonRef = useRef<HTMLButtonElement>(null)
 
   useDialogA11y(closeButtonRef, onClose, isPending)
@@ -65,8 +70,7 @@ export function AssigneePickerDialog({
         </div>
 
         <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">
-          Listed alphabetically, everyone shown — the workload limit (F02) isn&rsquo;t built yet, so nobody is marked
-          full.
+          Listed alphabetically, everyone shown — the workload limit isn&rsquo;t shown here.
         </p>
 
         {errorCode !== null && (
@@ -74,7 +78,13 @@ export function AssigneePickerDialog({
             role="alert"
             className="m-0 rounded-md border border-danger-border bg-danger-surface p-[var(--space-3)] text-[length:var(--font-size-sm)] text-danger"
           >
-            {describeErrorCode(errorCode)}
+            {describeErrorCode(errorCode, errorMessage)}
+          </p>
+        )}
+
+        {usersQuery.isError && (
+          <p role="alert" className="m-0 text-[length:var(--font-size-sm)] text-danger">
+            The list of people could not be loaded. Try closing and reopening this dialog.
           </p>
         )}
 
@@ -106,9 +116,15 @@ export function AssigneePickerDialog({
           ))}
         </ul>
 
-        {assignees.length === 0 && (
+        {usersQuery.isPending && (
+          <p role="status" className="m-0 text-[length:var(--font-size-sm)] text-text-muted">
+            Loading people…
+          </p>
+        )}
+
+        {usersQuery.isSuccess && assignees.length === 0 && (
           <p className="m-0 text-[length:var(--font-size-sm)] text-text-muted">
-            No one is assigned to any task yet, so there is no one to pick besides Unassigned.
+            No one is in the directory yet, so there is no one to pick besides Unassigned.
           </p>
         )}
       </div>

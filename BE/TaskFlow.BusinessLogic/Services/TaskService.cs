@@ -18,7 +18,11 @@ namespace TaskFlow.BusinessLogic.Services
 
         Task<(string ErrorCode, TaskDetailResDto? Task)> Get(long id, long actorUserId, string[] callerPermissions);
 
-        Task<(string ErrorCode, TaskDetailResDto? Task)> Move(long id, TaskMoveReqDto requestDto, long actorUserId, string[] callerPermissions);
+        // f02-capacity.md Technical contract T4 [SIGN-OFF]: the result gains
+        // an optional ErrorMessage alongside the error code, carrying the
+        // formatted *.CapacityReached text (naming the assignee and the
+        // limit). Internal change only - no wire contract change.
+        Task<(string ErrorCode, TaskDetailResDto? Task, string? ErrorMessage)> Move(long id, TaskMoveReqDto requestDto, long actorUserId, string[] callerPermissions);
 
         Task<(string ErrorCode, TaskDetailResDto? Task)> Reopen(long id, TaskReopenReqDto requestDto, long actorUserId, string[] callerPermissions);
 
@@ -28,7 +32,9 @@ namespace TaskFlow.BusinessLogic.Services
 
         Task<(string ErrorCode, TaskDetailResDto? Task)> UpdateDueDate(long id, TaskUpdateDueDateReqDto requestDto, long actorUserId, string[] callerPermissions);
 
-        Task<(string ErrorCode, TaskDetailResDto? Task)> Assign(long id, TaskAssignReqDto requestDto, long actorUserId, string[] callerPermissions);
+        // f02-capacity.md Technical contract T4 [SIGN-OFF]: same ErrorMessage
+        // addition as Move (slice 3.2), for *.CapacityReached.
+        Task<(string ErrorCode, TaskDetailResDto? Task, string? ErrorMessage)> Assign(long id, TaskAssignReqDto requestDto, long actorUserId, string[] callerPermissions);
 
         Task<string> Delete(long id, Guid version, long actorUserId);
 
@@ -56,6 +62,7 @@ namespace TaskFlow.BusinessLogic.Services
         private const int BoardColumnPageSize = 50;
 
         private readonly string _timeZone = configuration.GetSection(ConfigKeys.Workflow.TimeZone).Get<string>()!;
+        private readonly int _maxInProgressPerAssignee = configuration.GetSection(ConfigKeys.Workflow.MaxInProgressPerAssignee).Get<int>();
 
         public async Task<(string ErrorCode, TaskDetailResDto? Task)> Create(TaskCreateReqDto requestDto, long actorUserId, string[] callerPermissions)
         {
@@ -145,39 +152,81 @@ namespace TaskFlow.BusinessLogic.Services
         }
 
         // D3 + T2 validation order: existence -> version -> transition validity
-        // (same-status, then the transition table) -> actor rule (D5). F02's
-        // capacity guard is not implemented yet, so RequiresAssignee and
-        // ConsumesCapacity are not checked here (T3: AssigneeRequired /
-        // CapacityReached are reserved for F02).
-        public async Task<(string ErrorCode, TaskDetailResDto? Task)> Move(long id, TaskMoveReqDto requestDto, long actorUserId, string[] callerPermissions)
+        // (same-status, then the transition table) -> actor rule (D5) ->
+        // AssigneeRequired -> capacity (f02-capacity.md Technical contract T3).
+        public async Task<(string ErrorCode, TaskDetailResDto? Task, string? ErrorMessage)> Move(long id, TaskMoveReqDto requestDto, long actorUserId, string[] callerPermissions)
         {
             var query = await unitOfWork.GetRepository<TaskItem>().QueryCondition(i => i.Id == id, disableTracking: false);
             var task = query.FirstOrDefault();
 
             if (task == null)
             {
-                return (TaskControllerMS.Move.NotFound, null);
+                return (TaskControllerMS.Move.NotFound, null, null);
             }
 
             if (task.Version != requestDto.Version)
             {
-                return (TaskControllerMS.Move.Conflict, null);
+                return (TaskControllerMS.Move.Conflict, null, null);
             }
 
             if (requestDto.Status == task.Status)
             {
-                return (TaskControllerMS.Move.SameStatus, null);
+                return (TaskControllerMS.Move.SameStatus, null, null);
             }
 
             var edge = TaskTransitions.FindMove(task.Status, requestDto.Status);
             if (edge == null)
             {
-                return (TaskControllerMS.Move.InvalidTransition, null);
+                return (TaskControllerMS.Move.InvalidTransition, null, null);
             }
 
             if (edge.ActorMustNotBeAssignee && task.AssigneeId.HasValue && task.AssigneeId.Value == actorUserId)
             {
-                return (TaskControllerMS.Move.ActorIsAssignee, null);
+                return (TaskControllerMS.Move.ActorIsAssignee, null, null);
+            }
+
+            // F02 D5/T3: a status that requires an assignee needs one that
+            // still resolves to a real user. OccupiesSlot(toStatus) is a
+            // subset of AssigneeRequiredWhile(toStatus) (InProgress only, vs
+            // InProgress/Review/Done), so the assignee loaded here is reused
+            // below for the capacity check and the token bump - no second load.
+            User? targetAssignee = null;
+            if (TaskCapacityRule.AssigneeRequiredWhile(requestDto.Status))
+            {
+                if (!task.AssigneeId.HasValue)
+                {
+                    return (TaskControllerMS.Move.AssigneeRequired, null, null);
+                }
+
+                targetAssignee = await unitOfWork.GetRepository<User>().FindById(task.AssigneeId.Value);
+                if (targetAssignee == null)
+                {
+                    return (TaskControllerMS.Move.AssigneeRequired, null, null);
+                }
+            }
+
+            // F02 D7/T1: the assignee row (and its ConcurrencyStamp) is loaded
+            // tracked and counted against before either row is written, so the
+            // UPDATE Users ... WHERE ConcurrencyStamp = @original the loser of
+            // two concurrent writers emits always fails once the winner
+            // commits (ADR 0002).
+            if (TaskCapacityRule.OccupiesSlot(requestDto.Status))
+            {
+                // targetAssignee is guaranteed non-null here only because
+                // OccupiesSlot(status) is, today, a strict subset of
+                // AssigneeRequiredWhile(status) (both declared together in
+                // TaskCapacityRule.cs) - if that invariant is ever broken,
+                // this throws a NullReferenceException instead of returning
+                // a clean error code. Assign (slice 3.2) relies on the same
+                // invariant for the same reason.
+                var activeCount = await CountActiveInProgress(targetAssignee!.Id, task.Id);
+                if (activeCount >= _maxInProgressPerAssignee)
+                {
+                    var message = string.Format(TaskControllerMS.Templates.CapacityReached, targetAssignee.UserName, _maxInProgressPerAssignee);
+                    return (TaskControllerMS.Move.CapacityReached, null, message);
+                }
+
+                targetAssignee.ConcurrencyStamp = Guid.NewGuid().ToString();
             }
 
             var fromStatus = task.Status;
@@ -224,7 +273,7 @@ namespace TaskFlow.BusinessLogic.Services
             }
             catch (DbUpdateConcurrencyException)
             {
-                return (TaskControllerMS.Move.Conflict, null);
+                return (TaskControllerMS.Move.Conflict, null, null);
             }
             catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
             {
@@ -242,18 +291,31 @@ namespace TaskFlow.BusinessLogic.Services
                 // (lost connection, FK violation, ...) is deliberately left
                 // uncaught here and surfaces as Task.Move.Exception (500) in
                 // the controller - IsDeadlock only matches MySQL error 1213.
+                // F02 T2: this same deadlock mode is now also reachable via the
+                // FK S-lock on the Users row the capacity write bumps under
+                // T1 (ADR 0002) - no new handling needed, same catch.
                 logger.LogWarning(ex, "Move task {Id} hit a MySQL deadlock (1213); treated as Task.Move.Conflict", id);
-                return (TaskControllerMS.Move.Conflict, null);
+                return (TaskControllerMS.Move.Conflict, null, null);
             }
 
-            string? assigneeUserName = null;
-            if (task.AssigneeId.HasValue)
+            string? assigneeUserName = targetAssignee?.UserName;
+            if (assigneeUserName == null && task.AssigneeId.HasValue)
             {
                 var assignee = await unitOfWork.GetRepository<User>().FindById(task.AssigneeId.Value);
                 assigneeUserName = assignee?.UserName;
             }
 
-            return (string.Empty, BuildDetail(task, assigneeUserName, actorUserId, callerPermissions));
+            return (string.Empty, BuildDetail(task, assigneeUserName, actorUserId, callerPermissions), null);
+        }
+
+        // F02 D2/D3/D6/T3: one indexed query, Id != task.Id implements D3/AC9
+        // directly (a no-op reassignment to oneself is never refused), the
+        // query filter excludes soft-deleted rows (D6, AC20).
+        private async Task<int> CountActiveInProgress(long assigneeId, long taskId)
+        {
+            var query = await unitOfWork.GetRepository<TaskItem>().QueryCondition(
+                i => i.AssigneeId == assigneeId && i.Status == TaskWorkflowStatus.InProgress && i.Id != taskId);
+            return await query.CountAsync();
         }
 
         // D6/AC6: validated against TaskTransitions.Reopens only - Done is not
@@ -514,34 +576,69 @@ namespace TaskFlow.BusinessLogic.Services
         }
 
         // F04 AC3: writes an AssigneeChanged entry naming both the old and
-        // new assignee (as user ids, T2). Existence check reuses Create's
-        // AssigneeNotFound guard. F02's capacity/AssigneeRequired codes are
-        // reserved - not implemented here (f01-workflow.md T3).
-        public async Task<(string ErrorCode, TaskDetailResDto? Task)> Assign(long id, TaskAssignReqDto requestDto, long actorUserId, string[] callerPermissions)
+        // new assignee (as user ids, T2). F02 D5/T3 validation order:
+        // existence -> version -> clearing while AssigneeRequiredWhile
+        // (AssigneeRequired) -> target exists (AssigneeNotFound, AC17) ->
+        // capacity when OccupiesSlot(task.Status) and target != current
+        // assignee (AC9's no-op reassignment skips both the check and the
+        // token bump).
+        public async Task<(string ErrorCode, TaskDetailResDto? Task, string? ErrorMessage)> Assign(long id, TaskAssignReqDto requestDto, long actorUserId, string[] callerPermissions)
         {
             var query = await unitOfWork.GetRepository<TaskItem>().QueryCondition(i => i.Id == id, disableTracking: false);
             var task = query.FirstOrDefault();
 
             if (task == null)
             {
-                return (TaskControllerMS.Assign.NotFound, null);
+                return (TaskControllerMS.Assign.NotFound, null, null);
             }
 
             if (task.Version != requestDto.Version)
             {
-                return (TaskControllerMS.Assign.Conflict, null);
+                return (TaskControllerMS.Assign.Conflict, null, null);
             }
 
-            string? newAssigneeUserName = null;
+            // D5, clarified 2026-11-05: the assignee cannot be cleared while
+            // the task is InProgress, Review or Done.
+            if (!requestDto.AssigneeId.HasValue && TaskCapacityRule.AssigneeRequiredWhile(task.Status))
+            {
+                return (TaskControllerMS.Assign.AssigneeRequired, null, null);
+            }
+
+            User? targetAssignee = null;
             if (requestDto.AssigneeId.HasValue)
             {
-                var assignee = await unitOfWork.GetRepository<User>().FindById(requestDto.AssigneeId.Value);
-                if (assignee == null)
+                targetAssignee = await unitOfWork.GetRepository<User>().FindById(requestDto.AssigneeId.Value);
+                if (targetAssignee == null)
                 {
-                    return (TaskControllerMS.Assign.AssigneeNotFound, null);
+                    return (TaskControllerMS.Assign.AssigneeNotFound, null, null);
+                }
+            }
+
+            // D3/AC9: reassigning a task to the user already holding it is a
+            // no-op - never refused for capacity, and never bumps the token.
+            var isNoOpReassignment = requestDto.AssigneeId.HasValue && task.AssigneeId.HasValue && requestDto.AssigneeId.Value == task.AssigneeId.Value;
+
+            // F02 D7/T1: same tracked-row-before-counting order as Move - see
+            // Move's comment above its own capacity block for why the order
+            // matters (ADR 0002).
+            if (TaskCapacityRule.OccupiesSlot(task.Status) && !isNoOpReassignment)
+            {
+                // targetAssignee is guaranteed non-null here: OccupiesSlot(status)
+                // implies AssigneeRequiredWhile(status) (both in TaskCapacityRule.cs),
+                // so a clearing request (no AssigneeId) for this status would
+                // already have returned AssigneeRequired above - the only way to
+                // reach this branch is with requestDto.AssigneeId set, which is
+                // what populated targetAssignee. Same invariant Move's capacity
+                // block depends on; if it's ever broken this throws a
+                // NullReferenceException instead of a clean error code.
+                var activeCount = await CountActiveInProgress(targetAssignee!.Id, task.Id);
+                if (activeCount >= _maxInProgressPerAssignee)
+                {
+                    var message = string.Format(TaskControllerMS.Templates.CapacityReached, targetAssignee.UserName, _maxInProgressPerAssignee);
+                    return (TaskControllerMS.Assign.CapacityReached, null, message);
                 }
 
-                newAssigneeUserName = assignee.UserName;
+                targetAssignee.ConcurrencyStamp = Guid.NewGuid().ToString();
             }
 
             var fromAssigneeId = task.AssigneeId;
@@ -564,15 +661,19 @@ namespace TaskFlow.BusinessLogic.Services
             }
             catch (DbUpdateConcurrencyException)
             {
-                return (TaskControllerMS.Assign.Conflict, null);
+                return (TaskControllerMS.Assign.Conflict, null, null);
             }
             catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
             {
+                // Same R13 lock-upgrade deadlock Move hits (f02-capacity.md
+                // Technical contract T2): the capacity write's UPDATE Users
+                // can interleave with the FK S-lock Tasks.AssigneeId itself
+                // takes on the referenced Users row.
                 logger.LogWarning(ex, "Assign task {Id} hit a MySQL deadlock (1213); treated as Task.Assign.Conflict", id);
-                return (TaskControllerMS.Assign.Conflict, null);
+                return (TaskControllerMS.Assign.Conflict, null, null);
             }
 
-            return (string.Empty, BuildDetail(task, newAssigneeUserName, actorUserId, callerPermissions));
+            return (string.Empty, BuildDetail(task, targetAssignee?.UserName, actorUserId, callerPermissions), null);
         }
 
         // F04 AC9/D6: soft delete + a Deleted entry in the same commit, trail
