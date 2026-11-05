@@ -178,3 +178,5 @@ Everything above is the decided behaviour and does not change. This section is t
 | Node dies mid-scan | Remaining tasks wait for the next run | Accepted: idempotent, next run ≤ 24 h; no `RequestRecovery` |
 | Non-transactional DDL | Half-applied Quartz migration | Accepted: two statements on empty tables; manual fix documented |
 | Candidate SQL vs `TaskOverdueRule` drift | Scan misses or over-selects | Per-row re-check with the rule before every write; test across every status × date combination |
+
+Review: APPROVE on d100bc6, 2026-11-05 (slice 5.1).

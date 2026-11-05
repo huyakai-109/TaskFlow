@@ -2,7 +2,7 @@
 
 Branch: `feature/f05-overdue`, branched from `docs/f05-design`.
 
-Status: **Built** — implemented per this plan, verified below. Awaiting `review-change`, `qa-lead` independent verification and the user's sign-off (Gate A) before 5.2 starts.
+Status: **Ready for Review** — implemented per this plan, verified below, `review-change` APPROVE and `qa-lead` independent verification both complete (Gate A conditions met). Awaiting the user's sign-off before 5.2 starts.
 
 ## Scope
 
@@ -109,6 +109,20 @@ Not covered: real-world-scale EXPLAIN (production-sized Tasks table) — only a 
 - F04 AC8/AC22: `ActorUserId` is explicitly `null` for every scan-written entry, never inferred from `CreatedBy` (which `UnitOfWork` stamps `0` outside an `HttpContext`).
 - T2's concurrency story: `DbUpdateConcurrencyException` and the MySQL 1213 deadlock (`TaskConcurrencyHelper.IsDeadlock`, shared with Move/Reopen/Assign) both resolve to `Skipped`, never a crash — exercised directly by the AC21 race.
 - `ChangeTracker.Clear()` in a `finally` after every candidate — one bad row never poisons the next load.
+
+## Review
+
+`Review: APPROVE on d100bc6, 2026-11-05`. Re-verified build (0 errors), `TaskOverdueScanServiceTests` 45/45, full suite 200/200; read the scan service, the D8 fix, the index migration and its idempotent SQL, and confirmed no pre-existing test file was modified. No Must-fix, no Recommendations beyond the EXPLAIN observation already noted above.
+
+## Independent QA verification (qa-lead, 2026-11-05)
+
+**Verdict: READY, no Must-fix.** Independently re-ran everything from commit `d100bc6` rather than trusting the implementer's or reviewer's numbers: build 0 errors/0 warnings; `TaskOverdueScanServiceTests` 3× consecutive, 45/45 each; full suite once, 200/200 (2m59s); the AC21 race test isolated and re-run across 5 separate process invocations (≈50 rounds total) with 0 failures; the AC24 race test isolated and re-run across 5 separate process invocations (≈25 rounds total) with 0 failures. Read `TaskOverdueScanService.cs`, the D8 guard, `DateTimeHelper.ToDateInZone`, and the migration file directly (not just the diff) to confirm the idempotency re-check, the concurrency/deadlock catch order, the explicit `ActorUserId = null`, and the `ChangeTracker.Clear()` coverage in `finally` are all correct as claimed. Independently generated and read the idempotent migration script (read-only, nothing applied) — confirmed the tail for this migration id is exactly one `CREATE INDEX`. Confirmed via `git diff --stat` that only the new test class was added (no pre-existing test modified) and that no Quartz/`QuartzContext`/`isOverdue` filter/frontend file is present in this commit.
+
+AC1–AC6, AC16–AC23, AC25, AC26, the data side of AC24, and the AC7–AC9/AC11/AC13–AC15 regressions — independently confirmed MET with evidence, not taken on the implementer's word.
+
+One Observation carried forward (not a finding): the EXPLAIN optimizer-selection note above is expected on a near-empty synthetic table and correctly not treated as a blocker.
+
+Not independently tested, and why: keyset batch-boundary behavior at >100 candidates (no test seeds that many rows; the pagination logic itself was read and matches the standard pattern used elsewhere in this codebase — low risk, worth a cheap follow-up test before 5.2 if convenient, not a Gate A blocker); real Quartz clustered-scheduling behavior (correctly out of scope for 5.1, deferred to 5.2); board-scale EXPLAIN (no production-sized table available in this environment).
 
 ## Open issues / risks
 
