@@ -99,7 +99,7 @@ Not covered: CI has not run this branch. No independent qa-lead review yet. No m
 - R13's lock-upgrade deadlock (MySQL 1213) is now also reachable through the FK S-lock on `Users` from the capacity-token write; accepted per ADR 0002 and handled by the existing two-catch — no separate test beyond AC18(c), per design.
 - AC17 ("deactivated account") stays out of scope — no user-management/deactivation feature exists yet (resolved open question, ROADMAP 2026-11-05).
 
-Status: **Built**, not yet "Ready for Review" — awaiting independent `qa-lead` verification before that status change, and the user's final acceptance before "Done."
+Status: **Ready for Review** — independently verified by `qa-lead` 2026-11-05 (below); awaiting the user's final acceptance before "Done."
 
 ## Review
 
@@ -120,4 +120,16 @@ None.
 
 - `TaskService.Move`'s new assignee lookup (`FindById` on `User`, line 199) follows the exact same pattern already used at lines 77, 145, 295, 396, 442, 498, 562, 591 for resolving `AssigneeId` — all of them rely on EF Core applying `UserConfiguration`'s `HasQueryFilter(!IsDeleted)` to a primary-key `FindAsync` lookup so a soft-deleted user resolves to `null`. This predates slice 3.1 and is not introduced by it; worth an explicit test before slice 3.2 relies on the same mechanism for AC17 (soft-deleted assignee id).
 
-Not reviewed: CI run on this branch, independent `qa-lead` pass (next step), browser/manual exercise beyond the xUnit HTTP-level suite.
+Not reviewed: CI run on this branch, browser/manual exercise beyond the xUnit HTTP-level suite.
+
+## Independent QA verification (qa-lead, 2026-11-05)
+
+**Verdict: READY for merge, no Must-fix.** Re-ran everything independently rather than trusting the numbers above: build PASS (0 errors); `--filter Move` run twice more (52/0/1m24s, 52/0/1m5s) plus the four AC18 tests isolated for 3 more rounds each (no flake across 5 total executions); full suite once more (114/0/1m47s, matches). Migration file read directly: only `CreateIndex("IX_Tasks_IsDeleted_AssigneeId_Status", …)` in `Up()`, matching `DropIndex` in `Down()` — additive, not applied to any database. Every AC in scope (AC1–AC6, AC11, AC15, AC16(move), AC18(a)(b)(c)+the extra different-assignees test, AC19, AC20, AC21, AC22) individually confirmed MET with file:line evidence. Validation order re-derived from the code (not assumed) and matches T3 exactly.
+
+Both recommendations from the *Review* section above were independently re-checked and **confirmed accurate** (dead `TaskTransition.RequiresAssignee`/`ConsumesCapacity` fields; the unenforced `OccupiesSlot ⇒ AssigneeRequiredWhile` invariant behind `targetAssignee!`) — kept as should-fix follow-ups for whoever picks up 3.2, not blockers.
+
+The one assumption the prior review flagged as unverified — that `BaseRepository.FindById` (`DbSet.FindAsync`) actually applies `User`'s global soft-delete query filter — was independently tested with a throwaway xUnit test against this exact EF Core 9.0.21 + Pomelo 9.0.0 + MySQL 8.4 stack (written, run, then deleted; working tree confirmed clean before and after). **Confirmed: `FindAsync` returns `null` for a soft-deleted row.** This validates the core mechanism `Move`'s `AssigneeRequired` check depends on today, and the same mechanism slice 3.2 will rely on for AC17. Recommendation: turn this into a permanent regression test before 3.2, since it pins EF/provider behavior that a future upgrade could silently change, not application code.
+
+No new Major/Critical findings. No security, authorization, or regression defect found; full 114-test suite green with nothing outside F02 broken; `TasksController.Move`'s route/verb/`[Authorize]` policy unchanged; the 3-tuple's new `ErrorMessage` field is additive, no wire-contract change.
+
+Not tested by qa-lead: CI run on this branch (no CI access from the session), browser/manual HTTP exercise beyond the xUnit suite, slices 3.2/3.3 (out of scope, not started).
