@@ -21,7 +21,7 @@
 - **D2** the count includes only tasks that are `InProgress`, not soft-deleted, and assigned to that user. `Backlog` / `Todo` / `Review` / `Done` consume no slot.
 - **D3** when the task being moved or reassigned is itself already `InProgress` and assigned to the target user, it is excluded from the count — otherwise a no-op reassignment would be refused at exactly 3.
 - **D4** **no role bypasses the limit, including Admin.** There is no override flag and no emergency path.
-- **D5** an assignee is **mandatory from `InProgress` onward**: a task cannot enter `InProgress` unassigned, and the assignee cannot be cleared while the task is `InProgress` or `Review`. Reassignment to a different member is always allowed subject to capacity.
+- **D5** an assignee is **mandatory from `InProgress` onward**: a task cannot enter `InProgress` unassigned, and the assignee cannot be cleared while the task is `InProgress`, `Review` **or `Done`** (clarified 2026-11-05, *Technical contract* T4 — "from `InProgress` onward" reads as every status reachable from it, so that reopening a `Done` task into `Review` never produces an unassigned `Review` task). Reassignment to a different member is always allowed subject to capacity.
 - **D6** only Manager / Admin may delete a task (`DeleteTasks`); soft-deleting an `InProgress` task frees its assignee's slot, since the count excludes deleted rows.
 - **D7** the race in AC18 is prevented with a **concurrency token on the assignee row**, changed in the same `SaveChanges()` as the task (`backend.md` §4, Recipe 14) — not with an application-level `Count()` alone.
 
@@ -68,3 +68,57 @@
 - Validation order is fixed by [F01](f01-workflow.md) D3: transition validity is checked before capacity, so an invalid move never reports a capacity error.
 - The limit's configuration key goes in `ConfigKeys` alongside the existing entries, and the service reads it through that constant.
 - `IsOverdue` ([F05](f05-overdue.md)) plays no part in the count — an overdue task still occupies its slot.
+
+---
+
+# Technical contract (designed 2026-11-05)
+
+Everything above is the decided behaviour and does not change, except the one clarification of D5 marked above. This section is the technical contract that makes it implementable, following the pattern of [F01](f01-workflow.md)'s *Technical contract*. All [SIGN-OFF] items below were approved by the user 2026-11-05.
+
+## T1. Concurrency token (D7)
+
+**Reuse `Users.ConcurrencyStamp`** (ASP.NET Identity, already `IsConcurrencyToken()` in `UserConfiguration`) — no new column, **no migration for the token**. Move and Assign load the target assignee **tracked** and, only when the write makes the task occupy a slot it did not occupy before for that user, set `assignee.ConcurrencyStamp = Guid.NewGuid().ToString()` in the **same single `SaveChanges()`** as the task update, the history insert and any notification (F01 T2's "exactly one `SaveChanges()`" rule, unchanged).
+
+A slot is newly occupied: Move along a `ConsumesCapacity` edge (`Todo → InProgress`, `Review → InProgress`); Assign of an already-`InProgress` task to a different user. Freeing a slot (leaving `InProgress`) never bumps the token — a count can only go down, so no race needs guarding there.
+
+**Read the assignee (and its token) before counting.** Reversing the order — count first, then load/bump the token — lets a stale count pair with a fresh token and both writers pass: T1 counts 2, T2 commits (now 3), T1 still bumps the token it read before T2's write and succeeds, landing at 4. Loading the assignee tracked first means the `UPDATE Users … WHERE Id=@id AND ConcurrencyStamp=@original` from the loser of two concurrent writes always fails after the winner commits.
+
+Two simultaneous callers assigning/moving to the same user therefore race the same way F01 T2 describes for a task row: the loser gets `DbUpdateConcurrencyException`, or — per T2 below — a deadlock.
+
+## T2. R13 reused: the same lock-upgrade deadlock, the same two-catch
+
+F02's writes add FK-driven shared locks on the **Users** row they then update under T1: `TaskHistories.ActorUserId` (when the actor is the assignee), `TaskNotifications.RecipientUserId` (on a rework notification), and `Tasks.AssigneeId` itself (an `UPDATE` that changes a FK column takes a shared lock on the referenced parent row). Each of these can interleave with the capacity write's own `UPDATE Users … WHERE ConcurrencyStamp=@original` exactly as ROADMAP R13 describes for `Tasks`: two concurrent transactions both acquire the FK's shared lock, then both try to upgrade to exclusive for their `UPDATE` — a lock-upgrade deadlock (MySQL 1213).
+
+**No new error-handling code.** `TaskService.Move` and `TaskService.Assign` already wrap their single `SaveChanges()` in F01's two-catch (`DbUpdateConcurrencyException` plus `TaskConcurrencyHelper.IsDeadlock` walking the exception chain for MySQL 1213). Both failure modes map to the operation's existing `Task.Move.Conflict` / `Task.Assign.Conflict`, logged at `Warning` (expected outcome of real concurrency, not a defect) — identical to how reopen and assign already handle it for the `Tasks` row. **No retry** — no `EnableRetryOnFailure`, no application-level retry; the loser's client refetches and resubmits, same as any other `…Conflict`.
+
+## T3. One capacity check, shared by Move and Assign
+
+- **Rule declaration** — `BE/TaskFlow.Common/Constants/TaskCapacityRule.cs`, beside the precedent `TaskOverdueRule`:
+  - `OccupiesSlot(TaskWorkflowStatus status)` → `true` only for `InProgress` (D2).
+  - `AssigneeRequiredWhile(TaskWorkflowStatus status)` → `true` for `InProgress`, `Review`, **and `Done`** (D5, clarified above).
+- **Count** — one query: `AssigneeId == targetId && Status == InProgress && Id != task.Id`, counted against indexed columns. The query filter (`!IsDeleted`) excludes soft-deleted rows automatically (D6, AC20); `Id != task.Id` implements D3/AC9 directly, so a no-op reassignment is never refused.
+- **Index** — `IX_Tasks_IsDeleted_AssigneeId_Status` (`IsDeleted` leads, matching F01 T1's convention), deliberately left out of F01 T1 for F02 to add. Migration `AddTasksAssigneeStatusIndex`: `CREATE INDEX` only — **Additive**, does not touch `IX_Tasks_AssigneeId` or any existing index.
+- **Validation order** (F01 D3, unchanged): existence → version → same-status (move only) → transition validity → actor rule → `AssigneeRequiredWhile` (`AssigneeRequired`; also triggered when the stored `AssigneeId` no longer resolves to a user) → capacity (`CapacityReached`). Assign: existence → version → `AssigneeRequiredWhile` when clearing → target exists and is not soft-deleted (`AssigneeNotFound`, AC17) → capacity when `OccupiesSlot(task.Status)` and target ≠ current assignee (AC9 skips both the check and the token bump).
+- **No role or permission reaches the check** — the helper takes no caller context, so D4/AC6 hold structurally: Admin cannot bypass it because nothing routes around it.
+- **Limit (D1)** — `ConfigKeys.Workflow.MaxInProgressPerAssignee = "Workflow:MaxInProgressPerAssignee"`, default `3` in `appsettings.json`. Startup fails if the key is missing or the value is < 1 (the existing CORS-allow-list precedent in `Program.cs`). Read once in `TaskService`'s constructor, the same way `_timeZone` is read today — never a literal at the call site (AC19).
+
+## T4. Error codes, messages and the `GET /users` contract
+
+New codes in `BE/TaskFlow.Common/Constants/Messages/TaskControllerMS.cs` (the class F01 T3 already established), all mapped to **400**:
+
+| Code | AC | Meaning |
+|---|---|---|
+| `Task.Move.AssigneeRequired` | AC11 | move to `InProgress` with no (or no longer resolvable) assignee |
+| `Task.Move.CapacityReached` | AC2, AC6, AC22 | move to `InProgress` would exceed the limit |
+| `Task.Assign.AssigneeRequired` | AC12, AC13 | clearing the assignee while `AssigneeRequiredWhile(task.Status)` |
+| `Task.Assign.CapacityReached` | AC7, AC22 | reassigning would push the target over the limit |
+
+**AC17 adds no new code** — a non-existent or soft-deleted target id reuses the existing `Task.Assign.AssigneeNotFound` / `Task.Create.AssigneeNotFound`, already distinct from the capacity codes (AC22). *"Deactivated account"* in AC17's wording has no corresponding state on `User` today (only `IsDeleted` and Identity lockout) — **clarified 2026-11-05: out of scope until user management exists; AC17 is satisfied by the non-existent-id and soft-deleted-id cases only.**
+
+**[SIGN-OFF] Message content (AC2, AC19).** For `*.CapacityReached`, the envelope's `error` field is filled from a message template, `TaskControllerMS.Templates.CapacityReached`, naming the assignee's `userName` and the configured limit (e.g. "member1 already has 3 tasks in progress, which is the limit."). This means Move/Assign's internal service result gains an optional `string? ErrorMessage` alongside its error code — an internal change inside `TaskFlow.BusinessLogic`/`TaskFlow.Api`, not a wire contract change. No request or response field changes; the AC18 race loser still gets the existing `Task.Move.Conflict` / `Task.Assign.Conflict`.
+
+**`GET api/v1/users`** → `ResultRes<List<UserRes>>` with `{ id, userName, role }`, policy `ViewTasks`, soft-deleted users excluded, ordered by `userName`. This closes the sign-off already recorded in `docs/ROADMAP.md` *Technical contract sign-off* item 6 (approved 2026-10-25) — F02 is the first feature to actually build it, needed so the assignee picker can offer anyone, not only people already visible on the board (slice 1.7's stopgap).
+
+## T5. Spec notes found while designing (not changed here)
+
+- [F01](f01-workflow.md)'s transition table lists "free capacity" only on `Todo → InProgress`; F01 T4 and `TaskTransitions.cs` also mark `Review → InProgress` as `ConsumesCapacity: true`, matching this feature's goal. This contract follows T4 and the code, not the prose table — a one-line fix to F01's table is proposed separately, not made here.
