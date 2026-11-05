@@ -616,6 +616,9 @@ namespace TaskFlow.DataAccess.Migrations
                     b.HasIndex("IsDeleted", "Status", "CompletedAt")
                         .HasDatabaseName("IX_Tasks_IsDeleted_Status_CompletedAt");
 
+                    b.HasIndex("IsDeleted", "IsOverdue", "Status", "DueDate")
+                        .HasDatabaseName("IX_Tasks_IsDeleted_IsOverdue_Status_DueDate");
+
                     b.HasIndex("IsDeleted", "Status", "Priority", "DueDate")
                         .HasDatabaseName("IX_Tasks_IsDeleted_Status_Priority_DueDate");
 

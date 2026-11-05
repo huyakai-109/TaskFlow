@@ -33,6 +33,7 @@ namespace TaskFlow.Api.Configurations
             collection.AddScoped<IExampleService, ExampleService>();
             collection.AddScoped<ITaskService, TaskService>();
             collection.AddScoped<ITaskHistoryService, TaskHistoryService>();
+            collection.AddScoped<ITaskOverdueScanService, TaskOverdueScanService>();
             collection.AddScoped<INotificationService, NotificationService>();
             collection.AddScoped<IUserService, UserService>();
         }

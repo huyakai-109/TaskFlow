@@ -534,8 +534,11 @@ namespace TaskFlow.BusinessLogic.Services
                 return (TaskControllerMS.UpdateDueDate.Conflict, null);
             }
 
+            // D8: the past-date guard fires only when the due date actually
+            // changes - a task whose due date is already in the past is never
+            // re-validated just because some other field moved (F05 AC14).
             var today = TodayInZone();
-            if (requestDto.DueDate.HasValue && requestDto.DueDate.Value < today)
+            if (requestDto.DueDate.HasValue && requestDto.DueDate != task.DueDate && requestDto.DueDate.Value < today)
             {
                 return (TaskControllerMS.UpdateDueDate.DueDateInPast, null);
             }
@@ -886,7 +889,7 @@ namespace TaskFlow.BusinessLogic.Services
 
         private DateOnly TodayInZone()
         {
-            return DateOnly.FromDateTime(DateTimeHelper.GetDtOffset().ToTimezone(_timeZone).Date);
+            return DateTimeHelper.GetDtOffset().ToDateInZone(_timeZone);
         }
 
         private static TaskDetailResDto BuildDetail(TaskItem task, string? assigneeUserName, long actorUserId, string[] callerPermissions)

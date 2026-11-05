@@ -34,6 +34,17 @@ namespace TaskFlow.DataAccess.Configurations
             // convention as the composites above.
             builder.HasIndex(i => new { i.IsDeleted, i.AssigneeId, i.Status })
                 .HasDatabaseName("IX_Tasks_IsDeleted_AssigneeId_Status");
+
+            // f05-overdue.md Technical contract T3: serves the scan's
+            // candidate query (equality on IsDeleted, IsOverdue = 0, then
+            // Status, then a DueDate range) and the isOverdue=true list filter
+            // (T8, prefix IsDeleted, IsOverdue = 1). Status != Done is a range
+            // predicate in the scan, so it must come after IsOverdue (equality)
+            // to keep narrowing - refines F01 T1's (IsDeleted, Status,
+            // IsOverdue, DueDate) sketch, where Done tasks with past due dates
+            // would otherwise accumulate in the index forever.
+            builder.HasIndex(i => new { i.IsDeleted, i.IsOverdue, i.Status, i.DueDate })
+                .HasDatabaseName("IX_Tasks_IsDeleted_IsOverdue_Status_DueDate");
         }
     }
 }
