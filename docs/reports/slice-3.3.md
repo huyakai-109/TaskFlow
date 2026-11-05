@@ -86,3 +86,23 @@ Not covered: CI has not run this branch. No independent qa-lead review yet (sche
 - No pagination on this endpoint — matches the approved contract (`List<UserRes>`, not `PaginationResultRes`), acceptable at the current seeded-user scale; revisit only if user management (out of scope per `CLAUDE.md`) is ever added.
 
 Status: **Built** — not yet independently reviewed or accepted.
+
+## Review
+
+`Review: APPROVE WITH RECOMMENDATIONS on 1618f33, 2026-11-05`
+
+Re-verified by reading `git show 1618f33` file-by-file against `docs/features/f02-capacity.md` T4 (route, response shape, policy, exclusion, ordering) — response shape, policy and exclusion all match exactly; did not re-run the test suite (already green twice for the filtered tests + once for the full suite, same commit, clean working tree).
+
+### Must fix
+
+None.
+
+### Recommendations
+
+1. `UserService.GetList()` returns `Role = string.Empty` for a hypothetical user with zero `UserRole` rows (`UserService.cs:36`, the `first.RoleName ?? string.Empty` fallback) — a case the contract doesn't define and today's data never produces. Already flagged by the author in the report's *Risks* section; no action needed now, just worth a one-line mention in `f02-capacity.md` T4 if/when user management is added.
+
+### Pre-existing / out of scope
+
+- None.
+
+Not reviewed: CI run on this branch, independent `qa-lead` pass (next: gate B, covering 3.1–3.3 together), browser/manual exercise beyond the xUnit HTTP-level suite.
