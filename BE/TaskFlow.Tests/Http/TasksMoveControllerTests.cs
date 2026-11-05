@@ -136,8 +136,12 @@ namespace TaskFlow.Tests.Http
         [Fact]
         public async Task Move_ThreeStagesInOneDay_WriteThreeSeparateHistoryEntries_InOrder()
         {
+            // F02 AC11: InProgress now requires an assignee, so this task is
+            // pre-assigned - the behaviour under test is the history trail,
+            // not the assignee rule.
             var mover = await CreateAuthenticatedClientAsync("Member");
-            var task = await CreateTaskAsync(mover.Client);
+            var assignee = await CreateAuthenticatedClientAsync("Member");
+            var task = await CreateTaskAsync(mover.Client, assignee.UserId);
 
             var atTodo = await MoveAsync(mover.Client, task.Id, TaskWorkflowStatus.Todo, task.Version);
             var atInProgress = await MoveAsync(mover.Client, task.Id, TaskWorkflowStatus.InProgress, atTodo.Version);
@@ -505,6 +509,391 @@ namespace TaskFlow.Tests.Http
             Assert.Equal(TaskControllerMS.Move.Exception, body!.ErrorCode);
         }
 
+        // ---- F02 capacity guard on Move (slice 3.1, f02-capacity.md Technical contract) ----
+
+        [Fact]
+        public async Task Move_AllowsThirdTask_WhenAssigneeHasExactlyTwoInProgress()
+        {
+            // AC1
+            var mover = await CreateAuthenticatedClientAsync("Member");
+            var assignee = await CreateAuthenticatedClientAsync("Member");
+            for (var i = 0; i < 2; i++)
+            {
+                await CreateInProgressTaskAsync(mover.Client, assignee.UserId);
+            }
+
+            var third = await CreateTaskAsync(mover.Client, assignee.UserId);
+            var atTodo = await MoveAsync(mover.Client, third.Id, TaskWorkflowStatus.Todo, third.Version);
+
+            var moved = await MoveAsync(mover.Client, third.Id, TaskWorkflowStatus.InProgress, atTodo.Version);
+
+            Assert.Equal(TaskWorkflowStatus.InProgress, moved.Status);
+            Assert.Equal(3, await CountActiveInProgressAsync(assignee.UserId));
+        }
+
+        [Fact]
+        public async Task Move_Refuses_FourthTask_WhenAssigneeHasThreeInProgress_NamesAssigneeAndLimit_AndWritesNoHistory()
+        {
+            // AC2, AC22 (distinct code), F04 AC11 (no entry, task untouched)
+            var mover = await CreateAuthenticatedClientAsync("Member");
+            var assignee = await CreateAuthenticatedClientAsync("Member");
+            for (var i = 0; i < 3; i++)
+            {
+                await CreateInProgressTaskAsync(mover.Client, assignee.UserId);
+            }
+
+            var fourth = await CreateTaskAsync(mover.Client, assignee.UserId);
+            var atTodo = await MoveAsync(mover.Client, fourth.Id, TaskWorkflowStatus.Todo, fourth.Version);
+
+            string assigneeUserName;
+            await using (var context = _dbFixture.CreateContext())
+            {
+                assigneeUserName = (await context.Set<User>().SingleAsync(u => u.Id == assignee.UserId)).UserName!;
+            }
+
+            var response = await mover.Client.PutAsJsonAsync($"api/v1/tasks/{fourth.Id}/status", new { status = "InProgress", version = atTodo.Version });
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal(TaskControllerMS.Move.CapacityReached, body!.ErrorCode);
+            Assert.Equal($"{assigneeUserName} already has 3 tasks in progress, which is the limit.", body.Error);
+
+            await using var assertContext = _dbFixture.CreateContext();
+            var reloaded = await assertContext.Set<TaskItem>().SingleAsync(t => t.Id == fourth.Id);
+            Assert.Equal(TaskWorkflowStatus.Todo, reloaded.Status);
+            Assert.Equal(atTodo.Version, reloaded.Version);
+            Assert.False(await assertContext.Set<TaskHistory>().AnyAsync(h => h.TaskId == fourth.Id && h.Event == TaskHistoryEvent.StatusChanged && h.ToValue == nameof(TaskWorkflowStatus.InProgress)));
+            Assert.Equal(3, await CountActiveInProgressAsync(assignee.UserId));
+        }
+
+        [Fact]
+        public async Task Move_Allows_WhenAssigneeHasNoTasksAtAll()
+        {
+            // AC3
+            var mover = await CreateAuthenticatedClientAsync("Member");
+            var assignee = await CreateAuthenticatedClientAsync("Member");
+
+            var task = await CreateTaskAsync(mover.Client, assignee.UserId);
+            var atTodo = await MoveAsync(mover.Client, task.Id, TaskWorkflowStatus.Todo, task.Version);
+
+            var moved = await MoveAsync(mover.Client, task.Id, TaskWorkflowStatus.InProgress, atTodo.Version);
+
+            Assert.Equal(TaskWorkflowStatus.InProgress, moved.Status);
+        }
+
+        [Fact]
+        public async Task Move_Allows_WhenAssigneeDropsBelowLimit_AfterMovingOneToReview()
+        {
+            // AC4: leaving InProgress toward Review frees the slot.
+            var mover = await CreateAuthenticatedClientAsync("Member");
+            var assignee = await CreateAuthenticatedClientAsync("Member");
+            var inProgressTasks = new List<TaskDetailRes>();
+            for (var i = 0; i < 3; i++)
+            {
+                inProgressTasks.Add(await CreateInProgressTaskAsync(mover.Client, assignee.UserId));
+            }
+
+            await MoveAsync(mover.Client, inProgressTasks[0].Id, TaskWorkflowStatus.Review, inProgressTasks[0].Version);
+
+            var fourth = await CreateTaskAsync(mover.Client, assignee.UserId);
+            var atTodo = await MoveAsync(mover.Client, fourth.Id, TaskWorkflowStatus.Todo, fourth.Version);
+            var moved = await MoveAsync(mover.Client, fourth.Id, TaskWorkflowStatus.InProgress, atTodo.Version);
+
+            Assert.Equal(TaskWorkflowStatus.InProgress, moved.Status);
+        }
+
+        [Fact]
+        public async Task Move_Allows_WhenAssigneeDropsBelowLimit_AfterOneIsApprovedIntoDone()
+        {
+            // AC5: leaving InProgress toward Done also frees the slot.
+            var mover = await CreateAuthenticatedClientAsync("Member");
+            var assignee = await CreateAuthenticatedClientAsync("Member");
+            var closer = await CreateAuthenticatedClientAsync("Manager");
+            var inProgressTasks = new List<TaskDetailRes>();
+            for (var i = 0; i < 3; i++)
+            {
+                inProgressTasks.Add(await CreateInProgressTaskAsync(mover.Client, assignee.UserId));
+            }
+
+            var atReview = await MoveAsync(mover.Client, inProgressTasks[0].Id, TaskWorkflowStatus.Review, inProgressTasks[0].Version);
+            await MoveAsync(closer.Client, atReview.Id, TaskWorkflowStatus.Done, atReview.Version);
+
+            var fourth = await CreateTaskAsync(mover.Client, assignee.UserId);
+            var atTodo = await MoveAsync(mover.Client, fourth.Id, TaskWorkflowStatus.Todo, fourth.Version);
+            var moved = await MoveAsync(mover.Client, fourth.Id, TaskWorkflowStatus.InProgress, atTodo.Version);
+
+            Assert.Equal(TaskWorkflowStatus.InProgress, moved.Status);
+        }
+
+        [Fact]
+        public async Task Move_Refuses_Admin_SameAsAnyOtherCaller_NoRoleBypassesTheLimit()
+        {
+            // AC6/D4: no role, including Admin, bypasses the limit.
+            var admin = await CreateAuthenticatedClientAsync("Admin");
+            for (var i = 0; i < 3; i++)
+            {
+                await CreateInProgressTaskAsync(admin.Client, admin.UserId);
+            }
+
+            var fourth = await CreateTaskAsync(admin.Client, admin.UserId);
+            var atTodo = await MoveAsync(admin.Client, fourth.Id, TaskWorkflowStatus.Todo, fourth.Version);
+
+            var response = await admin.Client.PutAsJsonAsync($"api/v1/tasks/{fourth.Id}/status", new { status = "InProgress", version = atTodo.Version });
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal(TaskControllerMS.Move.CapacityReached, body!.ErrorCode);
+        }
+
+        [Fact]
+        public async Task Move_Refuses_TodoToInProgress_WhenNoAssignee_WithCodeDistinctFromCapacity()
+        {
+            // AC11, AC22
+            var mover = await CreateAuthenticatedClientAsync("Member");
+            var task = await CreateTaskAsync(mover.Client);
+            var atTodo = await MoveAsync(mover.Client, task.Id, TaskWorkflowStatus.Todo, task.Version);
+
+            await AssertRejectedWithNoSideEffectsAsync(mover.Client, task.Id, TaskWorkflowStatus.InProgress, atTodo.Version, TaskControllerMS.Move.AssigneeRequired);
+        }
+
+        [Fact]
+        public async Task Move_Allows_WhenCallerThemselvesIsAtCapacity_ButAssigneeIsNot()
+        {
+            // AC15: the limit applies to the assignee, never to the requester.
+            var busyMover = await CreateAuthenticatedClientAsync("Member");
+            for (var i = 0; i < 3; i++)
+            {
+                await CreateInProgressTaskAsync(busyMover.Client, busyMover.UserId);
+            }
+
+            var freshAssignee = await CreateAuthenticatedClientAsync("Member");
+            var task = await CreateTaskAsync(busyMover.Client, freshAssignee.UserId);
+            var atTodo = await MoveAsync(busyMover.Client, task.Id, TaskWorkflowStatus.Todo, task.Version);
+
+            var moved = await MoveAsync(busyMover.Client, task.Id, TaskWorkflowStatus.InProgress, atTodo.Version);
+
+            Assert.Equal(TaskWorkflowStatus.InProgress, moved.Status);
+        }
+
+        [Fact]
+        public async Task Move_Refuses_WhenCallerLacksMoveTasksPermission_EvenWhenAssigneeIsAtCapacity_CountUnchanged()
+        {
+            // AC16 (move) regression: a 403 must not have any side effect on
+            // the count, even when the target is sitting exactly at the limit.
+            var mover = await CreateAuthenticatedClientAsync("Member");
+            var assignee = await CreateAuthenticatedClientAsync("Member");
+            for (var i = 0; i < 3; i++)
+            {
+                await CreateInProgressTaskAsync(mover.Client, assignee.UserId);
+            }
+
+            var task = await CreateTaskAsync(mover.Client, assignee.UserId);
+            var atTodo = await MoveAsync(mover.Client, task.Id, TaskWorkflowStatus.Todo, task.Version);
+
+            var noPermissionCaller = await CreateAuthenticatedClientAsync(role: null);
+            var response = await noPermissionCaller.Client.PutAsJsonAsync($"api/v1/tasks/{task.Id}/status", new { status = "InProgress", version = atTodo.Version });
+
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+            Assert.Equal(3, await CountActiveInProgressAsync(assignee.UserId));
+        }
+
+        [Fact]
+        public async Task Move_ExcludesSoftDeletedInProgressTask_FromCapacityCount()
+        {
+            // AC20/D6: a soft-deleted InProgress task frees its slot.
+            var manager = await CreateAuthenticatedClientAsync("Manager");
+            var assignee = await CreateAuthenticatedClientAsync("Member");
+
+            var toDelete = await CreateInProgressTaskAsync(manager.Client, assignee.UserId);
+            for (var i = 0; i < 2; i++)
+            {
+                await CreateInProgressTaskAsync(manager.Client, assignee.UserId);
+            }
+
+            var deleteResponse = await manager.Client.DeleteAsync($"api/v1/tasks/{toDelete.Id}?version={toDelete.Version}");
+            Assert.True(deleteResponse.IsSuccessStatusCode);
+
+            var newTask = await CreateTaskAsync(manager.Client, assignee.UserId);
+            var atTodo = await MoveAsync(manager.Client, newTask.Id, TaskWorkflowStatus.Todo, newTask.Version);
+
+            var moved = await MoveAsync(manager.Client, newTask.Id, TaskWorkflowStatus.InProgress, atTodo.Version);
+
+            Assert.Equal(TaskWorkflowStatus.InProgress, moved.Status);
+        }
+
+        [Fact]
+        public async Task Move_RespectsConfiguredLimit_WhenChangedFromDefault_WithNoCodeChange()
+        {
+            // AC19: TaskService is built directly with an in-memory
+            // configuration of N=2 (precedent: the AC29 test above building
+            // TaskService with the real IConfiguration). The boundary and the
+            // message both follow N.
+            var mover = await CreateAuthenticatedClientAsync("Member");
+            var assignee = await CreateAuthenticatedClientAsync("Member");
+            for (var i = 0; i < 2; i++)
+            {
+                await CreateInProgressTaskAsync(mover.Client, assignee.UserId);
+            }
+
+            var third = await CreateTaskAsync(mover.Client, assignee.UserId);
+            var atTodo = await MoveAsync(mover.Client, third.Id, TaskWorkflowStatus.Todo, third.Version);
+
+            var realConfiguration = _factory.Services.GetRequiredService<IConfiguration>();
+            var timeZone = realConfiguration[ConfigKeys.Workflow.TimeZone];
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    [ConfigKeys.Workflow.TimeZone] = timeZone,
+                    [ConfigKeys.Workflow.MaxInProgressPerAssignee] = "2",
+                })
+                .Build();
+
+            await using var context = _dbFixture.CreateContext();
+            var service = new TaskService(configuration, new UnitOfWork(context, new HttpContextAccessor()), NullLogger<TaskService>.Instance);
+            var moveDto = new TaskMoveReqDto { Status = TaskWorkflowStatus.InProgress, Version = atTodo.Version };
+
+            var (errorCode, _, errorMessage) = await service.Move(third.Id, moveDto, mover.UserId, new[] { Permissions.Tasks.MoveTasks });
+
+            Assert.Equal(TaskControllerMS.Move.CapacityReached, errorCode);
+            Assert.Contains("2 tasks in progress", errorMessage);
+        }
+
+        [Fact]
+        public async Task Move_TwoRacingSaveChanges_SameAssignee_DifferentTasks_ExactlyOneSucceeds()
+        {
+            // AC18(a): deterministic two-MyDbContext interleave on the
+            // capacity guard, the token-on-Users analogue of the existing
+            // AC29 test above (ADR 0002 / f02-capacity.md T1).
+            var mover = await CreateAuthenticatedClientAsync("Member");
+            var assignee = await CreateAuthenticatedClientAsync("Member");
+            for (var i = 0; i < 2; i++)
+            {
+                await CreateInProgressTaskAsync(mover.Client, assignee.UserId);
+            }
+
+            var taskX = await CreateTaskAsync(mover.Client, assignee.UserId);
+            var xAtTodo = await MoveAsync(mover.Client, taskX.Id, TaskWorkflowStatus.Todo, taskX.Version);
+            var taskY = await CreateTaskAsync(mover.Client, assignee.UserId);
+            var yAtTodo = await MoveAsync(mover.Client, taskY.Id, TaskWorkflowStatus.Todo, taskY.Version);
+
+            var configuration = _factory.Services.GetRequiredService<IConfiguration>();
+            await using var contextA = _dbFixture.CreateContext();
+            await using var contextB = _dbFixture.CreateContext();
+            var serviceA = new TaskService(configuration, new UnitOfWork(contextA, new HttpContextAccessor()), NullLogger<TaskService>.Instance);
+            var serviceB = new TaskService(configuration, new UnitOfWork(contextB, new HttpContextAccessor()), NullLogger<TaskService>.Instance);
+
+            var permissions = new[] { Permissions.Tasks.MoveTasks };
+            var moveX = new TaskMoveReqDto { Status = TaskWorkflowStatus.InProgress, Version = xAtTodo.Version };
+            var moveY = new TaskMoveReqDto { Status = TaskWorkflowStatus.InProgress, Version = yAtTodo.Version };
+
+            var resultA = serviceA.Move(taskX.Id, moveX, mover.UserId, permissions);
+            var resultB = serviceB.Move(taskY.Id, moveY, mover.UserId, permissions);
+            await Task.WhenAll(resultA, resultB);
+
+            var outcomes = new[] { await resultA, await resultB };
+            Assert.Single(outcomes, o => o.ErrorCode == string.Empty);
+            Assert.Single(outcomes, o => o.ErrorCode is TaskControllerMS.Move.Conflict or TaskControllerMS.Move.CapacityReached);
+            Assert.Equal(3, await CountActiveInProgressAsync(assignee.UserId));
+        }
+
+        [Fact]
+        public async Task Move_TwoConcurrentHttpRequests_DifferentTasks_SameAssigneeAtLimitMinusOne_ExactlyOneSucceeds_AcrossManyRounds()
+        {
+            // AC18(b): HTTP Task.WhenAll, actor != assignee, 10 rounds, a
+            // fresh assignee each round.
+            var otherCaller = await CreateAuthenticatedClientAsync("Manager");
+
+            for (var round = 0; round < 10; round++)
+            {
+                var mover = await CreateAuthenticatedClientAsync("Member");
+                var assignee = await CreateAuthenticatedClientAsync("Member");
+                for (var i = 0; i < 2; i++)
+                {
+                    await CreateInProgressTaskAsync(mover.Client, assignee.UserId);
+                }
+
+                var taskX = await CreateTaskAsync(mover.Client, assignee.UserId);
+                var xAtTodo = await MoveAsync(mover.Client, taskX.Id, TaskWorkflowStatus.Todo, taskX.Version);
+                var taskY = await CreateTaskAsync(mover.Client, assignee.UserId);
+                var yAtTodo = await MoveAsync(mover.Client, taskY.Id, TaskWorkflowStatus.Todo, taskY.Version);
+
+                var requestX = otherCaller.Client.PutAsJsonAsync($"api/v1/tasks/{taskX.Id}/status", new { status = "InProgress", version = xAtTodo.Version });
+                var requestY = otherCaller.Client.PutAsJsonAsync($"api/v1/tasks/{taskY.Id}/status", new { status = "InProgress", version = yAtTodo.Version });
+                await Task.WhenAll(requestX, requestY);
+
+                var responses = new[] { await requestX, await requestY };
+                Assert.Single(responses, r => r.StatusCode == HttpStatusCode.OK);
+
+                var failed = responses.Single(r => r.StatusCode != HttpStatusCode.OK);
+                Assert.Equal(HttpStatusCode.BadRequest, failed.StatusCode);
+                var failedBody = await failed.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
+                Assert.True(
+                    failedBody!.ErrorCode == TaskControllerMS.Move.Conflict || failedBody.ErrorCode == TaskControllerMS.Move.CapacityReached,
+                    $"round {round}: unexpected error code {failedBody.ErrorCode}");
+
+                Assert.Equal(3, await CountActiveInProgressAsync(assignee.UserId));
+
+                await using var context = _dbFixture.CreateContext();
+                var statusChangedCount = await context.Set<TaskHistory>().CountAsync(h =>
+                    (h.TaskId == taskX.Id || h.TaskId == taskY.Id) && h.Event == TaskHistoryEvent.StatusChanged && h.ToValue == nameof(TaskWorkflowStatus.InProgress));
+                Assert.Equal(1, statusChangedCount);
+            }
+        }
+
+        [Fact]
+        public async Task Move_TwoConcurrentHttpRequests_ActorIsTheAssignee_NeverReturns500_AcrossManyRounds()
+        {
+            // AC18(c): same shape as (b), actor = assignee, to exercise the
+            // MySQL 1213 lock-upgrade deadlock path (f02-capacity.md T2) -
+            // never a 500.
+            for (var round = 0; round < 10; round++)
+            {
+                var mover = await CreateAuthenticatedClientAsync("Member");
+                var assignee = await CreateAuthenticatedClientAsync("Member");
+                for (var i = 0; i < 2; i++)
+                {
+                    await CreateInProgressTaskAsync(mover.Client, assignee.UserId);
+                }
+
+                var taskX = await CreateTaskAsync(mover.Client, assignee.UserId);
+                var xAtTodo = await MoveAsync(mover.Client, taskX.Id, TaskWorkflowStatus.Todo, taskX.Version);
+                var taskY = await CreateTaskAsync(mover.Client, assignee.UserId);
+                var yAtTodo = await MoveAsync(mover.Client, taskY.Id, TaskWorkflowStatus.Todo, taskY.Version);
+
+                var requestX = assignee.Client.PutAsJsonAsync($"api/v1/tasks/{taskX.Id}/status", new { status = "InProgress", version = xAtTodo.Version });
+                var requestY = assignee.Client.PutAsJsonAsync($"api/v1/tasks/{taskY.Id}/status", new { status = "InProgress", version = yAtTodo.Version });
+                await Task.WhenAll(requestX, requestY);
+
+                var responses = new[] { await requestX, await requestY };
+                Assert.All(responses, r => Assert.NotEqual(HttpStatusCode.InternalServerError, r.StatusCode));
+                Assert.Single(responses, r => r.StatusCode == HttpStatusCode.OK);
+
+                Assert.Equal(3, await CountActiveInProgressAsync(assignee.UserId));
+            }
+        }
+
+        [Fact]
+        public async Task Move_TwoConcurrentHttpRequests_DifferentAssignees_BothSucceed_NoSpuriousConflict()
+        {
+            // User-approved addition: two unrelated User rows must never
+            // contend with each other (ADR 0002 "Consequences").
+            var actor = await CreateAuthenticatedClientAsync("Manager");
+            var assigneeOne = await CreateAuthenticatedClientAsync("Member");
+            var assigneeTwo = await CreateAuthenticatedClientAsync("Member");
+
+            var taskOne = await CreateTaskAsync(actor.Client, assigneeOne.UserId);
+            var oneAtTodo = await MoveAsync(actor.Client, taskOne.Id, TaskWorkflowStatus.Todo, taskOne.Version);
+            var taskTwo = await CreateTaskAsync(actor.Client, assigneeTwo.UserId);
+            var twoAtTodo = await MoveAsync(actor.Client, taskTwo.Id, TaskWorkflowStatus.Todo, taskTwo.Version);
+
+            var requestOne = actor.Client.PutAsJsonAsync($"api/v1/tasks/{taskOne.Id}/status", new { status = "InProgress", version = oneAtTodo.Version });
+            var requestTwo = actor.Client.PutAsJsonAsync($"api/v1/tasks/{taskTwo.Id}/status", new { status = "InProgress", version = twoAtTodo.Version });
+            await Task.WhenAll(requestOne, requestTwo);
+
+            var responses = new[] { await requestOne, await requestTwo };
+            Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
+        }
+
         // ---- F04 AC18, DB level only (the read endpoint lands in slice 1.4) ----
 
         [Fact]
@@ -557,6 +946,22 @@ namespace TaskFlow.Tests.Http
             var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
             Assert.True(body!.Success, body.Error);
             return body.Result!;
+        }
+
+        // F02 capacity tests: creates a task pre-assigned to assigneeId and
+        // advances it Backlog -> Todo -> InProgress via mover (not the
+        // assignee, so the actor rule never interferes).
+        private async Task<TaskDetailRes> CreateInProgressTaskAsync(HttpClient mover, long assigneeId)
+        {
+            var task = await CreateTaskAsync(mover, assigneeId);
+            var atTodo = await MoveAsync(mover, task.Id, TaskWorkflowStatus.Todo, task.Version);
+            return await MoveAsync(mover, task.Id, TaskWorkflowStatus.InProgress, atTodo.Version);
+        }
+
+        private async Task<int> CountActiveInProgressAsync(long assigneeId)
+        {
+            await using var context = _dbFixture.CreateContext();
+            return await context.Set<TaskItem>().CountAsync(t => t.AssigneeId == assigneeId && t.Status == TaskWorkflowStatus.InProgress);
         }
 
         private async Task<TaskDetailRes> MoveAsync(HttpClient client, long id, TaskWorkflowStatus status, Guid version)

@@ -610,6 +610,9 @@ namespace TaskFlow.DataAccess.Migrations
 
                     b.HasIndex("AssigneeId");
 
+                    b.HasIndex("IsDeleted", "AssigneeId", "Status")
+                        .HasDatabaseName("IX_Tasks_IsDeleted_AssigneeId_Status");
+
                     b.HasIndex("IsDeleted", "Status", "CompletedAt")
                         .HasDatabaseName("IX_Tasks_IsDeleted_Status_CompletedAt");
 

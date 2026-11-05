@@ -27,6 +27,13 @@ namespace TaskFlow.DataAccess.Configurations
 
             builder.HasIndex(i => new { i.IsDeleted, i.Status, i.CompletedAt })
                 .HasDatabaseName("IX_Tasks_IsDeleted_Status_CompletedAt");
+
+            // f02-capacity.md Technical contract T3: the capacity count's
+            // indexed query (AssigneeId == target && Status == InProgress),
+            // IsDeleted leading per the same MySQL-has-no-filtered-indexes
+            // convention as the composites above.
+            builder.HasIndex(i => new { i.IsDeleted, i.AssigneeId, i.Status })
+                .HasDatabaseName("IX_Tasks_IsDeleted_AssigneeId_Status");
         }
     }
 }
