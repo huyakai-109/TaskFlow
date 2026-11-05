@@ -6,11 +6,10 @@
   `ApplyColumnOrder(IQueryable<TaskItem> query)` implementing the F03 active-column rule
   (`Priority` asc → "has no due date" asc → `DueDate` asc → `CreatedAt` asc → `Id` asc).
   Replace the `OrderBy(CreatedAt).ThenBy(Id)` call in `GetBoard` (around line 737) and in
-  `GetList` (around line 768) with a call to this method. `Done` keeps its current
-  `CreatedAt`/`Id` ordering in this slice (4.2 changes it) — both call sites currently share
-  one `OrderBy`, so `Done` goes through the same new method for now, which is a superset of
-  "leave it as-is" since `Done` has no `DueDate`/`Priority` rule requirement yet; it will be
-  replaced by a `Done`-specific branch in 4.2.
+  `GetList` (around line 768) with a conditional: `Done` keeps its current `CreatedAt`/`Id`
+  ordering unchanged in this slice (`ApplyColumnOrder` is not called for `Done`); every other
+  status calls the new `ApplyColumnOrder` method. Slice 4.2 replaces `Done`'s branch with its
+  own `CompletedAt`-desc window.
 - `BE/TaskFlow.Tests/Http/TasksBoardOrderingControllerTests.cs` — new test class, `[Collection(DatabaseCollection.Name)]`,
   resets `TaskNotifications`/`TaskHistories`/`Tasks` per test, seeds fixed-timestamp rows via `_dbFixture.CreateContext()`
   for ordering/tie-break/pagination cases, and exercises through HTTP for permission/priority-update/move cases.
