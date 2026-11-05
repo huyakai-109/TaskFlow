@@ -1,6 +1,6 @@
 # 0003 — F05 overdue scan: per-task commits, idempotent by predicate; Quartz schema tracked by additive migrations
 
-Status: **Proposed** (design by `architect`, 2026-11-05) — awaiting the user
+Status: **Accepted** (design by `architect`, 2026-11-05; approved by the user 2026-11-05)
 
 ## Context
 
