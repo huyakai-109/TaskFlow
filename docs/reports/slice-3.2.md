@@ -102,7 +102,7 @@ First run of `--filter Assign` failed one new test, `Assign_Refuses_WhenTargetAl
 - "Deactivated account" (AC17's third clause) remains explicitly out of scope — no user-management/deactivation feature exists (ROADMAP 2026-11-05 clarification, unchanged by this slice).
 - `TaskTransition.RequiresAssignee`/`ConsumesCapacity` remain present but dead, now documented as such — a future slice that touches `TaskTransitions.cs` for an unrelated reason may want to finish the removal; not done here per the smallest-safe-change call above.
 
-Status: **Built** — not yet independently reviewed or accepted.
+Status: **Done** — accepted by the user 2026-11-05, after review-change and independent `qa-lead` verification (gate B, below).
 
 ## Review
 

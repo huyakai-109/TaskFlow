@@ -85,7 +85,7 @@ Not covered: CI has not run this branch. No independent qa-lead review yet (sche
 - The role-resolution join assumes (and today's data confirms) exactly one `Role` per `User`. If a future slice ever assigns a user more than one role, this endpoint silently picks the lowest `RoleId` rather than erroring — flagged here rather than guarded against, since building multi-role support is out of scope and no code path produces it today.
 - No pagination on this endpoint — matches the approved contract (`List<UserRes>`, not `PaginationResultRes`), acceptable at the current seeded-user scale; revisit only if user management (out of scope per `CLAUDE.md`) is ever added.
 
-Status: **Built** — not yet independently reviewed or accepted.
+Status: **Done** — accepted by the user 2026-11-05, after review-change and independent `qa-lead` verification (gate B, below).
 
 ## Review
 

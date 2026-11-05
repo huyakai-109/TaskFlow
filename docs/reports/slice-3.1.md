@@ -99,7 +99,7 @@ Not covered: CI has not run this branch. No independent qa-lead review yet. No m
 - R13's lock-upgrade deadlock (MySQL 1213) is now also reachable through the FK S-lock on `Users` from the capacity-token write; accepted per ADR 0002 and handled by the existing two-catch — no separate test beyond AC18(c), per design.
 - AC17 ("deactivated account") stays out of scope — no user-management/deactivation feature exists yet (resolved open question, ROADMAP 2026-11-05).
 
-Status: **Ready for Review** — independently verified by `qa-lead` 2026-11-05 (below); awaiting the user's final acceptance before "Done."
+Status: **Done** — accepted by the user 2026-11-05, after independent `qa-lead` verification (below).
 
 ## Review
 
