@@ -97,6 +97,19 @@ export function BoardPage() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
+  // Tracks which columns the user has expanded via "show more" at least
+  // once. Before that, the column's extra-pages query stays disabled so it
+  // is never auto-fetched just because the board re-rendered or refreshed;
+  // once expanded, it stays enabled for the rest of the session so it
+  // participates in every later `invalidateQueries(['board'])` refetch.
+  const [expandedColumns, setExpandedColumns] = useState<Record<TaskStatus, boolean>>({
+    Backlog: false,
+    Todo: false,
+    InProgress: false,
+    Review: false,
+    Done: false,
+  })
+
   function pageSizeFor(status: TaskStatus): number | undefined {
     return boardQuery.data?.columns.find((c) => c.status === status)?.pagination?.pageSize
   }
@@ -104,12 +117,17 @@ export function BoardPage() {
   // One `useInfiniteQuery` per column, called unconditionally for all five
   // fixed statuses (never in a loop) — `BOARD_COLUMNS` never changes shape.
   const columnPages = {
-    Backlog: useColumnPagesQuery('Backlog', pageSizeFor('Backlog')),
-    Todo: useColumnPagesQuery('Todo', pageSizeFor('Todo')),
-    InProgress: useColumnPagesQuery('InProgress', pageSizeFor('InProgress')),
-    Review: useColumnPagesQuery('Review', pageSizeFor('Review')),
-    Done: useColumnPagesQuery('Done', pageSizeFor('Done')),
+    Backlog: useColumnPagesQuery('Backlog', pageSizeFor('Backlog'), expandedColumns.Backlog),
+    Todo: useColumnPagesQuery('Todo', pageSizeFor('Todo'), expandedColumns.Todo),
+    InProgress: useColumnPagesQuery('InProgress', pageSizeFor('InProgress'), expandedColumns.InProgress),
+    Review: useColumnPagesQuery('Review', pageSizeFor('Review'), expandedColumns.Review),
+    Done: useColumnPagesQuery('Done', pageSizeFor('Done'), expandedColumns.Done),
   } as const satisfies Record<TaskStatus, ReturnType<typeof useColumnPagesQuery>>
+
+  function loadMore(status: TaskStatus) {
+    setExpandedColumns((prev) => (prev[status] ? prev : { ...prev, [status]: true }))
+    void columnPages[status].fetchNextPage()
+  }
 
   function mergedItemsFor(status: TaskStatus): TaskSummary[] {
     const column = boardQuery.data?.columns.find((c) => c.status === status)
@@ -258,7 +276,7 @@ export function BoardPage() {
                   icon={<StatusIcon status={status} />}
                   items={items}
                   pagination={column?.pagination ?? null}
-                  onLoadMore={() => void pages.fetchNextPage()}
+                  onLoadMore={() => loadMore(status)}
                   isLoadingMore={pages.isFetchingNextPage}
                   isDragging={activeTask !== null}
                   isDropTarget={allowedTargetsForActiveDrag.has(status)}
