@@ -330,11 +330,20 @@ namespace TaskFlow.Api.Controllers.V1
                 var actorUserId = this.User.Claims.GetUserId();
                 var callerPermissions = this.User.Claims.GetUserRoleClaims();
 
-                var (errorCode, task) = await taskService.Assign(id, Mapper.Map<TaskAssignReqDto>(request), actorUserId, callerPermissions);
+                var (errorCode, task, errorMessage) = await taskService.Assign(id, Mapper.Map<TaskAssignReqDto>(request), actorUserId, callerPermissions);
 
                 if (!string.IsNullOrEmpty(errorCode))
                 {
                     response.ErrorCode = errorCode;
+
+                    // f02-capacity.md Technical contract T4 [SIGN-OFF]: same
+                    // pattern as Move - *.CapacityReached fills the
+                    // envelope's Error with the formatted message.
+                    if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        response.Error = errorMessage;
+                    }
+
                     return BadRequest(response);
                 }
 

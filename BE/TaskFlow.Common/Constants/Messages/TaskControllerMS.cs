@@ -73,13 +73,15 @@ namespace TaskFlow.Common.Constants.Messages
             public const string Exception = "Task.UpdateDueDate.Exception";
         }
 
-        // AssigneeRequired / CapacityReached are reserved for F02 - not
-        // implemented here (f01-workflow.md T3).
+        // AssigneeRequired / CapacityReached: F02 slice 3.2 (f02-capacity.md
+        // Technical contract T3/T4).
         public struct Assign
         {
             public const string NotFound = "Task.Assign.NotFound";
             public const string Conflict = "Task.Assign.Conflict";
             public const string AssigneeNotFound = "Task.Assign.AssigneeNotFound";
+            public const string AssigneeRequired = "Task.Assign.AssigneeRequired";
+            public const string CapacityReached = "Task.Assign.CapacityReached";
             public const string Exception = "Task.Assign.Exception";
         }
 
