@@ -61,6 +61,10 @@ namespace TaskFlow.BusinessLogic.Services
 
         private const int BoardColumnPageSize = 50;
 
+        // f03-sorting.md D4 / Technical contract: Done is windowed to the 20
+        // most recently completed tasks, never the full column.
+        private const int DoneColumnPageSize = 20;
+
         private readonly string _timeZone = configuration.GetSection(ConfigKeys.Workflow.TimeZone).Get<string>()!;
         private readonly int _maxInProgressPerAssignee = configuration.GetSection(ConfigKeys.Workflow.MaxInProgressPerAssignee).Get<int>();
 
@@ -724,9 +728,10 @@ namespace TaskFlow.BusinessLogic.Services
         }
 
         // f01-workflow.md T5 endpoint 3: always five columns in lifecycle
-        // order, empty ones present with zero totals. F01 ships CreatedAt
-        // asc, Id asc and 50/column; F03 changes the order-by and the page
-        // sizes later, additive on this same shape.
+        // order, empty ones present with zero totals. F03 Technical contract:
+        // active columns use ApplyColumnOrder; Done uses ApplyDoneColumnOrder
+        // windowed to DoneColumnPageSize before counting, so TotalItems
+        // reports min(count, 20) - the [SIGN-OFF] total, not the true count.
         public async Task<BoardResDto> GetBoard(long actorUserId, string[] callerPermissions)
         {
             var board = new BoardResDto();
@@ -734,10 +739,31 @@ namespace TaskFlow.BusinessLogic.Services
             foreach (var status in BoardColumnOrder)
             {
                 var query = await unitOfWork.GetRepository<TaskItem>().QueryCondition(i => i.Status == status);
-                query = query.OrderBy(i => i.CreatedAt).ThenBy(i => i.Id);
 
-                var totalItems = await query.CountAsync();
-                var pageItems = await query.Take(BoardColumnPageSize).ToListAsync();
+                int pageSize;
+                int totalItems;
+                List<TaskItem> pageItems;
+
+                if (status == TaskWorkflowStatus.Done)
+                {
+                    pageSize = DoneColumnPageSize;
+
+                    // Take(DoneColumnPageSize) is applied before CountAsync so
+                    // the same IQueryable produces both the windowed list and
+                    // min(count, 20) for TotalItems - one code path for both,
+                    // not a true count computed then clamped separately.
+                    var windowed = ApplyDoneColumnOrder(query).Take(DoneColumnPageSize);
+                    totalItems = await windowed.CountAsync();
+                    pageItems = await windowed.ToListAsync();
+                }
+                else
+                {
+                    pageSize = BoardColumnPageSize;
+                    query = ApplyColumnOrder(query);
+                    totalItems = await query.CountAsync();
+                    pageItems = await query.Take(BoardColumnPageSize).ToListAsync();
+                }
+
                 var items = await BuildSummariesAsync(pageItems, actorUserId, callerPermissions);
 
                 board.Columns.Add(new BoardColumnResDto
@@ -746,16 +772,18 @@ namespace TaskFlow.BusinessLogic.Services
                     Items = items,
                     TotalItems = totalItems,
                     CurrentCount = items.Count,
-                    PageSize = BoardColumnPageSize,
+                    PageSize = pageSize,
                 });
             }
 
             return board;
         }
 
-        // f01-workflow.md T5 endpoint 4: page 2+ of one column, same
-        // CreatedAt asc, Id asc ordering as the board (F03 changes the
-        // order-by later, additive).
+        // f01-workflow.md T5 endpoint 4: page 2+ of one column, same ordering
+        // rule as the board (ApplyColumnOrder). Done uses the same
+        // ApplyDoneColumnOrder window as the board and a fixed page size
+        // (DoneColumnPageSize), never the caller-supplied length - there is
+        // never more than 20 rows to page through.
         public async Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, int start, int length, long actorUserId, string[] callerPermissions)
         {
             var query = await unitOfWork.GetRepository<TaskItem>().QueryAll();
@@ -765,9 +793,18 @@ namespace TaskFlow.BusinessLogic.Services
                 query = query.Where(i => i.Status == status.Value);
             }
 
-            query = query.OrderBy(i => i.CreatedAt).ThenBy(i => i.Id);
+            Pagination<TaskItem> page;
+            if (status == TaskWorkflowStatus.Done)
+            {
+                var windowed = ApplyDoneColumnOrder(query).Take(DoneColumnPageSize);
+                page = await Pagination<TaskItem>.CreateAsync(windowed, start, DoneColumnPageSize);
+            }
+            else
+            {
+                query = ApplyColumnOrder(query);
+                page = await Pagination<TaskItem>.CreateAsync(query, start, length);
+            }
 
-            var page = await Pagination<TaskItem>.CreateAsync(query, start, length);
             var items = await BuildSummariesAsync(page.Items, actorUserId, callerPermissions);
 
             return new Pagination<TaskSummaryResDto>
@@ -778,6 +815,35 @@ namespace TaskFlow.BusinessLogic.Services
                 TotalPages = page.TotalPages,
                 Items = items,
             };
+        }
+
+        // f03-sorting.md Technical contract: the active-column ordering rule,
+        // shared by GetBoard and GetList so there is exactly one OrderBy to
+        // maintain. Expressed entirely in SQL (no in-memory sort) so AC13
+        // holds: Priority asc (D2, rank already explicit on the enum) -> "has
+        // no due date" asc, so undated sorts after dated (D3 - MySQL sorts
+        // NULL first on a plain ascending DueDate) -> DueDate asc -> CreatedAt
+        // asc -> Id asc (D3's tie-break, required for stable pagination).
+        private static IQueryable<TaskItem> ApplyColumnOrder(IQueryable<TaskItem> query)
+        {
+            return query
+                .OrderBy(i => i.Priority)
+                .ThenBy(i => i.DueDate == null)
+                .ThenBy(i => i.DueDate)
+                .ThenBy(i => i.CreatedAt)
+                .ThenBy(i => i.Id);
+        }
+
+        // f03-sorting.md D4 / Technical contract: Done's own rule -
+        // CompletedAt desc (most recently completed first), Id desc as the
+        // tie-break the design calls for (not stated by D4, needed for a
+        // deterministic order). Priority and CreatedAt play no part here -
+        // never fall back to UpdatedAt (f03-sorting.md Technical notes).
+        private static IQueryable<TaskItem> ApplyDoneColumnOrder(IQueryable<TaskItem> query)
+        {
+            return query
+                .OrderByDescending(i => i.CompletedAt)
+                .ThenByDescending(i => i.Id);
         }
 
         private async Task<List<TaskSummaryResDto>> BuildSummariesAsync(List<TaskItem> tasks, long actorUserId, string[] callerPermissions)

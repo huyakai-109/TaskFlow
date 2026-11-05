@@ -16,6 +16,8 @@ import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 import { BoardColumn } from './components/BoardColumn'
 import { NewTaskDialog } from './components/NewTaskDialog'
 import { useBoardQuery } from './hooks/useBoardQuery'
+import { useColumnPagesQuery } from './hooks/useColumnPagesQuery'
+import { mergeColumnItems } from './utils/mergeColumnItems'
 
 function StatusIcon({ status }: { status: TaskStatus }) {
   switch (status) {
@@ -95,6 +97,43 @@ export function BoardPage() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
+  // Tracks which columns the user has expanded via "show more" at least
+  // once. Before that, the column's extra-pages query stays disabled so it
+  // is never auto-fetched just because the board re-rendered or refreshed;
+  // once expanded, it stays enabled for the rest of the session so it
+  // participates in every later `invalidateQueries(['board'])` refetch.
+  const [expandedColumns, setExpandedColumns] = useState<Record<TaskStatus, boolean>>({
+    Backlog: false,
+    Todo: false,
+    InProgress: false,
+    Review: false,
+    Done: false,
+  })
+
+  function pageSizeFor(status: TaskStatus): number | undefined {
+    return boardQuery.data?.columns.find((c) => c.status === status)?.pagination?.pageSize
+  }
+
+  // One `useInfiniteQuery` per column, called unconditionally for all five
+  // fixed statuses (never in a loop) — `BOARD_COLUMNS` never changes shape.
+  const columnPages = {
+    Backlog: useColumnPagesQuery('Backlog', pageSizeFor('Backlog'), expandedColumns.Backlog),
+    Todo: useColumnPagesQuery('Todo', pageSizeFor('Todo'), expandedColumns.Todo),
+    InProgress: useColumnPagesQuery('InProgress', pageSizeFor('InProgress'), expandedColumns.InProgress),
+    Review: useColumnPagesQuery('Review', pageSizeFor('Review'), expandedColumns.Review),
+    Done: useColumnPagesQuery('Done', pageSizeFor('Done'), expandedColumns.Done),
+  } as const satisfies Record<TaskStatus, ReturnType<typeof useColumnPagesQuery>>
+
+  function loadMore(status: TaskStatus) {
+    setExpandedColumns((prev) => (prev[status] ? prev : { ...prev, [status]: true }))
+    void columnPages[status].fetchNextPage()
+  }
+
+  function mergedItemsFor(status: TaskStatus): TaskSummary[] {
+    const column = boardQuery.data?.columns.find((c) => c.status === status)
+    return mergeColumnItems(column?.items ?? [], columnPages[status].data?.pages)
+  }
+
   const moveMutation = useMoveTaskMutation({
     onRefused: (code, variables, message) => {
       if (code !== null && CONFLICT_CODES.has(code)) {
@@ -131,8 +170,20 @@ export function BoardPage() {
     },
   })
 
+  /**
+   * Searches board page 1 *and* any extra pages already loaded via "show
+   * more" (F03) — otherwise a page-2+ card could not be dragged at all.
+   */
   function findTask(taskId: number): TaskSummary | undefined {
-    return boardQuery.data?.columns.flatMap((column) => column.items).find((item) => item.id === taskId)
+    for (const status of BOARD_COLUMNS) {
+      const found = mergedItemsFor(status).find((item) => item.id === taskId)
+
+      if (found !== undefined) {
+        return found
+      }
+    }
+
+    return undefined
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -214,7 +265,8 @@ export function BoardPage() {
           <div className="mt-[var(--space-5)] grid grid-flow-col auto-cols-[minmax(232px,1fr)] items-start gap-[var(--space-4)] overflow-x-auto max-[600px]:auto-cols-[85vw]">
             {BOARD_COLUMNS.map((status) => {
               const column = boardQuery.data.columns.find((c) => c.status === status)
-              const items = column?.items ?? []
+              const items = mergedItemsFor(status)
+              const pages = columnPages[status]
 
               return (
                 <BoardColumn
@@ -223,6 +275,9 @@ export function BoardPage() {
                   label={STATUS_LABELS[status]}
                   icon={<StatusIcon status={status} />}
                   items={items}
+                  pagination={column?.pagination ?? null}
+                  onLoadMore={() => loadMore(status)}
+                  isLoadingMore={pages.isFetchingNextPage}
                   isDragging={activeTask !== null}
                   isDropTarget={allowedTargetsForActiveDrag.has(status)}
                   onMove={(taskId, toStatus, version) => {

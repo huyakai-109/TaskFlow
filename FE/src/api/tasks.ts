@@ -1,5 +1,14 @@
 import { request } from './client'
-import type { Board, PaginationResultRes, ResultRes, TaskDetail, TaskHistoryEntry, TaskPriority, TaskStatus } from './types'
+import type {
+  Board,
+  PaginationResultRes,
+  ResultRes,
+  TaskDetail,
+  TaskHistoryEntry,
+  TaskPriority,
+  TaskStatus,
+  TaskSummary,
+} from './types'
 
 /** Body of `POST /tasks` (`TaskCreateReq`). */
 export interface CreateTaskInput {
@@ -19,6 +28,23 @@ export interface CreateTaskInput {
 export async function getBoard(signal?: AbortSignal): Promise<Board> {
   const envelope = await request<ResultRes<Board>>('/tasks/board', { signal })
   return envelope.result ?? { columns: [] }
+}
+
+/**
+ * `GET /tasks?status=&start=&length=` (T5 #4) — page 2+ of one board column.
+ * `length` must equal the board's `pagination.pageSize` for that column so the
+ * page continues exactly where the board's page 1 ended (F03 AC15).
+ */
+export async function getTaskPage(
+  status: TaskStatus,
+  start: number,
+  length: number,
+  signal?: AbortSignal,
+): Promise<PaginationResultRes<TaskSummary[]>> {
+  return request<PaginationResultRes<TaskSummary[]>>(
+    `/tasks?status=${status}&start=${start}&length=${length}`,
+    { signal },
+  )
 }
 
 /** `GET /tasks/{id}` (T5 #2) — the task detail screen's read. */
