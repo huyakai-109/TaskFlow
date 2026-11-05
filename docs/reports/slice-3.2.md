@@ -103,3 +103,24 @@ First run of `--filter Assign` failed one new test, `Assign_Refuses_WhenTargetAl
 - `TaskTransition.RequiresAssignee`/`ConsumesCapacity` remain present but dead, now documented as such — a future slice that touches `TaskTransitions.cs` for an unrelated reason may want to finish the removal; not done here per the smallest-safe-change call above.
 
 Status: **Built** — not yet independently reviewed or accepted.
+
+## Review
+
+`Review: APPROVE WITH RECOMMENDATIONS on <pending commit, see below>, 2026-11-05`
+
+Re-verified by re-reading `git diff a2344c4..fd649f1` (the 3.2 commits) file-by-file against `docs/features/f02-capacity.md` Technical contract T3/T4 and ADR 0002; did not re-run the full test suite (already green 3×/3× for the Assign filter + full suite, same base commits, clean working tree before the one fix below).
+
+### Must fix
+
+None.
+
+### Recommendations
+
+1. Assign's capacity block had the identical null-forgiving `targetAssignee!.Id` pattern as Move's (`TaskService.cs`, then line 626), but — unlike Move — carried no comment naming the invariant it depends on (`OccupiesSlot(status) ⇒ AssigneeRequiredWhile(status)`, combined here with "a clearing request for such a status already returned `AssigneeRequired` above"). **Fixed directly** (one-line addition, rebuilt clean, 0 errors) rather than sent back for a second round, since it was the exact follow-up #3 the user asked for, just not yet applied to this second occurrence of the same pattern.
+2. The two recommendations carried over from slice 3.1's review (dead `TaskTransition.RequiresAssignee`/`ConsumesCapacity` fields; the invariant behind `targetAssignee!` in Move) were resolved as documented in *The three review follow-ups* above — comment-only in both cases, a reasonable smallest-safe-change call given removing the two record fields would touch nine edge literals for no behavioural gain.
+
+### Pre-existing / out of scope
+
+- None new. The `FindById`/soft-delete assumption flagged in 3.1's QA pass is now a permanent regression test (`UserRepositorySoftDeleteTests.cs`) rather than an open question.
+
+Not reviewed: CI run on this branch, independent `qa-lead` pass (scheduled for gate B after slice 3.3, per the user's batch instructions), browser/manual exercise beyond the xUnit HTTP-level suite.

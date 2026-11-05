@@ -623,6 +623,14 @@ namespace TaskFlow.BusinessLogic.Services
             // matters (ADR 0002).
             if (TaskCapacityRule.OccupiesSlot(task.Status) && !isNoOpReassignment)
             {
+                // targetAssignee is guaranteed non-null here: OccupiesSlot(status)
+                // implies AssigneeRequiredWhile(status) (both in TaskCapacityRule.cs),
+                // so a clearing request (no AssigneeId) for this status would
+                // already have returned AssigneeRequired above - the only way to
+                // reach this branch is with requestDto.AssigneeId set, which is
+                // what populated targetAssignee. Same invariant Move's capacity
+                // block depends on; if it's ever broken this throws a
+                // NullReferenceException instead of a clean error code.
                 var activeCount = await CountActiveInProgress(targetAssignee!.Id, task.Id);
                 if (activeCount >= _maxInProgressPerAssignee)
                 {
