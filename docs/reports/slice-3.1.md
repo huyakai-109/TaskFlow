@@ -100,3 +100,24 @@ Not covered: CI has not run this branch. No independent qa-lead review yet. No m
 - AC17 ("deactivated account") stays out of scope — no user-management/deactivation feature exists yet (resolved open question, ROADMAP 2026-11-05).
 
 Status: **Built**, not yet "Ready for Review" — awaiting independent `qa-lead` verification before that status change, and the user's final acceptance before "Done."
+
+## Review
+
+`Review: APPROVE WITH RECOMMENDATIONS on 4366bbd, 2026-11-05`
+
+Re-verified by re-reading `git diff docs/f02-design..feature/f02-move-capacity` file-by-file against `docs/features/f02-capacity.md` Technical contract T1–T5 and ADR 0002; did not re-run the test suite (already green 3×/3× + full suite per *Verification* above, same commit, clean working tree).
+
+### Must fix
+
+None.
+
+### Recommendations
+
+1. `TaskTransition.RequiresAssignee` / `ConsumesCapacity` are now dead data, and diverge from what's actually enforced — `BE/TaskFlow.Common/Constants/TaskTransitions.cs:28-35`. `TaskService.Move` gates on `TaskCapacityRule.AssigneeRequiredWhile(toStatus)` (target-status-only, per the Technical contract), not on these per-edge flags — confirmed by `grep` that neither field is read anywhere in `BE/`. The `InProgress → Review` edge still declares `RequiresAssignee: false`, but a move into `Review` is in fact refused today without a resolvable assignee, since `Review` is in `AssigneeRequiredWhile`'s set. A future reader editing these flags expecting an effect, or "fixing" them to match reality, would be editing inert data next to the real rule. Fix: either remove the two fields from `TaskTransition` (and the matching comment in `docs/features/f01-workflow.md` T4) now that F02 fully supersedes them, or add a one-line comment on the record noting they're superseded by `TaskCapacityRule` for Move.
+2. `TaskService.Move`'s capacity block uses `targetAssignee!.Id` (`BE/TaskFlow.BusinessLogic/Services/TaskService.cs:211`), relying on the unenforced invariant that `OccupiesSlot(status) ⇒ AssigneeRequiredWhile(status)`. Both predicates live together in `TaskCapacityRule.cs` today so the invariant is easy to keep, but a future edit to one without the other turns a would-be business refusal into a `NullReferenceException` (surfacing as `Task.Move.Exception`/500 instead of a clean error code). Low risk now; a one-line comment stating the dependency (or a defensive null-check) would make it self-protecting.
+
+### Pre-existing / out of scope
+
+- `TaskService.Move`'s new assignee lookup (`FindById` on `User`, line 199) follows the exact same pattern already used at lines 77, 145, 295, 396, 442, 498, 562, 591 for resolving `AssigneeId` — all of them rely on EF Core applying `UserConfiguration`'s `HasQueryFilter(!IsDeleted)` to a primary-key `FindAsync` lookup so a soft-deleted user resolves to `null`. This predates slice 3.1 and is not introduced by it; worth an explicit test before slice 3.2 relies on the same mechanism for AC17 (soft-deleted assignee id).
+
+Not reviewed: CI run on this branch, independent `qa-lead` pass (next step), browser/manual exercise beyond the xUnit HTTP-level suite.
