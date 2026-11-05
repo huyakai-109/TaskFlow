@@ -23,6 +23,14 @@
 
 No migration, no index, no API/DTO change.
 
+**Correction (qa-lead, 2026-11-05):** `dotnet format --verify-no-changes` actually fails on 6 more pre-existing issues beyond AV0013 — `TasksController.cs:366` (WHITESPACE), `AuthController.cs:8`, `TestWebApplicationFactory.cs:3`, and IDE0005 in three pre-existing migration files. None are in files this slice touched (`TaskService.cs`, `TasksBoardOrderingControllerTests.cs`); confirmed pre-existing, not introduced here. The "expect only AV0013" claim above understated the real baseline and should not be relied on by later slices.
+
+**Gap noted (qa-lead, 2026-11-05):** the sign-off case "`GET /tasks` with no `status` filter applies the active rule globally, no `Done` window" is correct by code inspection (`TaskService.cs`'s `status == TaskWorkflowStatus.Done` is `false` for `null`) but has no test exercising it. No current caller does this; accepted as a low-risk, untested case rather than blocking the gate.
+
+## QA verdict
+
+**READY WITH MINOR FINDINGS** (`qa-lead`, independent re-verification, 2026-11-05) — no Must-fix. Re-ran `dotnet build` (PASS) and the full `dotnet test BE/TaskFlow.Tests` suite independently (148/148 passed). Confirmed each claimed AC by reading the diff and the test assertions, not just test names; confirmed ordering is expressed in the `IQueryable` before `Take`/pagination; confirmed no migration, no DTO/contract change; confirmed pre-existing tests are genuinely unaffected (not coincidentally passing). Two minor findings, both recorded above (format baseline correction; one untested-but-code-correct sign-off case). EXPLAIN evidence assessed as plausible, not independently re-run.
+
 ## EXPLAIN
 
 Run against `mydb_test` with 1,500 synthetic rows spread evenly across all five statuses (so `Backlog` is a realistic ~280-row minority slice, not virtually the whole table) and across all three priorities, half with a `DueDate`, half `NULL`. Rows were inserted and deleted by a throwaway script (not part of this commit); `mydb_test` is left exactly as every test class's `InitializeAsync()` expects it afterwards.
