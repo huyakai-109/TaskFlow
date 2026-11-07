@@ -40,7 +40,7 @@ namespace TaskFlow.BusinessLogic.Services
 
         Task<BoardResDto> GetBoard(long actorUserId, string[] callerPermissions);
 
-        Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, int start, int length, long actorUserId, string[] callerPermissions);
+        Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, bool? isOverdue, int start, int length, long actorUserId, string[] callerPermissions);
     }
 
     public class TaskService(
@@ -787,13 +787,18 @@ namespace TaskFlow.BusinessLogic.Services
         // ApplyDoneColumnOrder window as the board and a fixed page size
         // (DoneColumnPageSize), never the caller-supplied length - there is
         // never more than 20 rows to page through.
-        public async Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, int start, int length, long actorUserId, string[] callerPermissions)
+        public async Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, bool? isOverdue, int start, int length, long actorUserId, string[] callerPermissions)
         {
             var query = await unitOfWork.GetRepository<TaskItem>().QueryAll();
 
             if (status.HasValue)
             {
                 query = query.Where(i => i.Status == status.Value);
+            }
+
+            if (isOverdue.HasValue)
+            {
+                query = query.Where(i => i.IsOverdue == isOverdue.Value);
             }
 
             Pagination<TaskItem> page;
