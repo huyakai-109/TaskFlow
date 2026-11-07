@@ -4,6 +4,7 @@ import { AppLayout } from './AppLayout'
 import { RequireAuth } from './RequireAuth'
 import { BoardPage } from '../features/board/BoardPage'
 import { LoginPage } from '../features/auth/LoginPage'
+import { OverdueListPage } from '../features/overdue/OverdueListPage'
 import { TaskDetailPage } from '../features/task-detail/TaskDetailPage'
 
 /**
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="/board" replace /> },
           { path: 'board', element: <BoardPage /> },
+          { path: 'overdue', element: <OverdueListPage /> },
           { path: 'tasks/:id', element: <TaskDetailPage /> },
         ],
       },

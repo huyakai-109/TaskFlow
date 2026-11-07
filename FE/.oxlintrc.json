@@ -24,7 +24,7 @@
       "rules": {
         "no-restricted-imports": [
           "error",
-          { "patterns": ["**/task-detail/**", "**/notifications/**", "**/app/**"] }
+          { "patterns": ["**/task-detail/**", "**/notifications/**", "**/overdue/**", "**/app/**"] }
         ]
       }
     },
@@ -33,7 +33,7 @@
       "rules": {
         "no-restricted-imports": [
           "error",
-          { "patterns": ["**/board/**", "**/notifications/**", "**/app/**"] }
+          { "patterns": ["**/board/**", "**/notifications/**", "**/overdue/**", "**/app/**"] }
         ]
       }
     },
@@ -42,7 +42,7 @@
       "rules": {
         "no-restricted-imports": [
           "error",
-          { "patterns": ["**/board/**", "**/task-detail/**", "**/app/**"] }
+          { "patterns": ["**/board/**", "**/task-detail/**", "**/overdue/**", "**/app/**"] }
         ]
       }
     },
@@ -51,7 +51,16 @@
       "rules": {
         "no-restricted-imports": [
           "error",
-          { "patterns": ["**/board/**", "**/task-detail/**", "**/notifications/**", "**/app/**"] }
+          { "patterns": ["**/board/**", "**/task-detail/**", "**/notifications/**", "**/overdue/**", "**/app/**"] }
+        ]
+      }
+    },
+    {
+      "files": ["src/features/overdue/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          { "patterns": ["**/board/**", "**/task-detail/**", "**/notifications/**", "**/auth/**", "**/app/**"] }
         ]
       }
     }

@@ -3,7 +3,8 @@ import clsx from 'clsx'
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 
-import type { TaskPriority, TaskStatus, TaskSummary } from '../../../api/types'
+import type { TaskStatus, TaskSummary } from '../../../api/types'
+import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
@@ -55,29 +56,6 @@ function OverdueChip({ dueDate }: { dueDate: string | null }) {
       </svg>
       {dueDate === null ? 'Overdue' : `Overdue · ${dueDateFormatter.format(parseDueDate(dueDate))}`}
     </span>
-  )
-}
-
-function PriorityIcon({ priority }: { priority: TaskPriority }) {
-  if (priority === 'Urgent') {
-    return (
-      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16">
-        <rect x="1" y="1" width="14" height="14" rx="3.5" fill="var(--color-priority-urgent)" />
-        <path d="M8 4.5v4.5M8 11.5v.2" stroke="var(--color-surface)" strokeWidth="1.9" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  const filledBars = priority === 'High' ? 3 : 2
-  const color = priority === 'High' ? 'var(--color-priority-high)' : 'var(--color-priority-normal)'
-  const empty = 'var(--color-meter-empty)'
-
-  return (
-    <svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16">
-      <rect x="1.5" y="9" width="3" height="5" rx="1" fill={filledBars >= 1 ? color : empty} />
-      <rect x="6.5" y="5.5" width="3" height="8.5" rx="1" fill={filledBars >= 2 ? color : empty} />
-      <rect x="11.5" y="2" width="3" height="12" rx="1" fill={filledBars >= 3 ? color : empty} />
-    </svg>
   )
 }
 

@@ -47,6 +47,21 @@ export async function getTaskPage(
   )
 }
 
+/**
+ * `GET /tasks?isOverdue=true&start=&length=` (F05 T8/T9) — the Overdue view's
+ * read. Same shape as `getTaskPage`, filtered to `isOverdue=true` instead of
+ * a `status`; server order is priority then earliest due date, unchanged.
+ */
+export async function getOverdueTasks(
+  start: number,
+  length: number,
+  signal?: AbortSignal,
+): Promise<PaginationResultRes<TaskSummary[]>> {
+  return request<PaginationResultRes<TaskSummary[]>>(`/tasks?isOverdue=true&start=${start}&length=${length}`, {
+    signal,
+  })
+}
+
 /** `GET /tasks/{id}` (T5 #2) — the task detail screen's read. */
 export async function getTask(id: number, signal?: AbortSignal): Promise<TaskDetail> {
   const envelope = await request<ResultRes<TaskDetail>>(`/tasks/${id}`, { signal })
