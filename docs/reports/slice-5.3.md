@@ -2,7 +2,15 @@
 
 Branch: `feature/f05-overdue` (shared with 5.1/5.2), branched from `docs/f05-design`.
 
-Status: **Built, verified** — implemented per this plan, build and full suite green across 3 consecutive runs. Per the user's instruction, 5.3 proceeds straight to 5.4 without a separate gate stop (review-change + qa-lead cover 5.3 and 5.4 together at Gate C).
+Status: **Ready for Review** — implemented per this plan, build and full suite green across 3 consecutive runs. Gate C (`review-change` + `qa-lead`, covering 5.3 and 5.4 together) is complete: APPROVE / READY, no Must-fix. Awaiting the user's decision on push/merge/Done.
+
+## Review
+
+`Review: APPROVE on 97709c6, 2026-11-07 (Gate C, together with slice 5.4)`. Re-verified build, full suite 217/217, confirmed no migration generated, read the `TaskGetListReq`/`GetList`/controller diff directly against T8.
+
+## Independent QA verification (qa-lead, 2026-11-07, Gate C)
+
+**Verdict: READY, no Must-fix.** Independently re-ran full suite 3× (217/217 each), the new test class in isolation (8/8), read `TasksOverdueListControllerTests.cs` in full and confirmed all 8 scenarios are real HTTP/DB assertions, not placeholders. Confirmed via diff that no response shape changed and no existing test was touched.
 
 ## Scope
 

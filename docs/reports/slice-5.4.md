@@ -2,7 +2,23 @@
 
 Branch: `feature/f05-overdue` (shared with 5.1–5.3), branched from `docs/f05-design`.
 
-Status: **Built** — implemented per this plan, typecheck/lint/build all pass (below). No live-browser pass performed (no backend/dev server reachable in this environment — see Verification). Awaiting Gate C (`review-change` + `qa-lead`, covering 5.3 and 5.4 together) before any push/merge/Done.
+Status: **Ready for Review** — implemented per this plan, typecheck/lint/build all pass. Gate C (`review-change` + `qa-lead`, covering 5.3 and 5.4 together) is complete: APPROVE / READY, no Must-fix. **One open item carried to the user: no live-browser pass of `/overdue` has been performed by anyone (implementer, reviewer, or qa-lead) — see below.** Awaiting the user's decision on push/merge/Done.
+
+## Review
+
+`Review: APPROVE on 7dbaeda, 2026-11-07 (Gate C, together with slice 5.3)`. Re-ran typecheck/lint/build (all PASS), read the full FE diff against T9 — "Overdue now" scope respected, `PriorityIcon` extraction is a clean pure refactor, board chip fix confirmed, import-direction rule correctly extended in `.oxlintrc.json`. Live-browser pass NOT VERIFIED — no backend instance/browser tool available in this environment.
+
+## Independent QA verification (qa-lead, 2026-11-07, Gate C)
+
+**Verdict: READY, no Must-fix.** Independently re-ran typecheck/lint/build (all PASS, confirmed the one lint warning is pre-existing and in an untouched file). Read the full diff directly and confirmed each claim: the shared hook's query key, the four UI states, no out-of-scope copy/features added, the `PriorityIcon` extraction is byte-for-byte identical markup moved (not reimplemented), and the board chip now shares the same `pagination.totalItems` source as the new page.
+
+**Proved the import-direction rule is actually enforced, not just configured**: temporarily added a forbidden `features/board` import into `OverdueListPage.tsx`, ran lint, confirmed it failed with `no-restricted-imports`, then reverted and confirmed `git status` was clean of the experiment.
+
+**Live-browser gap — still NOT VERIFIED, for two independent reasons, explicitly reported rather than glossed over:**
+1. No browser/screenshot tool was available in the `qa-lead` environment either.
+2. Starting the API to attempt it would have been unsafe regardless: `AutoMigration: true` plus `Program.cs` running `RunMigration()`/`RunQuartzMigration()` unconditionally outside `Testing` means starting the API would silently apply pending migrations to the real `mydb` and `quartz` databases — including slice 5.2's `AlignQuartzSchemaWith3_22`, independently reconfirmed still **Pending**. That requires the user's explicit approval per `workflow.md` §3, so `qa-lead` correctly did not start the API.
+
+This is the one explicit open item for Gate C: loading/error/empty/success/show-more states and the 390/768/1440 responsive layout of `/overdue` have never been exercised in a real browser by anyone in this slice's chain. Closing it needs either the user running it themselves, or a future session with browser tooling plus explicit approval to start the API against a disposable/dev environment.
 
 ## Scope
 
