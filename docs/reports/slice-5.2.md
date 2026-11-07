@@ -2,7 +2,19 @@
 
 Branch: `feature/f05-overdue` (shared with 5.1), branched from `docs/f05-design`.
 
-Status: **Ready for Review** — implemented per this plan, verified below. Gate A (slice 5.1) approved by the user 2026-11-07.
+Status: **Ready for Review** — implemented per this plan, verified below. Gate A (slice 5.1) approved by the user 2026-11-07. `review-change` APPROVE and `qa-lead` independent verification (READY WITH MINOR FINDINGS, no Must-fix) both complete. Awaiting the user's Gate B decision: nothing applied to the real `quartz`/`mydb` databases.
+
+## Review
+
+`Review: APPROVE on 28fdf67, 2026-11-07`. Re-verified build (0 errors), `ScheduleServiceCronTests` 8/8, the keyset-boundary test 1/1, full suite 209/209; confirmed via `dotnet ef migrations list --context QuartzContext` (read-only) that `AlignQuartzSchemaWith3_22` shows **Pending** against the real `quartz` connection. Read the `ScheduleService` diff, `OverdueScanJob`, `OverdueScanHostedService` and `Program.cs`'s new guard directly against T4/T5/T6. One Recommendation (not a Must-fix): the "keep existing trigger" branch never refreshes `jobData`/`JobDetail` if those change while cron+zone stay the same — not reachable by F05's only caller today.
+
+## Independent QA verification (qa-lead, 2026-11-07)
+
+**Verdict: READY WITH MINOR FINDINGS, no Must-fix.** Independently re-ran build (0 errors), full suite 3× (209/209 each), `ScheduleServiceCronTests` 3× (8/8 each), the keyset-boundary test 3× (1/1 each) — no flake. Independently fetched the real `quartznet/quartznet` v3.22.0 `tables_mysql_innodb.sql` from upstream and diffed it byte-for-byte against the migration's five columns — exact match, not just trusted from the design note. Independently ran `dotnet ef migrations list`/`migrations script --idempotent` (both read-only) and confirmed the migration is still **Pending** against the real `quartz` database and additive-only. Read the actual diff (`d100bc6..28fdf67`), not just the final files, for `ScheduleService.cs`, confirming the old unconditional `DeleteJob` is really gone and the keep-vs-replace logic is correct. Confirmed registration of both the job and hosted service is scoped only inside `AddQuartzScheduler`, so the `Testing` host never schedules it during test runs. Confirmed via `git diff --stat` that no existing test was weakened and no slice 5.3/5.4/`CLAUDE.md` file is present in scope.
+
+**One Minor finding:** `BE/TaskFlow.Tests/Schedulers/ScheduleServiceCronTests.cs:75-95`'s three `WorkflowTimeZoneGuard_*` tests assert only BCL behavior (`string.IsNullOrEmpty`, `TimeZoneInfo.FindSystemTimeZoneById`) and do not actually exercise `Program.cs`'s guard block — if that guard were deleted entirely, these tests would still pass, so they give no regression protection for the startup check itself. The implementer disclosed this as a deviation (mutating env vars pre-`Build()` would race other parallel test classes) — a real constraint, not an oversight, and the same gap already exists for the pre-existing CORS/capacity checks. Accepted as a known gap, not a blocker.
+
+**On the throwaway Quartz cluster-proof (user's condition #3):** `qa-lead` could not independently re-verify the live clustered-scheduler-fire claim, since the harness was deleted per the plan's own allowance and re-creating one or touching a database was out of bounds for a read-only QA pass. Assessed as low-risk to accept given (a) the exact code path the proof claims to exercise is read directly and passes 8/8 deterministic unit tests, (b) the migration's correctness is independently provable byte-for-byte against the real upstream schema regardless of the proof, and (c) Quartz's clustered ADO store is mature, pre-existing infrastructure, not new code. Recommended as a nice-to-have re-proof immediately before actually applying the migration to the real `quartz` database (Gate C territory), not a Gate B blocker.
 
 ## Scope
 
