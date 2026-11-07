@@ -43,6 +43,24 @@ if (maxInProgressPerAssignee is null or < 1)
     throw new InvalidOperationException($"'{ConfigKeys.Workflow.MaxInProgressPerAssignee}' must be configured with a value of at least 1.");
 }
 
+// f05-overdue.md Technical contract T4 (D4): "today" for the overdue scan and
+// for every synchronous recompute comes from this zone, never the server
+// clock - fail fast, the same way as the CORS and capacity-limit checks above.
+var workflowTimeZone = config.GetSection(ConfigKeys.Workflow.TimeZone).Get<string>();
+if (string.IsNullOrEmpty(workflowTimeZone))
+{
+    throw new InvalidOperationException($"'{ConfigKeys.Workflow.TimeZone}' must be configured.");
+}
+
+try
+{
+    TimeZoneInfo.FindSystemTimeZoneById(workflowTimeZone);
+}
+catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
+{
+    throw new InvalidOperationException($"'{ConfigKeys.Workflow.TimeZone}' value '{workflowTimeZone}' is not a valid time zone.", ex);
+}
+
 builder.Services.AddAutoMapper(cfg =>
 {
     cfg.AddMaps(typeof(Program).Assembly);

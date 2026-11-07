@@ -114,6 +114,43 @@ namespace TaskFlow.Tests.Http
             await AssertNotFlaggedAsync(task);
         }
 
+        // ---- Keyset boundary: 150 candidates cross the 100-row batch size ----
+
+        [Fact]
+        public async Task Run_WithMoreThanOneBatch_FlagsEveryCandidate_AndIsIdempotentOnRerun()
+        {
+            const int seedCount = 150;
+            var tasks = new List<TaskItem>();
+            for (var i = 0; i < seedCount; i++)
+            {
+                tasks.Add(await SeedTaskAsync(TaskWorkflowStatus.InProgress, FixedToday.AddDays(-1)));
+            }
+
+            var result = await RunScanAsync(FixedToday);
+
+            Assert.Equal(seedCount, result.Examined);
+            Assert.Equal(seedCount, result.Flagged);
+            Assert.Equal(0, result.Skipped);
+            Assert.Equal(0, result.Failed);
+
+            await using (var context = _dbFixture.CreateContext())
+            {
+                foreach (var task in tasks)
+                {
+                    var reloaded = await context.Set<TaskItem>().SingleAsync(t => t.Id == task.Id);
+                    Assert.True(reloaded.IsOverdue);
+
+                    var entryCount = await context.Set<TaskHistory>()
+                        .CountAsync(h => h.TaskId == task.Id && h.Event == TaskHistoryEvent.OverdueMarked);
+                    Assert.Equal(1, entryCount);
+                }
+            }
+
+            var secondResult = await RunScanAsync(FixedToday);
+
+            Assert.Equal(0, secondResult.Flagged);
+        }
+
         // ---- AC25: soft-deleted task, never flagged, no history row ----
 
         [Fact]
