@@ -1,6 +1,6 @@
 /**
  * Dialog titles for the drag refusals that get a blocking `role="alertdialog"`
- * (`docs/ui/screens/BlockedActions.dc.html`). The body text reuses
+ * (`docs/design/SPEC.md` §5.6 and `docs/design/png/BlockedActions.png`). The body text reuses
  * `describeErrorCode` (`FE/src/api/errorMessages.ts`), so there is still one
  * error-code → copy map in the app — this only adds the short heading.
  *

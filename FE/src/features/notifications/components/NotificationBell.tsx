@@ -16,7 +16,7 @@ function BellIcon() {
 
 /**
  * The in-app inbox for F01 D7's one notification event (rework). No wireframe
- * draws this (`docs/ui.md` "Not designed yet" lists "notification inbox"), so
+ * draws this (`docs/design/SPEC.md` "Not designed yet" lists "notification inbox"), so
  * this is a minimal bell + unread badge + dropdown list, following the app's
  * existing popover visual language (raised surface, `--radius-xl`,
  * `--shadow-raised`) rather than inventing a new one.

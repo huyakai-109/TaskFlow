@@ -9,7 +9,7 @@ interface AssigneeSelectProps {
 
 /**
  * A plain native `<select>`, not the wireframe's searchable listbox popover
- * (`docs/ui/screens/AssignPicker.dc.html`): that widget's value is sorting by
+ * (`docs/design/SPEC.md` §5.5 and `docs/design/png/AssignPicker.png`): that widget's value is sorting by
  * room and disabling people at capacity — out of scope (`docs/ROADMAP.md`
  * slice 3.5, rejected). A native select is fully keyboard- and
  * screen-reader-operable with no extra listbox logic to get right for a list

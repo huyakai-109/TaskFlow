@@ -23,7 +23,7 @@ interface WorkflowStripProps {
 }
 
 /**
- * The workflow stages plus the caller's legal actions. `docs/ui.md`'s
+ * The workflow stages plus the caller's legal actions. `docs/design/SPEC.md`'s
  * `TaskDetail.dc.html` draws exactly one next-step button because its sample
  * task is `InProgress`; `Review` legally offers two to a non-assignee
  * (`Done` and back to `InProgress`), so every `Move` entry in

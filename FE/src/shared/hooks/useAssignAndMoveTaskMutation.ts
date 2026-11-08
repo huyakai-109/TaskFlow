@@ -30,7 +30,7 @@ function isStepFailure(value: unknown): value is StepFailure {
 
 /**
  * `Task.Move.AssigneeRequired`'s way out: "Assign to … and start" does both
- * in one click (`docs/ui.md` line 90 — "the client may chain both calls
+ * in one click (`docs/design/SPEC.md` §5.6 — "the client may chain both calls
  * behind one button; if the second fails, say so — the assignment stays").
  * Chains `PUT …/assignee` then `PUT …/status` using the version the assign
  * step returns, not the stale one the failed move carried — `assignTask`'s

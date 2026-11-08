@@ -81,7 +81,7 @@
  * back) and an explicit `[data-theme="dark"]` override regardless of the OS.
  * This variant reproduces the exact same two rules so `dark:` utilities only
  * ever apply when a token's own dark value would also apply — see
- * `docs/ui.md` "Theming".
+ * `docs/design/SPEC.md` "Theming".
  */
 @custom-variant dark {
   &:where(:root[data-theme='dark'], :root[data-theme='dark'] *) {

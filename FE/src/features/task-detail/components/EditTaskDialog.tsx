@@ -25,7 +25,7 @@ interface EditTaskDialogProps {
 }
 
 /**
- * Title/description edit (`PUT /tasks/{id}`), not wireframed (`docs/ui.md`
+ * Title/description edit (`PUT /tasks/{id}`), not wireframed (`docs/design/SPEC.md`
  * "Not designed yet" lists "edit task") — modelled on `NewTaskDialog`'s field
  * layout and this detail page's `ReopenDialog` for the dialog shell.
  * Business failures (`Conflict`/`NotFound`) are reported up through

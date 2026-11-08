@@ -12,7 +12,7 @@ interface MoveRefusalDialogProps {
 }
 
 /**
- * The blocked-move dialog (`docs/ui/screens/BlockedActions.dc.html`): names
+ * The blocked-move dialog (`docs/design/SPEC.md` §5.6 and `docs/design/png/BlockedActions.png`): names
  * the task and the rule, then offers the one way out — here, just
  * acknowledging it and trying a legal move instead, since the dialog closes
  * onto a board/detail view that already shows the legal moves as buttons.

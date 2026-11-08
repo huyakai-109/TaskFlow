@@ -2,7 +2,7 @@
  * Design tokens. Every colour, space and radius in the app comes from here —
  * components reference `var(--…)` and never a literal colour.
  *
- * Values follow the TaskFlow wireframe (docs/ui.md, docs/ui/screens/).
+ * Values follow the TaskFlow wireframe (docs/design/SPEC.md, docs/design/png/).
  *
  * Light is the default. Dark follows the OS under `prefers-color-scheme`, and
  * `data-theme` on <html> overrides either way, so a future theme switch needs no

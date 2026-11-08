@@ -68,13 +68,13 @@ const CONFLICT_CODES = new Set(['Task.Move.Conflict', 'Task.Move.NotFound'])
 /**
  * The board: five fixed columns, drag-and-drop between them (F01 D9, D10).
  * Every move available by drag is also a button on the card (`TaskCard`), so
- * the non-drag path is never a lesser one (`docs/ui.md` "Keep a non-drag
+ * the non-drag path is never a lesser one (`docs/design/SPEC.md` "Keep a non-drag
  * path"). A column not in the dragged card's own `allowedTransitions` is a
  * genuinely disabled drop target, not just a dimmed one (`BoardColumn`).
  *
  * The sidebar, search, team-capacity popover and "N at capacity" chip from the
  * wireframe are left out here: they need F02 (capacity), a user roster or
- * routes this slice does not build (`docs/ui.md`'s MVP scope note). The
+ * routes this slice does not build (`docs/design/SPEC.md`'s MVP scope note). The
  * "N overdue" chip stays and links to `/overdue` (F05 T9); its count comes
  * from `useOverdueTasksQuery`'s `pagination.totalItems` — the same source of
  * truth as the Overdue view — rather than counting only the loaded page of

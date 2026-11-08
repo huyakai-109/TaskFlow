@@ -28,7 +28,7 @@ interface NewTaskDialogProps {
 }
 
 /**
- * `docs/ui/screens/NewTask.dc.html`, minus the Reviewer field (`docs/ui.md`
+ * `docs/design/SPEC.md` §5.4 and `docs/design/png/NewTask.png`, minus the Reviewer field (`docs/design/SPEC.md`
  * "Wireframe vs. decided specs": F01 D5 has no reviewer role). New tasks
  * always start in Backlog — the server decides that, not this form.
  */

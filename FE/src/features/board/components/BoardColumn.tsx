@@ -26,7 +26,7 @@ interface BoardColumnProps {
 /**
  * One board column and drop target. `useDroppable`'s `disabled` flag is what
  * makes an illegal column genuinely non-droppable (dnd-kit's own collision
- * detection skips it), not just visually dimmed — `docs/ui.md` "columns not
+ * detection skips it), not just visually dimmed — `docs/design/SPEC.md` "columns not
  * in the card's allowed list are visibly disabled".
  */
 export function BoardColumn({

@@ -56,13 +56,13 @@ interface PropertiesPanelProps {
 
 /**
  * The properties panel. No "Reviewer" field: F01 D5 has no reviewer role —
- * `docs/ui.md`'s "Wireframe vs. decided specs" table says to drop it and let
+ * `docs/design/SPEC.md`'s "Wireframe vs. decided specs" table says to drop it and let
  * the history timeline show who submitted the task for review instead.
  *
  * Priority and due date are edited inline (`PUT …/priority`, `PUT …/due-date`);
  * assignee opens `AssigneePickerDialog` instead of an inline control, because
  * "Unassigned" plus a names list does not fit a one-line row as cleanly as a
- * dropdown does for priority — `docs/ui.md` does not say either way for this
+ * dropdown does for priority — `docs/design/SPEC.md` does not say either way for this
  * screen's not-yet-designed controls, so this is a deliberate pick, not a
  * guess at a spec.
  */

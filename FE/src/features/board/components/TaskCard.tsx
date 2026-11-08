@@ -80,7 +80,7 @@ interface TaskCardProps {
 /**
  * A board card: draggable to any column in its own `allowedTransitions` (F01
  * D10), plus the same moves as plain buttons underneath — the "non-drag path"
- * `docs/ui.md` requires for keyboard and screen-reader users. The drag handle
+ * `docs/design/SPEC.md` requires for keyboard and screen-reader users. The drag handle
  * itself is `aria-hidden` and out of the tab order: it is a pointer-only
  * shortcut, not a second way to reach the same action for keyboard users, who
  * use the buttons instead.

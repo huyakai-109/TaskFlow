@@ -19,7 +19,7 @@ const optionClass =
   'flex min-h-10 w-full cursor-pointer items-center rounded-sm border-0 bg-transparent px-[var(--space-3)] text-left text-text [font:inherit] [&:hover:not(:disabled)]:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-60'
 
 /**
- * `docs/ui/screens/AssignPicker.dc.html`, minus its "has room" sort and
+ * `docs/design/SPEC.md` §5.5 and `docs/design/png/AssignPicker.png`, minus its "has room" sort and
  * "at capacity" disabling — both are F02's rejected slice 3.5 ("Workload in
  * the picker", not scheduled, `docs/ROADMAP.md` unit 3). Listed
  * alphabetically; everyone enabled. Stays open on a non-conflict failure

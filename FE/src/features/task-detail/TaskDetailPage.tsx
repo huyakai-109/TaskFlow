@@ -35,7 +35,7 @@ function isConflictLike(code: string | null): boolean {
 }
 
 /**
- * The task detail screen (`docs/ui/screens/TaskDetail.dc.html`): workflow
+ * The task detail screen (`docs/design/SPEC.md` §5.3 and `docs/design/png/TaskDetail.png`): workflow
  * strip with every legal move plus the Manager/Admin-only reopen action,
  * read-only activity timeline (F04), and the properties panel. Routed at
  * `/tasks/:id`, reachable from a board card's key or title (`TaskCard`).

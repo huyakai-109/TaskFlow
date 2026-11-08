@@ -22,7 +22,7 @@ interface LocationState {
 /**
  * The login screen (`docs/features/f01-login.md` AC1–5, AC12). Layout is a
  * new design call built entirely from existing tokens and `NewTaskDialog`'s
- * form patterns — `docs/ui.md` lists login under "Not designed yet."
+ * form patterns — `docs/design/SPEC.md` lists login under "Not designed yet."
  */
 export function LoginPage() {
   const location = useLocation()

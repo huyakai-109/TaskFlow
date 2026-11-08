@@ -20,13 +20,13 @@ const optionClass =
   'flex min-h-11 w-full cursor-pointer items-center rounded-sm border-0 bg-transparent px-[var(--space-3)] text-left text-text [font:inherit] [&:hover:not(:disabled)]:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-60'
 
 /**
- * `Task.Move.AssigneeRequired`'s way out: `docs/ui.md` line 90, "the client
+ * `Task.Move.AssigneeRequired`'s way out: `docs/design/SPEC.md` §5.6, "the client
  * may chain both calls behind one button" — picking a name here does both
  * `PUT …/assignee` and `PUT …/status` (`useAssignAndMoveTaskMutation`). No
  * "Unassigned" option, unlike `AssigneePickerDialog`: an assignee is exactly
  * what this task is missing (F02 D5). Listed alphabetically, everyone
  * enabled — the "has room" sort and "at capacity" disabling from
- * `docs/ui/screens/AssignPicker.dc.html` are slice 3.5, not scheduled.
+ * `docs/design/SPEC.md` §5.5 and `docs/design/png/AssignPicker.png` are slice 3.5, not scheduled.
  */
 export function AssignAndMoveDialog({
   taskTitle,

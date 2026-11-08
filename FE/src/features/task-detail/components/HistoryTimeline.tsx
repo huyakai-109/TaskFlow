@@ -21,7 +21,7 @@ interface HistoryTimelineProps {
  * human-readable sentence built server-side (`TaskHistoryMessages.Build`), so
  * this renders it as-is rather than re-deriving copy from `event`/`fromValue`/
  * `toValue` — F04 owns that text, not the client. A System entry (no actor)
- * gets its own icon, not an avatar (`docs/ui.md`).
+ * gets its own icon, not an avatar (`docs/design/SPEC.md`).
  */
 export function HistoryTimeline({ entries }: HistoryTimelineProps) {
   if (entries.length === 0) {
