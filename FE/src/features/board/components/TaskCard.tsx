@@ -46,6 +46,15 @@ function DueChip({ dueDate }: { dueDate: string | null }) {
   return <span className={chipBase}>{dueDateFormatter.format(parseDueDate(dueDate))}</span>
 }
 
+const MS_PER_DAY = 86_400_000
+
+/** Same browser-local approximation `isToday` already documents — days late is cosmetic copy, `isOverdue` (server) is the actual flag. */
+function daysLate(dueDate: string): number {
+  const today = new Date()
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  return Math.max(1, Math.round((startOfToday.getTime() - parseDueDate(dueDate).getTime()) / MS_PER_DAY))
+}
+
 function OverdueChip({ dueDate }: { dueDate: string | null }) {
   return (
     <span className={clsx(chipBase, 'border-transparent bg-overdue-surface font-semibold text-overdue')}>
@@ -53,7 +62,7 @@ function OverdueChip({ dueDate }: { dueDate: string | null }) {
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7v5l3 2" />
       </svg>
-      {dueDate === null ? 'Overdue' : `Overdue · ${dueDateFormatter.format(parseDueDate(dueDate))}`}
+      {dueDate === null ? 'Overdue' : `Overdue ${daysLate(dueDate)}d`}
     </span>
   )
 }
