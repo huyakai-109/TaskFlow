@@ -63,7 +63,7 @@ export function NotificationBell() {
   }, [open])
 
   return (
-    <div className="relative ml-auto">
+    <div className="relative">
       <button
         type="button"
         ref={buttonRef}

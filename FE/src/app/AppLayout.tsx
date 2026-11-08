@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 
 import { NotificationBell } from '../features/notifications/components/NotificationBell'
+import { ThemeToggle } from '../shared/components/ThemeToggle'
 
 import { Sidebar } from './Sidebar'
 
@@ -14,7 +15,8 @@ export function AppLayout() {
     <div className="flex min-h-screen flex-col min-[601px]:flex-row">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-end border-b border-border bg-surface px-[var(--space-5)] py-[var(--space-3)] max-[600px]:px-[var(--space-4)]">
+        <header className="flex items-center justify-end gap-[var(--space-2)] border-b border-border bg-surface px-[var(--space-5)] py-[var(--space-3)] max-[600px]:px-[var(--space-4)]">
+          <ThemeToggle />
           <NotificationBell />
         </header>
         <main className="flex-1 p-[var(--space-5)] max-[600px]:px-[var(--space-4)]">

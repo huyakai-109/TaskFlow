@@ -193,6 +193,7 @@ Found by reading the scaffold against the specs.
 - R7 `Logger.LogError("… {ex}", ex)` in `AuthController` and `ExampleController` → `Logger.LogError(ex, "…")`.
 - R8 `/healthz` registers no checks — add a database check when `/ship setup` defines the deployment.
 - R9 Dev compose pins MinIO, Redis, Loki, Grafana and Prometheus to `latest` and defines no health checks for them. **The MySQL half is Done** (2026-10-25, below), including `taskflow.api` → `taskflow.mysql` `condition: service_healthy`. The `latest` tags and the other services' health checks still stand.
+- R14 (raised in `feature/ui-redesign` slice 1, 2026-11-08) Once the UI redesign's last slice lands, sweep `FE/src/styles/tokens.css`/`global.css` for tokens no component references any more (the pre-redesign ones a restyled screen stopped using) and delete them — don't leave unused CSS custom properties as dead code.
 
 ## Session management redesign (raised by slice 1.8, designed by `architect`)
 

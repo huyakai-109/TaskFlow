@@ -4,7 +4,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from 'react-router-dom'
 
 import { router } from './app/router'
+import { applyThemePreference, getStoredThemePreference } from './shared/lib/themePreference'
 import './styles/global.css'
+
+// Applied before the first render so a stored choice doesn't flash the OS
+// default first; no stored choice leaves `tokens.css`'s own
+// `prefers-color-scheme` rule in charge, unchanged.
+applyThemePreference(getStoredThemePreference())
 
 const queryClient = new QueryClient({
   defaultOptions: {
