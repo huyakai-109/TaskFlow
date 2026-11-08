@@ -26,6 +26,11 @@ export function hasAccessToken(): boolean {
   return accessToken !== null
 }
 
+/** The current in-memory access token, or null — for reading a claim out of it (`shared/lib/jwt.ts`), never for sending elsewhere. */
+export function getAccessToken(): string | null {
+  return accessToken
+}
+
 /**
  * `authSession.ts` registers itself here so it can react to a refresh that
  * happened *inside* a retried request (AC8's "refreshed permissions replace

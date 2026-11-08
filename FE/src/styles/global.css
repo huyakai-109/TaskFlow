@@ -21,15 +21,21 @@
   --color-border: var(--color-border);
   --color-border-strong: var(--color-border-strong);
   --color-text: var(--color-text);
+  --color-text-2: var(--color-text-2);
   --color-text-muted: var(--color-text-muted);
   --color-text-inverse: var(--color-text-inverse);
+  --color-faint: var(--color-faint);
   --color-kbd: var(--color-kbd);
+  --color-dashed-border: var(--color-dashed-border);
+  --color-side-panel: var(--color-side-panel);
+  --color-overlay: var(--color-overlay);
 
   --color-accent: var(--color-accent);
   --color-accent-hover: var(--color-accent-hover);
   --color-accent-soft: var(--color-accent-soft);
   --color-accent-ink: var(--color-accent-ink);
   --color-on-accent: var(--color-on-accent);
+  --color-kbd-on-accent: var(--color-kbd-on-accent);
   --color-focus: var(--color-focus);
 
   --color-danger: var(--color-danger);
@@ -37,6 +43,7 @@
   --color-danger-border: var(--color-danger-border);
   --color-warning: var(--color-warning);
   --color-warning-surface: var(--color-warning-surface);
+  --color-warning-ink: var(--color-warning-ink);
   --color-success: var(--color-success);
   --color-success-surface: var(--color-success-surface);
 
@@ -52,12 +59,20 @@
 
   --shadow-card: var(--shadow-card);
   --shadow-raised: var(--shadow-raised);
+  --shadow-modal: var(--shadow-modal);
+  --shadow-modal-lg: var(--shadow-modal-lg);
 
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
   --radius-xl: var(--radius-xl);
   --radius-pill: var(--radius-pill);
+  --radius-meter: var(--radius-meter);
+  --radius-kbd: var(--radius-kbd);
+  --radius-logo: var(--radius-logo);
+  --radius-control: var(--radius-control);
+  --radius-control-lg: var(--radius-control-lg);
+  --radius-card-lg: var(--radius-card-lg);
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
