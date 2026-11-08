@@ -40,7 +40,7 @@ namespace TaskFlow.BusinessLogic.Services
 
         Task<BoardResDto> GetBoard(long actorUserId, string[] callerPermissions);
 
-        Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, int start, int length, long actorUserId, string[] callerPermissions);
+        Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, bool? isOverdue, int start, int length, long actorUserId, string[] callerPermissions);
     }
 
     public class TaskService(
@@ -534,8 +534,11 @@ namespace TaskFlow.BusinessLogic.Services
                 return (TaskControllerMS.UpdateDueDate.Conflict, null);
             }
 
+            // D8: the past-date guard fires only when the due date actually
+            // changes - a task whose due date is already in the past is never
+            // re-validated just because some other field moved (F05 AC14).
             var today = TodayInZone();
-            if (requestDto.DueDate.HasValue && requestDto.DueDate.Value < today)
+            if (requestDto.DueDate.HasValue && requestDto.DueDate != task.DueDate && requestDto.DueDate.Value < today)
             {
                 return (TaskControllerMS.UpdateDueDate.DueDateInPast, null);
             }
@@ -784,13 +787,18 @@ namespace TaskFlow.BusinessLogic.Services
         // ApplyDoneColumnOrder window as the board and a fixed page size
         // (DoneColumnPageSize), never the caller-supplied length - there is
         // never more than 20 rows to page through.
-        public async Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, int start, int length, long actorUserId, string[] callerPermissions)
+        public async Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, bool? isOverdue, int start, int length, long actorUserId, string[] callerPermissions)
         {
             var query = await unitOfWork.GetRepository<TaskItem>().QueryAll();
 
             if (status.HasValue)
             {
                 query = query.Where(i => i.Status == status.Value);
+            }
+
+            if (isOverdue.HasValue)
+            {
+                query = query.Where(i => i.IsOverdue == isOverdue.Value);
             }
 
             Pagination<TaskItem> page;
@@ -886,7 +894,7 @@ namespace TaskFlow.BusinessLogic.Services
 
         private DateOnly TodayInZone()
         {
-            return DateOnly.FromDateTime(DateTimeHelper.GetDtOffset().ToTimezone(_timeZone).Date);
+            return DateTimeHelper.GetDtOffset().ToDateInZone(_timeZone);
         }
 
         private static TaskDetailResDto BuildDetail(TaskItem task, string? assigneeUserName, long actorUserId, string[] callerPermissions)

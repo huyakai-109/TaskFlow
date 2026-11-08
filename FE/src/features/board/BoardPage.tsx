@@ -1,7 +1,7 @@
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { BOARD_COLUMNS } from '../../api/types'
 import type { TaskStatus, TaskSummary } from '../../api/types'
@@ -11,6 +11,7 @@ import { MoveRefusalDialog } from '../../shared/components/MoveRefusalDialog'
 import { MoveToast } from '../../shared/components/MoveToast'
 import { useAssignAndMoveTaskMutation } from '../../shared/hooks/useAssignAndMoveTaskMutation'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
+import { useOverdueTasksQuery } from '../../shared/hooks/useOverdueTasksQuery'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 
 import { BoardColumn } from './components/BoardColumn'
@@ -74,12 +75,15 @@ const CONFLICT_CODES = new Set(['Task.Move.Conflict', 'Task.Move.NotFound'])
  * The sidebar, search, team-capacity popover and "N at capacity" chip from the
  * wireframe are left out here: they need F02 (capacity), a user roster or
  * routes this slice does not build (`docs/ui.md`'s MVP scope note). The
- * "N overdue" chip stays, because `isOverdue` is already on every card F01
- * returns today.
+ * "N overdue" chip stays and links to `/overdue` (F05 T9); its count comes
+ * from `useOverdueTasksQuery`'s `pagination.totalItems` — the same source of
+ * truth as the Overdue view — rather than counting only the loaded page of
+ * each column, a pre-existing defect this slice fixes.
  */
 export function BoardPage() {
   const navigate = useNavigate()
   const boardQuery = useBoardQuery()
+  const overdueTasksQuery = useOverdueTasksQuery()
   const [activeTask, setActiveTask] = useState<TaskSummary | null>(null)
   const [refusal, setRefusal] = useState<{ code: string | null; taskTitle: string; message: string | null } | null>(
     null,
@@ -213,8 +217,7 @@ export function BoardPage() {
     [activeTask],
   )
 
-  const overdueCount =
-    boardQuery.data?.columns.reduce((total, column) => total + column.items.filter((item) => item.isOverdue).length, 0) ?? 0
+  const overdueCount = overdueTasksQuery.data?.pages.at(-1)?.pagination?.totalItems ?? 0
 
   return (
     <section>
@@ -228,9 +231,12 @@ export function BoardPage() {
         </span>
         <div className="ml-auto flex items-center gap-[var(--space-3)] max-[600px]:ml-0">
           {overdueCount > 0 && (
-            <span className="inline-flex items-center rounded-pill bg-overdue-surface px-[var(--space-3)] py-[2px] text-[length:var(--font-size-sm)] font-semibold text-overdue">
+            <Link
+              to="/overdue"
+              className="inline-flex items-center rounded-pill bg-overdue-surface px-[var(--space-3)] py-[2px] text-[length:var(--font-size-sm)] font-semibold text-overdue no-underline hover:underline"
+            >
               {overdueCount} overdue
-            </span>
+            </Link>
           )}
           <button
             type="button"

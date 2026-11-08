@@ -85,3 +85,102 @@ A task due *today* is not overdue. A task with no `DueDate` is never overdue.
 - With `DueDate` as `DateOnly` the comparison is a plain date comparison in SQL — no offset arithmetic, no "start of day" conversions, and no dependence on the server's locale.
 - The candidate query needs an index covering `DueDate`, `Status` and `IsOverdue`.
 - D1's stored flag must be maintained in exactly one place that both the job and the write paths call, or AC7 and AC16 will drift apart.
+
+---
+
+# Technical contract (designed 2026-11-05)
+
+Everything above is the decided behaviour and does not change. This section is the technical contract that makes it implementable, following [F01](f01-workflow.md) and [F02](f02-capacity.md)'s *Technical contract*. Items marked [SIGN-OFF] await the user's approval; slices are in `docs/ROADMAP.md` → *Unit 5*; ADR [0003](../adr/0003-f05-overdue-scan-and-quartz-schema.md) is **Proposed**.
+
+## T0. Already shipped by F01 (audit 2026-11-05)
+
+`TaskItem.IsOverdue`, the single predicate `TaskOverdueRule.IsOverdue` (`BE/TaskFlow.Common/Constants/TaskOverdueRule.cs`), the zone key `ConfigKeys.Workflow.TimeZone`, and the synchronous recompute on create, due-date change, move→`Done` and reopen (`TaskService.cs`), including reopen's `OverdueMarked` entry with the reopening user as actor (F01 T7). AC7–AC15 hold in code today; AC10 and AC12 are tested, the rest get regression tests in slice 5.1. Missing: the scan (AC1–AC6, AC16–AC26), its index, the Quartz wiring, R11's Quartz schema fix, the `isOverdue` list filter, the overdue view.
+
+## T1. The scan service
+
+- `BE/TaskFlow.BusinessLogic/Services/TaskOverdueScanService.cs` — `ITaskOverdueScanService.Run(DateOnly todayInZone, CancellationToken cancellationToken)` → `Task<TaskOverdueScanResultDto>` (`Examined`, `Flagged`, `Skipped`, `Failed`; DTO in `Dtos/Tasks/`). Scoped, registered in `CoreDependencyConfiguration.AddServices` (not behind `skipQuartz`, so tests resolve it). No HTTP surface.
+- `todayInZone` is computed **once** by the caller and passed down (Technical notes, AC6). It is also the test seam: tests pass a fixed date. No `TimeProvider` is introduced.
+- **Candidates** — no tracking, ids only, keyset batches of 100: `!IsOverdue && Status != Done && DueDate != null && DueDate < today && Id > lastId`, `ORDER BY Id`. The query filter excludes soft-deleted rows (AC25). Keyset, not offset: flagged rows leave the predicate and failed rows stay, so offset paging would skip rows and "take the first 100 again" would never terminate.
+- **Per candidate, its own commit (D3):** load tracked by id (as `Move` does) → re-check `TaskOverdueRule.IsOverdue(task.DueDate, task.Status, today) && !task.IsOverdue` (the row may have changed since the candidate read; the SQL is only a pre-filter, the predicate lives in one place) → `IsOverdue = true`, `Version = Guid.NewGuid()`, add `TaskHistory { Event = OverdueMarked, ActorUserId = null }` → one `SaveChanges()` (task + entry atomic, F04 AC10) → `ChangeTracker.Clear()` in `finally`.
+- **Outcomes per row:** written → `Flagged`; re-check false → `Skipped`; `DbUpdateConcurrencyException` or `TaskConcurrencyHelper.IsDeadlock` → `Skipped`, `LogWarning(ex, …)` (a concurrent user write won, AC21; ROADMAP R13); any other exception → `Failed`, `LogError(ex, "Overdue scan failed to flag task {TaskId}", id)`, continue (AC20). Cancellation is checked between rows.
+- **End of run:** `LogInformation("Overdue scan for {Today} examined {Examined}, flagged {Flagged}, skipped {Skipped}, failed {Failed}", …)` — the empty case logs `Examined = 0` (AC18).
+- **Actor (AC22, F04 AC8):** `ActorUserId = null` written explicitly. `UnitOfWork` stamps `CreatedBy/UpdatedBy = 0` (no `HttpContext`); that value is never read as the actor (F04 T1).
+- **Rejected — one bulk `UPDATE … WHERE`** (`ExecuteUpdate`): bypasses `UnitOfWork` stamping and the `Version` token, cannot write one history row per task without raw `INSERT … SELECT`, and one bad row fails the whole set (D3, AC20). Per-row commits cost one load + one commit per flagged task — at one-shared-board volume, seconds on the first run (AC26), near zero on later runs.
+
+## T2. Idempotency and concurrency (AC17, AC21, AC23, AC24)
+
+1. **Predicate** — only `IsOverdue = false` rows qualify, so a second run the same day finds nothing (AC17). Clearing the flag (due-date change, `Done`) is what makes a second marking possible (D7, AC23). The rule compares against today, not a per-day delta, so downtime cannot skip a day (AC19, AC26).
+2. **Row token** — every flag bumps `TaskItem.Version` under F01 T2's guard. Scan vs user move on the same task (AC21): if the user commits first, the scan's `UPDATE … WHERE Version = @original` affects 0 rows (or deadlocks, 1213) → `Skipped`, nothing written. If the scan commits first, the user's request carries the old version → `Task.Move.Conflict` → the client refetches. Either way the task and its history agree.
+3. **Scheduler** — the clustered ADO job store fires a trigger on one node, and `[DisallowConcurrentExecution]` blocks overlapping executions across the cluster (AC24). Even if two runs did overlap, layers 1–2 still give each task exactly one entry; slice 5.1 tests that directly.
+- **[SIGN-OFF] Consequence of 2:** a board card left open since before 00:05 for a task the scan flagged gets one `Conflict` on its next write, then refetches. Same behaviour as any concurrent edit (F01 T7).
+
+## T3. Index
+
+`IX_Tasks_IsDeleted_IsOverdue_Status_DueDate` on `(IsDeleted, IsOverdue, Status, DueDate)`, `MyDbContext` migration `AddTasksOverdueScanIndex` — **Additive** (`CREATE INDEX` only, online InnoDB, board-sized table). It serves the scan (equality on `IsDeleted` and `IsOverdue = 0`, then `Status`, then `DueDate`) and the `isOverdue=true` filter (T8, prefix `IsDeleted, IsOverdue = 1`). This refines F01 T1's sketch `(IsDeleted, Status, IsOverdue, DueDate)`: `Status != Done` is a range, so columns after it cannot narrow the scan, and `Done` tasks with past due dates accumulate forever. Record `EXPLAIN` for the candidate query in the slice report. The keyset `ORDER BY Id` sorts the small candidate set in memory — accepted.
+
+## T4. "Today" in the configured zone (D4, AC6)
+
+- New pure helper `DateTimeHelper.ToDateInZone(this DateTimeOffset source, string timezoneName) → DateOnly`, beside `ToTimezone`. `TaskService.TodayInZone()` delegates to it (one-line body change), and the job uses it, so there is one definition of today.
+- `Program.cs` fails startup when `Workflow:TimeZone` is missing or does not resolve (`FindSystemTimeZoneById`), the same way `Cors:AllowedOrigins` and `Workflow:MaxInProgressPerAssignee` are checked.
+
+## T5. Quartz wiring (D5, AC24)
+
+- **Job** — `BE/TaskFlow.BusinessLogic/Schedulers/BackgroundJobs/OverdueScanJob.cs` (folder of the removed `ExampleJob`), `[DisallowConcurrentExecution]`. Constructor takes singletons only — `ILogger<OverdueScanJob>`, `IConfiguration`, `IServiceScopeFactory` — because `JobFactory` resolves jobs from the root provider. `Execute`: `today = DateTimeHelper.GetDtOffset().ToDateInZone(zone)` once → `await using var scope = scopeFactory.CreateAsyncScope()` → resolve `ITaskOverdueScanService` → `Run(today, context.CancellationToken)`. `catch (Exception ex)` → `LogError(ex, "Overdue scan failed")`, no rethrow (no Quartz refire loop; the next run is tomorrow and AC19 covers it).
+- **Scheduling** — `BE/TaskFlow.BusinessLogic/HostedServices/OverdueScanHostedService.cs` (`IHostedService`). `StartAsync`: `ScheduleJob<OverdueScanJob>("OverdueScan", "0 5 0 * * ?", timeZone: <zone from Workflow:TimeZone>)`; a `false` result is logged at `Error`. `StopAsync`: shut the scheduler down, waiting for the running job. The cron is a named constant in the hosted service (D5 fixes the time; only the zone is configuration, D4).
+- **Registration** — `AddTransient<OverdueScanJob>()` and `AddHostedService<OverdueScanHostedService>()` inside `ScheduleInjection.AddQuartzScheduler`, so the `Testing` host never schedules.
+- **[SIGN-OFF] `IScheduleService` cron overload** (no callers today) — gains `TimeZoneInfo? timeZone = null`; the trigger is built `WithCronSchedule(cron, b => b.InTimeZone(timeZone).WithMisfireHandlingInstructionFireAndProceed())` by one static method (`ScheduleService.BuildCronTrigger`) so a test can assert its next fire time. **Schedule only when missing or changed:** if the existing trigger is a cron trigger with the same expression and zone id, keep it; otherwise `scheduler.ScheduleJob(jobDetail, [trigger], replace: true)`. The `DeleteJob`-then-schedule step goes away: it raced between two starting nodes, could delete a job running on another node, and threw away the persisted trigger, so a missed 00:05 was never made up. With the trigger kept, a run missed while every node was down fires once when the scheduler next starts. The two `LogError("… {ex}", ex)` calls in this file become `LogError(ex, "…")` (known defect, in the method being touched).
+- **Order at startup** — `Program.cs` runs `RunQuartzMigration()` before `app.Run()`, and hosted services start inside `app.Run()`, so the schema is migrated before the trigger is written.
+
+## T6. `QuartzContext` migration (ROADMAP R11)
+
+- Generate with the Quartz migration command (`--context QuartzContext --output-dir Quartz-Migrations`), name `AlignQuartzSchemaWith3_22`. `QuartzContext` has no model, so `Up`/`Down` are hand-written `migrationBuilder.Sql`, matching `20240828071644_InitDatabase.cs`:
+  - Up: `ALTER TABLE QRTZ_TRIGGERS ADD COLUMN MISFIRE_ORIG_FIRE_TIME BIGINT NULL, ADD COLUMN EXECUTION_GROUP VARCHAR(200) NULL, ADD COLUMN PREFERRED_NODE VARCHAR(200) NULL, ADD COLUMN PREFERRED_NODE_AUTO BOOLEAN NOT NULL DEFAULT FALSE;` then `ALTER TABLE QRTZ_FIRED_TRIGGERS ADD COLUMN EXECUTION_GROUP VARCHAR(200) NULL;`
+  - Down: drop the same five columns.
+  - Source: official Quartz.NET `database/tables/tables_mysql_innodb.sql` at `v3.22.0` (diffed against `v3.13.1`, 2026-11-05).
+- **Safety class: Additive.** Nullable columns, plus one `NOT NULL` with a default; both tables are empty (nothing has been scheduled since R5, and inserts fail against the current schema anyway); MySQL 8.4 adds these columns instantly. MySQL DDL is not transactional: if the second statement fails, the first stays applied with no history row, and the fix is manual. Accepted for two empty tables. `Down()` is valid only together with a Quartz package downgrade.
+- **No `EnableRetryOnFailure`** — `QuartzContext`'s `UseMySql` (`ScheduleInjection.cs:65-66`) has none; keep it that way.
+- **`AutoMigration=true`** — running the API applies this to the `quartz` database. Applying it, even locally, needs the user's approval (`workflow.md` §3). Where `AutoMigration` is off, it must be applied before the new code starts, or scheduling fails (logged `Error`) and the API runs **without** the scan. Concurrent migration by several instances is undefined until `/ship setup` (`database.md` §6: startup migration assumes a single instance).
+- EF rewrites `QuartzContextModelSnapshot.cs` (its `Tricor.BillingProcess…` namespace is scaffold residue). Accept what EF generates; do not hand-edit. Read `dotnet ef migrations script --idempotent --context QuartzContext`.
+- **Rule from now on:** any Quartz package upgrade diffs the official MySQL script and adds a `QuartzContext` migration for any difference (ADR 0003).
+
+## T7. D8 on `PUT …/due-date` [SIGN-OFF]
+
+`UpdateDueDate` today refuses any non-null past date, including the date the task already has (`TaskService.cs:537-541`). D8 says the check runs **only when the due date changes**, so the guard becomes `requestDto.DueDate.HasValue && requestDto.DueDate != task.DueDate && requestDto.DueDate < today`. That is a behaviour change on an existing endpoint, not a wire change. Out of scope here: a no-op due-date write still records a `DueDateChanged` entry with equal values (F04 matter, noted only).
+
+## T8. API contract — the `isOverdue` filter
+
+| Verb + route | Policy | Request | Success | Errors |
+|---|---|---|---|---|
+| `GET api/v1/tasks?status=&isOverdue=&start=&length=` | `ViewTasks` | adds `IsOverdue` `bool?` to `TaskGetListReq` (optional; absent = no filter) | `PaginationResultRes<List<TaskSummaryRes>>`, **shape unchanged** | `Task.GetList.Exception`; a non-boolean value → R1 envelope with `validates` |
+
+- The filter `IsOverdue == value` is applied before ordering; ordering follows F03 unchanged (no `status` → active-column rule across statuses, the approved F03 sign-off; `status=Done` → `Done` window, so `status=Done&isOverdue=true` is always empty).
+- `ITaskService.GetList` gains `bool? isOverdue` (internal). Additive, non-breaking; announced here as F01 T5 anticipated.
+- **No other wire change:** `isOverdue` is already on `TaskSummaryRes`/`TaskDetailRes`; `OverdueMarked` already renders as "System flagged the task as overdue". **F05 adds no error codes** — `Task.Create.DueDateInPast` and `Task.UpdateDueDate.DueDateInPast` exist; the job has no client-facing failure.
+
+## T9. Client
+
+- Card indicator (danger border + clock icon + "Overdue · <date>" chip), detail "Overdue" label and the System timeline icon already exist (slices 1.5–1.6). Unchanged.
+- `getOverdueTasks(start, length, signal)` in `FE/src/api/tasks.ts` → `GET /tasks?isOverdue=true&start=&length=`.
+- `FE/src/shared/hooks/useOverdueTasksQuery.ts` — `useInfiniteQuery` keyed `['board', 'overdue']`, so every existing `invalidateQueries(['board'])` refreshes it (F03 precedent); `length` 50, sent explicitly. In `shared/` because both `board` and `overdue` read it (`docs/ui.md` import direction).
+- `FE/src/features/overdue/OverdueListPage.tsx`, route `/overdue` (`router.tsx`), nav links Board · Overdue in `AppLayout.tsx`. Content: title "Overdue tasks", the wireframe's one-line rule copy, a table Task (`#<id>` + title, link to `/tasks/:id`) · Status · Priority (icon + word) · Due · Assignee, in server order. States: loading, error with retry, empty ("Nothing is overdue."), success; "Show more" (real `<button>`) while loaded < `pagination.totalItems`; the table scrolls inside its container at 390px.
+- Board chip "N overdue" becomes a link to `/overdue` and takes its count from the query's `pagination.totalItems` (today it counts page 1 only, `BoardPage.tsx:216-217`).
+- **[SIGN-OFF] Not built:** "Due today — not overdue yet" (needs a server-side today/due-date filter, not in F05), "Flag cleared this week" (`docs/ui.md` says leave out), "Last check" (no endpoint), "Late by N days" / `Overdue 1d` (needs today in the configured zone; the browser's date only approximates it, `TaskCard.tsx:15-21`).
+
+## T10. Risks
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| Quartz schema behind the package (R11) | Any scheduling fails with a SQL error | T6, slice 5.2; startup logs `Error` if scheduling fails |
+| Trigger in the server's zone | Scan at 07:05 VN on a UTC host | `InTimeZone` from config (T5); next-fire-time test |
+| Scan vs user write | Lost update or duplicate entry | Per-row `Version` token + re-check (T2); race test on real MySQL |
+| Two nodes / double fire | Duplicate `OverdueMarked` | Cluster + `[DisallowConcurrentExecution]` + predicate; concurrent-run test |
+| Migration not applied where `AutoMigration=false` | API runs without the scan, silently except one `Error` log | Release step under `/ship setup`; `/healthz` has no checks (R8) — accepted |
+| Node dies mid-scan | Remaining tasks wait for the next run | Accepted: idempotent, next run ≤ 24 h; no `RequestRecovery` |
+| Non-transactional DDL | Half-applied Quartz migration | Accepted: two statements on empty tables; manual fix documented |
+| Candidate SQL vs `TaskOverdueRule` drift | Scan misses or over-selects | Per-row re-check with the rule before every write; test across every status × date combination |
+
+Review: APPROVE on d100bc6, 2026-11-05 (slice 5.1).
+
+Review: APPROVE on 28fdf67, 2026-11-07 (slice 5.2). Re-verified: `dotnet build` 0 errors; new `ScheduleServiceCronTests` 8/8; keyset-boundary test (150 candidates across the 100-row page) 1/1; full suite 209/209; `dotnet ef migrations list --context QuartzContext` against the real `quartz` connection shows `AlignQuartzSchemaWith3_22` as **Pending** (confirms it was never applied); idempotent script read — only the two additive `ALTER TABLE` statements. Read `ScheduleService.BuildCronTrigger`/the keep-vs-replace logic, `OverdueScanJob`, `OverdueScanHostedService`, and `Program.cs`'s new fail-fast check directly against T5/T6 — all match the approved contract. One Recommendation, not a Must-fix: the "keep existing trigger" branch in `ScheduleService.ScheduleJob` never updates the `JobDetail`/`jobData` if those change while the cron+zone stay the same — not reachable today (F05's only caller passes no `jobData` and a fixed cron), worth a comment or a future test if a second caller is ever added with dynamic job data.
+
+Review: APPROVE on 97709c6 and 7dbaeda, 2026-11-07 (slices 5.3 + 5.4, Gate C). Backend (97709c6): re-verified `dotnet build` 0 errors, full suite 217/217 (up from 209), confirmed no migration file was generated (`git diff --stat` clean on `BE/TaskFlow.DataAccess`). Read the `TaskGetListReq`/`GetList`/controller diff directly against T8 — the `isOverdue` filter composes with F03's existing status/ordering/Done-window logic exactly as designed, no new error code, no wire-shape change elsewhere. Frontend (7dbaeda): re-ran `npm --prefix FE run typecheck` (clean), `lint` (0 errors, one pre-existing unrelated warning in an untouched file), `build` (PASS, 128 modules). Read `OverdueListPage.tsx`, `useOverdueTasksQuery.ts`, the `PriorityIcon` extraction, the board-chip fix, the router/nav/oxlint changes — all match T9's signed-off "Overdue now only" scope, the `shared → features → app` import direction is respected (oxlint config correctly extended), and the chip now reads the same `pagination.totalItems` source of truth as the new page (fixes the pre-existing page-1-only count defect). No Must-fix. One Recommendation: `BoardPage` now mounts a second query (`useOverdueTasksQuery`) purely for the chip's count, in addition to the board query — acceptable at this app's scale, but worth noting if board load performance ever becomes a concern. Live-browser pass of `/overdue` (loading/empty/error/success/show-more at 390/768/1440) is **NOT VERIFIED** — no backend instance/browser tool was available in either the implementer's or this review's environment; flagged for the user or `qa-lead` to close before accepting the slice as fully done.

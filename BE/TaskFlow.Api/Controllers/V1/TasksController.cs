@@ -203,7 +203,7 @@ namespace TaskFlow.Api.Controllers.V1
                 var actorUserId = this.User.Claims.GetUserId();
                 var callerPermissions = this.User.Claims.GetUserRoleClaims();
 
-                var page = await taskService.GetList(request.Status, request.Start, request.Length, actorUserId, callerPermissions);
+                var page = await taskService.GetList(request.Status, request.IsOverdue, request.Start, request.Length, actorUserId, callerPermissions);
 
                 response.Success = true;
                 response.Result = Mapper.Map<List<TaskSummaryRes>>(page.Items);

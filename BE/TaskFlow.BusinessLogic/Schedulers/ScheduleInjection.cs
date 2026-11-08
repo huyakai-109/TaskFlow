@@ -1,9 +1,12 @@
 ﻿using System.Collections.Specialized;
+using TaskFlow.BusinessLogic.HostedServices;
+using TaskFlow.BusinessLogic.Schedulers.BackgroundJobs;
 using TaskFlow.Common.Constants;
 using TaskFlow.DataAccess.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Quartz;
 using Quartz.Spi;
 
@@ -18,6 +21,11 @@ namespace TaskFlow.BusinessLogic.Schedulers
 
             collection.AddSingleton<IScheduleService, ScheduleService>();
             collection.AddSingleton<IJobFactory, JobFactory>();
+
+            // f05-overdue.md T5: registered here only, so the "Testing" host
+            // (which never calls AddQuartzScheduler) never schedules the scan.
+            collection.AddTransient<OverdueScanJob>();
+            collection.AddHostedService<OverdueScanHostedService>();
         }
 
         private static void ConfigureSchedulerFactory(this IServiceCollection collection, IConfiguration configuration)

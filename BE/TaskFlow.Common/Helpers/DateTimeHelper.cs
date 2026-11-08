@@ -103,6 +103,19 @@ namespace TaskFlow.Common.Helpers
         }
 
         /// <summary>
+        /// Resolve "today" for a given instant in the given zone (f05-overdue.md
+        /// D4/T4) - the single definition both TaskService's synchronous
+        /// recompute and the overdue scan's daily job share.
+        /// </summary>
+        /// <param name="source">Source</param>
+        /// <param name="timezoneName">Timezone</param>
+        /// <returns>The calendar date in that zone</returns>
+        public static DateOnly ToDateInZone(this DateTimeOffset source, string timezoneName)
+        {
+            return DateOnly.FromDateTime(source.ToTimezone(timezoneName).Date);
+        }
+
+        /// <summary>
         /// Convert the Unix timestamp to a DateTime
         /// </summary>
         /// <param name="timestampObj">TimeObj</param>
