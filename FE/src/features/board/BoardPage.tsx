@@ -221,26 +221,38 @@ export function BoardPage() {
 
   return (
     <section>
+      {/*
+       * `docs/design/SPEC.md` §5.1 toolbar, trimmed per §10 Gate A: no List
+       * segment (view doesn't exist — a dead segment is worse than none), no
+       * "N at capacity" pill or avatar stack/Team-capacity popover (per-user
+       * capacity counts are deferred BE work, point 3).
+       */}
       <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-        <h2 className="text-[length:var(--font-size-xl)] font-semibold">Board</h2>
+        <h1 className="m-0 inline-flex min-h-9 items-center rounded-control-lg bg-column px-[var(--space-3)] text-[length:var(--font-size-sm)] font-semibold">
+          Board
+        </h1>
         <span
-          className="text-[length:var(--font-size-sm)] text-text-muted"
+          className="inline-flex min-h-9 items-center rounded-control-lg border border-border px-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted"
           title="Urgent → High → Normal, then earliest due date. Tasks with no date go last."
         >
-          Sort: <strong>Priority</strong>
+          Sort: <strong className="ml-[var(--space-1)] font-semibold text-text">Priority</strong>
         </span>
         <div className="ml-auto flex items-center gap-[var(--space-3)] max-[600px]:ml-0">
           {overdueCount > 0 && (
             <Link
               to="/overdue"
-              className="inline-flex items-center rounded-pill bg-overdue-surface px-[var(--space-3)] py-[2px] text-[length:var(--font-size-sm)] font-semibold text-overdue no-underline hover:underline"
+              className="inline-flex min-h-9 items-center gap-[var(--space-1)] rounded-pill bg-overdue-surface px-[var(--space-3)] text-[length:var(--font-size-sm)] font-semibold text-overdue no-underline hover:underline"
             >
+              <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+              </svg>
               {overdueCount} overdue
             </Link>
           )}
           <button
             type="button"
-            className="min-h-10 cursor-pointer rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
+            className="min-h-10 cursor-pointer rounded-control-lg border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
             onClick={() => setCreateOpen(true)}
           >
             New task

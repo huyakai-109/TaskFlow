@@ -31,7 +31,8 @@ export function OverdueListPage() {
 
   return (
     <section>
-      <h2 className="text-[length:var(--font-size-xl)] font-semibold">Overdue tasks</h2>
+      {/* AppLayout no longer owns a page-level h1 (docs/design/SPEC.md shell redesign) — each routed page is its own landmark now, like BoardPage's and TaskDetailPage's. */}
+      <h1 className="m-0 text-[length:var(--font-size-xl)] font-semibold">Overdue tasks</h1>
       <p className="mt-[var(--space-2)] max-w-[70ch] text-[length:var(--font-size-sm)] text-text-muted">
         Checked automatically every night at 00:05. A task due today becomes overdue tomorrow. Finishing it, or
         moving the due date into the future, clears the flag.
