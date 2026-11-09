@@ -2,6 +2,7 @@ import clsx from 'clsx'
 
 import { BOARD_COLUMNS } from '../../../api/types'
 import type { AllowedTransition, TaskStatus } from '../../../api/types'
+import { moveButtonLabel } from '../../../shared/lib/moveButtonLabel'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
 function CheckIcon() {
@@ -29,11 +30,6 @@ interface WorkflowStripProps {
   reopen: AllowedTransition | undefined
   onMove: (toStatus: TaskStatus) => void
   onReopenRequested: () => void
-}
-
-/** `InProgress → Review` is the one transition the design names explicitly ("Submit for review", SPEC §5.3); every other move keeps its plain "Move to X" label rather than inventing unasked-for copy for the rest. */
-function labelFor(status: TaskStatus, move: AllowedTransition): string {
-  return status === 'InProgress' && move.status === 'Review' ? 'Submit for review' : `Move to ${STATUS_LABELS[move.status]}`
 }
 
 /**
@@ -89,7 +85,7 @@ export function WorkflowStrip({ status, moves, reopen, onMove, onReopenRequested
             className="inline-flex min-h-11 cursor-pointer items-center rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
             onClick={() => onMove(move.status)}
           >
-            {labelFor(status, move)}
+            {moveButtonLabel(status, move)}
           </button>
         ))}
 

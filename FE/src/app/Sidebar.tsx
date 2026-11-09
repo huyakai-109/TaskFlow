@@ -16,6 +16,15 @@ function BoardIcon() {
   )
 }
 
+function MyTasksIcon() {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="5" r="2.5" />
+      <path d="M2.5 14c0-3.3 2.5-5 5.5-5s5.5 1.7 5.5 5" />
+    </svg>
+  )
+}
+
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   clsx(
     'flex min-h-[34px] items-center gap-[var(--space-2)] rounded-control px-[var(--space-2)] text-[length:var(--font-size-base)] no-underline',
@@ -26,8 +35,8 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
  * `docs/design/SPEC.md` §3. Scoped down per Gate A (approved 2026-11-08,
  * SPEC.md §10): no "Team Alpha" workspace label (CLAUDE.md — no team entity),
  * no Inbox/Team capacity nav items or search box (not built, hidden rather
- * than dead-linked), no "My tasks"/"Due this week" yet (My tasks ships in the
- * last slice of this redesign; "Due this week" isn't in scope at all).
+ * than dead-linked), no "Due this week" (not in scope at all). My tasks
+ * shipped in slice 5.
  */
 export function Sidebar() {
   const logout = useLogout()
@@ -48,6 +57,10 @@ export function Sidebar() {
       </div>
 
       <nav aria-label="Primary" className="flex flex-col gap-[2px]">
+        <NavLink to="/my-tasks" className={navLinkClass}>
+          <MyTasksIcon />
+          My tasks
+        </NavLink>
         <NavLink to="/board" className={navLinkClass}>
           <BoardIcon />
           Board

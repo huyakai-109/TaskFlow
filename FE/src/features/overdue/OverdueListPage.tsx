@@ -4,13 +4,20 @@ import { describeError } from '../../api/errorMessages'
 import { avatarPaletteIndex, initialsOf } from '../../shared/lib/avatar'
 import { PriorityIcon } from '../../shared/components/PriorityIcon'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
+import { daysLate, dueDateFormatter, parseDueDate } from '../../shared/lib/dueDate'
 import { useOverdueTasksQuery } from '../../shared/hooks/useOverdueTasksQuery'
 
-const dueDateFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })
-
 function formatDueDate(dueDate: string): string {
-  const [year, month, day] = dueDate.split('-').map(Number)
-  return dueDateFormatter.format(new Date(year, month - 1, day))
+  return dueDateFormatter.format(parseDueDate(dueDate))
+}
+
+function ClockIcon() {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  )
 }
 
 const cellClass = 'px-[var(--space-3)] py-[var(--space-3)] text-left align-middle'
@@ -33,10 +40,13 @@ export function OverdueListPage() {
     <section>
       {/* AppLayout no longer owns a page-level h1 (docs/design/SPEC.md shell redesign) — each routed page is its own landmark now, like BoardPage's and TaskDetailPage's. */}
       <h1 className="m-0 text-[length:var(--font-size-xl)] font-semibold">Overdue tasks</h1>
-      <p className="mt-[var(--space-2)] max-w-[70ch] text-[length:var(--font-size-sm)] text-text-muted">
-        Checked automatically every night at 00:05. A task due today becomes overdue tomorrow. Finishing it, or
-        moving the due date into the future, clears the flag.
-      </p>
+      <div className="mt-[var(--space-3)] flex items-start gap-[var(--space-2)] rounded-lg border border-border bg-surface p-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted">
+        <ClockIcon />
+        <p className="m-0">
+          Checked automatically every night at 00:05. A task due today becomes overdue tomorrow. Finishing it, or
+          moving the due date into the future, clears the flag.
+        </p>
+      </div>
 
       {query.isPending && (
         <p className="mt-[var(--space-5)] text-[length:var(--font-size-sm)] text-text-muted" role="status">
@@ -62,6 +72,10 @@ export function OverdueListPage() {
 
       {query.isSuccess && items.length > 0 && (
         <div className="mt-[var(--space-5)] flex flex-col gap-[var(--space-3)]">
+          <h2 className="m-0 flex items-center gap-[var(--space-2)] text-[length:var(--font-size-sm)] font-semibold">
+            <span className="size-2 shrink-0 rounded-pill bg-danger" aria-hidden="true" />
+            Overdue now <span className="font-normal text-text-muted">{totalItems}</span>
+          </h2>
           <div className="overflow-x-auto rounded-lg border border-border bg-surface">
             <table className="w-full min-w-[640px] border-collapse text-[length:var(--font-size-sm)]">
               <thead>
@@ -77,6 +91,9 @@ export function OverdueListPage() {
                   </th>
                   <th scope="col" className={cellClass}>
                     Due
+                  </th>
+                  <th scope="col" className={cellClass}>
+                    Late by
                   </th>
                   <th scope="col" className={cellClass}>
                     Assignee
@@ -106,6 +123,15 @@ export function OverdueListPage() {
                     </td>
                     <td className={cellClass}>{task.dueDate !== null ? formatDueDate(task.dueDate) : '—'}</td>
                     <td className={cellClass}>
+                      {task.dueDate !== null ? (
+                        <span className="inline-flex items-center rounded-pill bg-overdue-surface px-[var(--space-2)] py-[2px] text-[length:var(--font-size-xs)] font-semibold text-overdue">
+                          {daysLate(task.dueDate)} day{daysLate(task.dueDate) === 1 ? '' : 's'}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className={cellClass}>
                       {task.assignee !== null ? (
                         <span className="inline-flex items-center gap-[var(--space-2)]">
                           <span
@@ -129,6 +155,9 @@ export function OverdueListPage() {
               </tbody>
             </table>
           </div>
+          <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">
+            Sorted like the board: priority first (Urgent → High → Normal), then earliest due date.
+          </p>
 
           {hasMore && (
             <button

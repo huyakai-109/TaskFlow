@@ -10,13 +10,13 @@ import { AssignAndMoveDialog } from '../../shared/components/AssignAndMoveDialog
 import { MoveRefusalDialog } from '../../shared/components/MoveRefusalDialog'
 import { MoveToast } from '../../shared/components/MoveToast'
 import { useAssignAndMoveTaskMutation } from '../../shared/hooks/useAssignAndMoveTaskMutation'
+import { useBoardQuery } from '../../shared/hooks/useBoardQuery'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
 import { useOverdueTasksQuery } from '../../shared/hooks/useOverdueTasksQuery'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 
 import { BoardColumn } from './components/BoardColumn'
 import { NewTaskDialog } from './components/NewTaskDialog'
-import { useBoardQuery } from './hooks/useBoardQuery'
 import { useColumnPagesQuery } from './hooks/useColumnPagesQuery'
 import { mergeColumnItems } from './utils/mergeColumnItems'
 
