@@ -22,6 +22,11 @@ interface WorkflowStripProps {
   onReopenRequested: () => void
 }
 
+/** `InProgress → Review` is the one transition the design names explicitly ("Submit for review", SPEC §5.3); every other move keeps its plain "Move to X" label rather than inventing unasked-for copy for the rest. */
+function labelFor(status: TaskStatus, move: AllowedTransition): string {
+  return status === 'InProgress' && move.status === 'Review' ? 'Submit for review' : `Move to ${STATUS_LABELS[move.status]}`
+}
+
 /**
  * The workflow stages plus the caller's legal actions. `docs/design/SPEC.md`'s
  * `TaskDetail.dc.html` draws exactly one next-step button because its sample
@@ -46,17 +51,23 @@ export function WorkflowStrip({ status, moves, reopen, onMove, onReopenRequested
         className="m-0 flex list-none flex-wrap items-center gap-[var(--space-2)] p-0 text-[length:var(--font-size-sm)]"
       >
         {BOARD_COLUMNS.map((stage, index) => (
-          <li
-            key={stage}
-            aria-current={stage === status ? 'step' : undefined}
-            className={clsx(
-              'inline-flex items-center gap-[var(--space-2)] rounded-pill bg-column px-[var(--space-3)] py-[4px] text-text-muted',
-              stage === status && 'bg-accent-soft font-semibold text-accent-ink',
-              index > currentIndex && 'border border-dashed border-border-strong bg-transparent',
+          <li key={stage} className="flex items-center gap-[var(--space-2)]">
+            {index > 0 && (
+              <span aria-hidden="true" className="text-faint">
+                —
+              </span>
             )}
-          >
-            {index < currentIndex && <CheckIcon />}
-            {STATUS_LABELS[stage]}
+            <span
+              aria-current={stage === status ? 'step' : undefined}
+              className={clsx(
+                'inline-flex min-h-6 items-center gap-[var(--space-2)] rounded-lg bg-column px-[var(--space-3)] text-text-muted',
+                stage === status && 'bg-accent-soft font-semibold text-accent-ink',
+                index > currentIndex && 'min-h-[26px] border border-dashed border-border-strong bg-transparent',
+              )}
+            >
+              {index < currentIndex && <CheckIcon />}
+              {STATUS_LABELS[stage]}
+            </span>
           </li>
         ))}
       </ol>
@@ -69,7 +80,7 @@ export function WorkflowStrip({ status, moves, reopen, onMove, onReopenRequested
             className="inline-flex min-h-11 cursor-pointer items-center rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
             onClick={() => onMove(move.status)}
           >
-            Move to {STATUS_LABELS[move.status]}
+            {labelFor(status, move)}
           </button>
         ))}
 
@@ -93,6 +104,13 @@ export function WorkflowStrip({ status, moves, reopen, onMove, onReopenRequested
           </span>
         )}
       </div>
+
+      {moves.length === 1 && (
+        <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">
+          The only next step from {STATUS_LABELS[status]}.
+          {status === 'InProgress' && ' Anyone other than you can send it back here for rework.'}
+        </p>
+      )}
     </section>
   )
 }

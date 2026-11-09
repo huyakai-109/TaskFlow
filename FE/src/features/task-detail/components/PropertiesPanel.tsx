@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 import type { TaskDetail, TaskPriority } from '../../../api/types'
+import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
 const dateTimeFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -77,10 +78,13 @@ export function PropertiesPanel({
   onOpenAssigneePicker,
   isAssigneePending,
 }: PropertiesPanelProps) {
+  const usersQuery = useUsersQuery()
+  const createdByName = usersQuery.data?.find((user) => user.id === task.createdBy)?.userName ?? null
+
   return (
     <aside
       aria-label="Properties"
-      className="flex min-w-[260px] max-w-[360px] flex-[1_1_300px] flex-col gap-[var(--space-1)] rounded-xl border border-border bg-column p-[var(--space-5)]"
+      className="flex min-w-[260px] max-w-[300px] flex-[1_1_300px] flex-col gap-[var(--space-1)] rounded-xl border border-border bg-side-panel p-[var(--space-5)]"
     >
       <PropertyRow label="Status">{STATUS_LABELS[task.status]}</PropertyRow>
 
@@ -142,13 +146,21 @@ export function PropertiesPanel({
           </span>
         )}
       </PropertyRow>
+      {task.isOverdue && (
+        <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">
+          Moving the date into the future clears the overdue flag.
+        </p>
+      )}
       {dueDateError !== null && (
         <p role="alert" className={fieldErrorClass}>
           {dueDateError}
         </p>
       )}
 
-      <PropertyRow label="Created">{formatInstant(task.createdAt)}</PropertyRow>
+      <PropertyRow label="Created">
+        {formatInstant(task.createdAt)}
+        {createdByName !== null && ` by ${createdByName}`}
+      </PropertyRow>
       <PropertyRow label="Updated">{formatInstant(task.updatedAt)}</PropertyRow>
     </aside>
   )

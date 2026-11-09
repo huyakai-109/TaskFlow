@@ -6,33 +6,10 @@ import { Link } from 'react-router-dom'
 import type { TaskStatus, TaskSummary } from '../../../api/types'
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
+import { daysLate, dueDateFormatter, isToday, parseDueDate } from '../../../shared/lib/dueDate'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
 const chipBase = 'inline-flex min-h-[21px] items-center gap-[var(--space-1)] rounded-sm border border-border px-[var(--space-2)]'
-
-const dueDateFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })
-
-/**
- * `dueDate` is a calendar date with no zone of its own (F01); "today" for the
- * due chip is read from the browser's local date, which is an approximation
- * of the server's `Asia/Ho_Chi_Minh` "today" used for `isOverdue` (F05). The
- * server's `isOverdue` flag, not this comparison, is what the overdue chip
- * below is driven by.
- */
-function parseDueDate(dueDate: string): Date {
-  const [year, month, day] = dueDate.split('-').map(Number)
-  return new Date(year, month - 1, day)
-}
-
-function isToday(dueDate: string): boolean {
-  const today = new Date()
-  const parsed = parseDueDate(dueDate)
-  return (
-    parsed.getFullYear() === today.getFullYear() &&
-    parsed.getMonth() === today.getMonth() &&
-    parsed.getDate() === today.getDate()
-  )
-}
 
 function DueChip({ dueDate }: { dueDate: string | null }) {
   if (dueDate === null) {
@@ -44,15 +21,6 @@ function DueChip({ dueDate }: { dueDate: string | null }) {
   }
 
   return <span className={chipBase}>{dueDateFormatter.format(parseDueDate(dueDate))}</span>
-}
-
-const MS_PER_DAY = 86_400_000
-
-/** Same browser-local approximation `isToday` already documents — days late is cosmetic copy, `isOverdue` (server) is the actual flag. */
-function daysLate(dueDate: string): number {
-  const today = new Date()
-  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-  return Math.max(1, Math.round((startOfToday.getTime() - parseDueDate(dueDate).getTime()) / MS_PER_DAY))
 }
 
 function OverdueChip({ dueDate }: { dueDate: string | null }) {

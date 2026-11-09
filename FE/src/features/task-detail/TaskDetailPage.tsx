@@ -173,13 +173,16 @@ export function TaskDetailPage() {
 
   return (
     <section className="flex max-w-[1100px] flex-col gap-[var(--space-5)]">
-      <Link to="/board" className="self-start text-[length:var(--font-size-sm)] text-text-muted no-underline hover:underline">
-        ← Board
+      <Link
+        to="/board"
+        className="self-start text-[length:var(--font-size-sm)] text-text-muted no-underline hover:underline"
+      >
+        ‹ Board / <span className="font-mono">#{task.id}</span>
       </Link>
 
-      <div className="flex flex-col gap-[var(--space-3)]">
+      <div className="flex max-w-[800px] flex-col gap-[var(--space-3)]">
         <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-          <h1 className="m-0 text-[1.875rem] font-semibold tracking-[-0.02em]">{task.title}</h1>
+          <h1 className="m-0 text-[length:var(--font-size-display)] font-semibold tracking-[-0.02em]">{task.title}</h1>
           <button
             type="button"
             className="min-h-9 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-3)] font-medium text-text hover:bg-accent-soft"
@@ -189,12 +192,12 @@ export function TaskDetailPage() {
           </button>
         </div>
         {task.description !== null && task.description !== '' && (
-          <p className="max-w-[640px] text-text-muted [line-height:1.6]">{task.description}</p>
+          <p className="text-[length:var(--font-size-md)] text-text-muted [line-height:24px]">{task.description}</p>
         )}
       </div>
 
       <div className="flex flex-wrap items-start gap-[var(--space-5)]">
-        <main className="flex min-w-[320px] flex-[999_1_540px] flex-col gap-[var(--space-5)]">
+        <main className="flex min-w-[320px] max-w-[800px] flex-[999_1_540px] flex-col gap-[var(--space-5)]">
           <WorkflowStrip
             status={task.status}
             moves={moves}
