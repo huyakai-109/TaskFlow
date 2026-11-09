@@ -12,6 +12,15 @@ function CheckIcon() {
   )
 }
 
+function LockIcon() {
+  return (
+    <svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="7" width="10" height="7" rx="1.5" />
+      <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
+    </svg>
+  )
+}
+
 interface WorkflowStripProps {
   status: TaskStatus
   /** `allowedTransitions` already filtered to `operation === 'Move'` — every legal next step, not just one. */
@@ -95,7 +104,8 @@ export function WorkflowStrip({ status, moves, reopen, onMove, onReopenRequested
         )}
 
         {moves.length === 0 && reopen === undefined && (
-          <span className="text-[length:var(--font-size-sm)] text-text-muted">
+          <span className="flex items-center gap-[var(--space-2)] text-[length:var(--font-size-sm)] text-text-muted">
+            {status === 'Done' && <LockIcon />}
             {status === 'Done'
               ? "This one's finished. If it needs more work, a manager can reopen it."
               : status === 'Review'

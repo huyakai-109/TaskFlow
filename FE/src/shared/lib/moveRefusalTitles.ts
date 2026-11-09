@@ -10,14 +10,17 @@
  * failing"), so those get a toast instead of a dialog (`MoveToast` in
  * `BoardPage`/`TaskDetailPage`).
  *
- * `Task.Move.AssigneeRequired` is deliberately absent: `BoardPage`/`TaskDetailPage`
- * open `AssignAndMoveDialog` for that code instead of this dialog (F02, slice 3.4).
+ * `Task.Move.AssigneeRequired` and `Task.Move.CapacityReached` are
+ * deliberately absent: `BoardPage`/`TaskDetailPage` open `AssignAndMoveDialog`
+ * for both codes instead of this dialog — a task with no assignee and a task
+ * whose assignee is already full both resolve the same way, reassign and
+ * retry (F02, slice 3.4; CapacityReached folded in during the UI redesign's
+ * slice 4, approved 2026-11-09).
  */
 export const MOVE_REFUSAL_TITLES: Record<string, string> = {
   'Task.Move.InvalidTransition': 'Move it one step at a time',
   'Task.Move.SameStatus': 'Already there',
   'Task.Move.ActorIsAssignee': "You're the assignee",
-  'Task.Move.CapacityReached': 'At capacity',
 }
 
 export const DEFAULT_REFUSAL_TITLE = 'The move could not be completed'

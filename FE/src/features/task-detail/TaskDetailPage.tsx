@@ -57,7 +57,11 @@ export function TaskDetailPage() {
   const [dueDateError, setDueDateError] = useState<string | null>(null)
   const [assignErrorCode, setAssignErrorCode] = useState<string | null>(null)
   const [assignErrorMessage, setAssignErrorMessage] = useState<string | null>(null)
-  const [assignAndMove, setAssignAndMove] = useState<{ toStatus: TaskStatus; version: string } | null>(null)
+  const [assignAndMove, setAssignAndMove] = useState<{
+    toStatus: TaskStatus
+    version: string
+    reasonMessage: string | null
+  } | null>(null)
   const [assignAndMoveErrorCode, setAssignAndMoveErrorCode] = useState<string | null>(null)
   const [assignAndMoveErrorMessage, setAssignAndMoveErrorMessage] = useState<string | null>(null)
 
@@ -68,10 +72,14 @@ export function TaskDetailPage() {
         return
       }
 
-      if (code === 'Task.Move.AssigneeRequired') {
+      if (code === 'Task.Move.AssigneeRequired' || code === 'Task.Move.CapacityReached') {
         setAssignAndMoveErrorCode(null)
         setAssignAndMoveErrorMessage(null)
-        setAssignAndMove({ toStatus: variables.toStatus, version: variables.version })
+        setAssignAndMove({
+          toStatus: variables.toStatus,
+          version: variables.version,
+          reasonMessage: code === 'Task.Move.CapacityReached' ? describeErrorCode(code, message) : null,
+        })
         return
       }
 
@@ -286,6 +294,7 @@ export function TaskDetailPage() {
         <AssignAndMoveDialog
           taskTitle={task.title}
           toStatusLabel={STATUS_LABELS[assignAndMove.toStatus]}
+          reasonMessage={assignAndMove.reasonMessage ?? undefined}
           isPending={assignAndMoveMutation.isPending}
           errorCode={assignAndMoveErrorCode}
           errorMessage={assignAndMoveErrorMessage}

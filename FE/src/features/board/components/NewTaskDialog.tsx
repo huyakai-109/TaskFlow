@@ -7,6 +7,7 @@ import { describeError } from '../../../api/errorMessages'
 import type { CreateTaskInput } from '../../../api/tasks'
 import type { TaskPriority } from '../../../api/types'
 import { AssigneeSelect } from '../../../shared/components/AssigneeSelect'
+import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { fieldErrorMap } from '../../../shared/lib/fieldErrors'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 import { useCreateTaskMutation } from '../hooks/useCreateTaskMutation'
@@ -80,14 +81,14 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-[rgb(16_16_24_/_40%)] px-[var(--space-4)] py-[var(--space-6)]"
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-overlay px-[var(--space-4)] py-[var(--space-6)]"
       onClick={() => !mutation.isPending && onClose()}
     >
       <form
         role="dialog"
         aria-modal="true"
         aria-labelledby="nt-title"
-        className="flex w-full max-w-[560px] flex-col gap-[var(--space-4)] rounded-xl bg-surface-raised p-[var(--space-5)] shadow-raised"
+        className="flex w-full max-w-[560px] flex-col gap-[var(--space-4)] rounded-xl bg-surface-raised p-[var(--space-5)] shadow-modal-lg"
         onClick={(event) => event.stopPropagation()}
         onSubmit={handleSubmit}
       >
@@ -176,6 +177,7 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
                   disabled={mutation.isPending}
                   onChange={() => setPriority(candidate)}
                 />
+                <PriorityIcon priority={candidate} />
                 {candidate}
               </label>
             ))}
