@@ -193,7 +193,13 @@ Found by reading the scaffold against the specs.
 - R7 `Logger.LogError("… {ex}", ex)` in `AuthController` and `ExampleController` → `Logger.LogError(ex, "…")`.
 - R8 `/healthz` registers no checks — add a database check when `/ship setup` defines the deployment.
 - R9 Dev compose pins MinIO, Redis, Loki, Grafana and Prometheus to `latest` and defines no health checks for them. **The MySQL half is Done** (2026-10-25, below), including `taskflow.api` → `taskflow.mysql` `condition: service_healthy`. The `latest` tags and the other services' health checks still stand.
-- R14 (raised in `feature/ui-redesign` slice 1, 2026-11-08) Once the UI redesign's last slice lands, sweep `FE/src/styles/tokens.css`/`global.css` for tokens no component references any more (the pre-redesign ones a restyled screen stopped using) and delete them — don't leave unused CSS custom properties as dead code.
+- R14 (raised in `feature/ui-redesign` slice 1, 2026-11-08) — **Done**, `feature/ui-redesign` final cleanup (2026-11-09): swept `tokens.css`/`global.css`, removed 7 tokens with zero remaining references (`--color-kbd`, `--color-kbd-on-accent`, `--radius-kbd`, `--color-warning-ink`, `--color-text-2`, `--color-success-surface`, `--font-size-3xs`).
+- R15 (UI redesign backlog, `feature/ui-redesign`, 2026-11-09 — full rationale in `docs/design/SPEC.md` §10) — none of these are scheduled:
+  - **Team popover** (SPEC §5.2) and any **per-user in-progress count** display — both need a small read-only backend addition (an endpoint or field reporting how many `InProgress` tasks each user has; no migration) that this branch deliberately did not add.
+  - **`GET /tasks` `AssigneeId` filter** — confirmed absent (checked 2026-11-09 before building My tasks); My tasks instead filters the board's already-loaded data client-side, with a documented limitation (SPEC §10 point 9) for the Todo/"Up next" group once team-wide active Todo passes `BoardColumnPageSize` (50).
+  - **Assign picker sort/disable by capacity** ("HAS ROOM"/"AT CAPACITY" grouping, SPEC §5.5) — this is the same slice 3.5 already rejected 2026-11-05 (unit 3, above); still out of scope.
+  - **Overdue "Due today — not overdue yet"** and **"Flag cleared this week"** (SPEC §5.7) — out of scope per the signed-off `docs/reports/slice-5.4.md` T9, unchanged by the redesign.
+  - **`J`/`K`/`⌘↵`/`C` keyboard shortcuts** — never built in this app (confirmed by grep, slice 3); not added by the redesign, which only restyled what already existed.
 
 ## Session management redesign (raised by slice 1.8, designed by `architect`)
 
