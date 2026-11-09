@@ -125,12 +125,23 @@ export function MyTasksPage() {
     )
   }
 
-  const columnItems = (status: TaskStatus) => boardQuery.data.columns.find((c) => c.status === status)?.items ?? []
+  const column = (status: TaskStatus) => boardQuery.data.columns.find((c) => c.status === status)
+  const columnItems = (status: TaskStatus) => column(status)?.items ?? []
+  const columnHasMore = (status: TaskStatus) => {
+    const pagination = column(status)?.pagination
+    return pagination !== null && pagination !== undefined && columnItems(status).length < pagination.totalItems
+  }
   const mine = (items: TaskSummary[]) => items.filter((item) => item.assignee?.id === userId)
 
   const inProgress = mine(columnItems('InProgress'))
   const upNext = mine(columnItems('Todo'))
   const review = columnItems('Review')
+  // The board's own column page (BoardColumnPageSize = 50) may not hold every
+  // active task team-wide — this page never auto-fetches more of it (SPEC.md
+  // §10 point 9), so say so rather than silently showing a possibly-partial
+  // list as if it were complete.
+  const todoMayBeIncomplete = columnHasMore('Todo')
+  const reviewMayBeIncomplete = columnHasMore('Review')
 
   function handleMove(taskId: number, toStatus: TaskStatus, version: string) {
     moveMutation.mutate({ taskId, toStatus, version, taskTitle: `#${taskId}` })
@@ -180,6 +191,15 @@ export function MyTasksPage() {
         <h2 className="m-0 text-[length:var(--font-size-sm)] font-semibold text-text-muted">
           Up next <span className="font-normal">{upNext.length}</span>
         </h2>
+        {todoMayBeIncomplete && (
+          <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">
+            This list may not be complete —{' '}
+            <Link to="/board" className="text-accent-ink underline">
+              see the full Todo column on the Board
+            </Link>
+            .
+          </p>
+        )}
         {upNext.length === 0 ? (
           <p className="m-0 rounded-card-lg border border-dashed border-dashed-border p-[var(--space-4)] text-[length:var(--font-size-sm)] text-text-muted">
             Nothing queued up.
@@ -193,6 +213,15 @@ export function MyTasksPage() {
         <h2 className="m-0 text-[length:var(--font-size-sm)] font-semibold text-text-muted">
           Review <span className="font-normal">{review.length}</span>
         </h2>
+        {reviewMayBeIncomplete && (
+          <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">
+            This list may not be complete —{' '}
+            <Link to="/board" className="text-accent-ink underline">
+              see the full Review column on the Board
+            </Link>
+            .
+          </p>
+        )}
         {review.length === 0 ? (
           <p className="m-0 rounded-card-lg border border-dashed border-dashed-border p-[var(--space-4)] text-[length:var(--font-size-sm)] text-text-muted">
             Nothing waiting on you — no one has asked you to review, and none of your work is waiting on a reviewer.
