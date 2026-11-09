@@ -200,6 +200,7 @@ Found by reading the scaffold against the specs.
   - **Assign picker sort/disable by capacity** ("HAS ROOM"/"AT CAPACITY" grouping, SPEC §5.5) — this is the same slice 3.5 already rejected 2026-11-05 (unit 3, above); still out of scope.
   - **Overdue "Due today — not overdue yet"** and **"Flag cleared this week"** (SPEC §5.7) — out of scope per the signed-off `docs/reports/slice-5.4.md` T9, unchanged by the redesign.
   - **`J`/`K`/`⌘↵`/`C` keyboard shortcuts** — never built in this app (confirmed by grep, slice 3); not added by the redesign, which only restyled what already existed.
+  - **Dialog focus trap doesn't cycle `Tab`** — `useDialogA11y.ts` (shared by every dialog in the app) moves focus in on open, closes on Escape, and returns focus on close, but never intercepts `Tab`/`Shift+Tab` to wrap focus back inside the dialog — `Tab` from the last focusable element currently moves focus to the page behind it. Pre-existing (zero diff in this file across the whole redesign, confirmed by qa-lead 2026-11-09), not introduced or fixed here.
 
 ## Session management redesign (raised by slice 1.8, designed by `architect`)
 
