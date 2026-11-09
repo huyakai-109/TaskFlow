@@ -19,11 +19,9 @@
   --color-border: #e3e3e8;
   --color-border-strong: #cfcfd6;
   --color-text: #18181d;
-  --color-text-2: #3d3e46;
   --color-text-muted: #5e5f69;
   --color-text-inverse: #ffffff;
   --color-faint: #a3a4ae;
-  --color-kbd: #f2f2f5;
   --color-dashed-border: #cfcfd6;
   --color-side-panel: #f5f5f8;
   --color-overlay: rgb(24 24 29 / 32%);
@@ -34,7 +32,6 @@
   --color-accent-soft: #ebebfa;
   --color-accent-ink: #3a3aa6;
   --color-on-accent: #ffffff;
-  --color-kbd-on-accent: rgb(255 255 255 / 18%);
   --color-focus: #4f4fcc;
 
   /* Status feedback */
@@ -43,9 +40,7 @@
   --color-danger-border: #f2c3c5;
   --color-warning: #c85a14;
   --color-warning-surface: #fff6ec;
-  --color-warning-ink: #8a3b0b;
   --color-success: #1f7a4d;
-  --color-success-surface: #e6f4ec;
 
   /* Priority — F03 ranks Urgent above High above Normal */
   --color-priority-urgent: #d92f37;
@@ -99,7 +94,6 @@
   --radius-xl: 16px;
   --radius-pill: 999px;
   --radius-meter: 3px;
-  --radius-kbd: 5px;
   --radius-logo: 7px;
   --radius-control: 8px;
   --radius-control-lg: 9px;
@@ -108,7 +102,6 @@
   /* Type — Geist / Geist Mono are self-hosted, see global.css */
   --font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
-  --font-size-3xs: 0.5625rem;
   --font-size-2xs: 0.6875rem;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.8125rem;
@@ -135,11 +128,9 @@
     --color-border: #2d2d35;
     --color-border-strong: #3f3f49;
     --color-text: #ededf0;
-    --color-text-2: #d7d7de;
     --color-text-muted: #a3a4ae;
     --color-text-inverse: #111114;
     --color-faint: #80818b;
-    --color-kbd: #2a2a31;
     --color-dashed-border: #2d2d35;
     /* Not drawn in dark by the design; closest raised surface as a reasonable default. */
     --color-side-panel: #26262d;
@@ -150,7 +141,6 @@
     --color-accent-soft: #25253d;
     --color-accent-ink: #c4c4fa;
     --color-on-accent: #0e0e14;
-    --color-kbd-on-accent: rgb(14 14 20 / 16%);
     --color-focus: #8b8bf5;
 
     --color-danger: #ff8c8c;
@@ -158,10 +148,7 @@
     --color-danger-border: #5a2a30;
     --color-warning: #ff9f5a;
     --color-warning-surface: #3a2a1a;
-    /* Not drawn in dark by the design; reuses --color-warning as a reasonable default. */
-    --color-warning-ink: #ff9f5a;
     --color-success: #5fd39a;
-    --color-success-surface: #17301f;
 
     --color-priority-urgent: #ff6b6b;
     --color-priority-high: #ff9f5a;
@@ -198,11 +185,9 @@
   --color-border: #2d2d35;
   --color-border-strong: #3f3f49;
   --color-text: #ededf0;
-  --color-text-2: #d7d7de;
   --color-text-muted: #a3a4ae;
   --color-text-inverse: #111114;
   --color-faint: #80818b;
-  --color-kbd: #2a2a31;
   --color-dashed-border: #2d2d35;
   --color-side-panel: #26262d;
   --color-overlay: rgb(24 24 29 / 32%);
@@ -212,7 +197,6 @@
   --color-accent-soft: #25253d;
   --color-accent-ink: #c4c4fa;
   --color-on-accent: #0e0e14;
-  --color-kbd-on-accent: rgb(14 14 20 / 16%);
   --color-focus: #8b8bf5;
 
   --color-danger: #ff8c8c;
@@ -220,9 +204,7 @@
   --color-danger-border: #5a2a30;
   --color-warning: #ff9f5a;
   --color-warning-surface: #3a2a1a;
-  --color-warning-ink: #ff9f5a;
   --color-success: #5fd39a;
-  --color-success-surface: #17301f;
 
   --color-priority-urgent: #ff6b6b;
   --color-priority-high: #ff9f5a;
