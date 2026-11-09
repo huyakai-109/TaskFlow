@@ -4,6 +4,7 @@ import { useRef } from 'react'
 import { describeErrorCode } from '../../../api/errorMessages'
 import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
+import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
 
 interface AssigneePickerDialogProps {
   currentAssigneeId: number | null
@@ -19,7 +20,7 @@ const optionClass =
   'flex min-h-10 w-full cursor-pointer items-center rounded-sm border-0 bg-transparent px-[var(--space-3)] text-left text-text [font:inherit] [&:hover:not(:disabled)]:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-60'
 
 /**
- * `docs/ui/screens/AssignPicker.dc.html`, minus its "has room" sort and
+ * `docs/design/SPEC.md` §5.5 and `docs/design/png/AssignPicker.png`, minus its "has room" sort and
  * "at capacity" disabling — both are F02's rejected slice 3.5 ("Workload in
  * the picker", not scheduled, `docs/ROADMAP.md` unit 3). Listed
  * alphabetically; everyone enabled. Stays open on a non-conflict failure
@@ -43,14 +44,14 @@ export function AssigneePickerDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgb(16_16_24_/_40%)] p-[var(--space-4)]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-overlay p-[var(--space-4)]"
       onClick={() => !isPending && onClose()}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="ap-title"
-        className="flex w-full max-w-[360px] flex-col gap-[var(--space-3)] rounded-xl bg-surface-raised p-[var(--space-5)] shadow-raised"
+        className="flex w-full max-w-[360px] flex-col gap-[var(--space-3)] rounded-xl bg-surface-raised p-[var(--space-5)] shadow-modal"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center gap-[var(--space-2)]">
@@ -105,11 +106,22 @@ export function AssigneePickerDialog({
                 type="button"
                 className={clsx(
                   optionClass,
+                  'gap-[var(--space-2)]',
                   currentAssigneeId === assignee.id && 'bg-accent-soft font-semibold text-accent-ink',
                 )}
                 disabled={isPending}
                 onClick={() => onSelect(assignee.id)}
               >
+                <span
+                  aria-hidden="true"
+                  className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold"
+                  style={{
+                    backgroundColor: `var(--avatar-${avatarPaletteIndex(assignee.id)}-bg)`,
+                    color: `var(--avatar-${avatarPaletteIndex(assignee.id)}-ink)`,
+                  }}
+                >
+                  {initialsOf(assignee.userName)}
+                </span>
                 {assignee.userName}
               </button>
             </li>

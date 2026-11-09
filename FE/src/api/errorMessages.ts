@@ -1,7 +1,7 @@
 import { ApiError } from './client'
 
 /**
- * One error-code → copy map, per `docs/ui.md` ("Server error codes map to these
+ * One error-code → copy map, per `docs/design/SPEC.md` ("Server error codes map to these
  * messages in one place in the client"). Every call site renders through
  * `describeError` (have an `ApiError`) or `describeErrorCode` (have a bare
  * code already read off one, e.g. a mutation's `onError`) instead of inventing

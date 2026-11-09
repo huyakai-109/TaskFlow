@@ -2,12 +2,22 @@ import clsx from 'clsx'
 
 import { BOARD_COLUMNS } from '../../../api/types'
 import type { AllowedTransition, TaskStatus } from '../../../api/types'
+import { moveButtonLabel } from '../../../shared/lib/moveButtonLabel'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
 function CheckIcon() {
   return (
     <svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16">
       <path d="m3.5 8.2 3 3 6-6.2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function LockIcon() {
+  return (
+    <svg aria-hidden="true" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="7" width="10" height="7" rx="1.5" />
+      <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
     </svg>
   )
 }
@@ -23,7 +33,7 @@ interface WorkflowStripProps {
 }
 
 /**
- * The workflow stages plus the caller's legal actions. `docs/ui.md`'s
+ * The workflow stages plus the caller's legal actions. `docs/design/SPEC.md`'s
  * `TaskDetail.dc.html` draws exactly one next-step button because its sample
  * task is `InProgress`; `Review` legally offers two to a non-assignee
  * (`Done` and back to `InProgress`), so every `Move` entry in
@@ -46,17 +56,23 @@ export function WorkflowStrip({ status, moves, reopen, onMove, onReopenRequested
         className="m-0 flex list-none flex-wrap items-center gap-[var(--space-2)] p-0 text-[length:var(--font-size-sm)]"
       >
         {BOARD_COLUMNS.map((stage, index) => (
-          <li
-            key={stage}
-            aria-current={stage === status ? 'step' : undefined}
-            className={clsx(
-              'inline-flex items-center gap-[var(--space-2)] rounded-pill bg-column px-[var(--space-3)] py-[4px] text-text-muted',
-              stage === status && 'bg-accent-soft font-semibold text-accent-ink',
-              index > currentIndex && 'border border-dashed border-border-strong bg-transparent',
+          <li key={stage} className="flex items-center gap-[var(--space-2)]">
+            {index > 0 && (
+              <span aria-hidden="true" className="text-faint">
+                —
+              </span>
             )}
-          >
-            {index < currentIndex && <CheckIcon />}
-            {STATUS_LABELS[stage]}
+            <span
+              aria-current={stage === status ? 'step' : undefined}
+              className={clsx(
+                'inline-flex min-h-6 items-center gap-[var(--space-2)] rounded-lg bg-column px-[var(--space-3)] text-text-muted',
+                stage === status && 'bg-accent-soft font-semibold text-accent-ink',
+                index > currentIndex && 'min-h-[26px] border border-dashed border-border-strong bg-transparent',
+              )}
+            >
+              {index < currentIndex && <CheckIcon />}
+              {STATUS_LABELS[stage]}
+            </span>
           </li>
         ))}
       </ol>
@@ -69,7 +85,7 @@ export function WorkflowStrip({ status, moves, reopen, onMove, onReopenRequested
             className="inline-flex min-h-11 cursor-pointer items-center rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
             onClick={() => onMove(move.status)}
           >
-            Move to {STATUS_LABELS[move.status]}
+            {moveButtonLabel(status, move)}
           </button>
         ))}
 
@@ -84,7 +100,8 @@ export function WorkflowStrip({ status, moves, reopen, onMove, onReopenRequested
         )}
 
         {moves.length === 0 && reopen === undefined && (
-          <span className="text-[length:var(--font-size-sm)] text-text-muted">
+          <span className="flex items-center gap-[var(--space-2)] text-[length:var(--font-size-sm)] text-text-muted">
+            {status === 'Done' && <LockIcon />}
             {status === 'Done'
               ? "This one's finished. If it needs more work, a manager can reopen it."
               : status === 'Review'
@@ -93,6 +110,13 @@ export function WorkflowStrip({ status, moves, reopen, onMove, onReopenRequested
           </span>
         )}
       </div>
+
+      {moves.length === 1 && (
+        <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">
+          The only next step from {STATUS_LABELS[status]}.
+          {status === 'InProgress' && ' Anyone other than you can send it back here for rework.'}
+        </p>
+      )}
     </section>
   )
 }

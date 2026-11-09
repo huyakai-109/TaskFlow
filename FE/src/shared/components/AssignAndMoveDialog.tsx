@@ -1,8 +1,19 @@
+import clsx from 'clsx'
 import { useRef } from 'react'
 
 import { describeErrorCode } from '../../api/errorMessages'
 import { useDialogA11y } from '../hooks/useDialogA11y'
 import { useUsersQuery } from '../hooks/useUsersQuery'
+import { avatarPaletteIndex, initialsOf } from '../lib/avatar'
+
+function PersonIcon() {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+    </svg>
+  )
+}
 
 interface AssignAndMoveDialogProps {
   taskTitle: string
@@ -20,13 +31,13 @@ const optionClass =
   'flex min-h-11 w-full cursor-pointer items-center rounded-sm border-0 bg-transparent px-[var(--space-3)] text-left text-text [font:inherit] [&:hover:not(:disabled)]:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-60'
 
 /**
- * `Task.Move.AssigneeRequired`'s way out: `docs/ui.md` line 90, "the client
+ * `Task.Move.AssigneeRequired`'s way out: `docs/design/SPEC.md` §5.6, "the client
  * may chain both calls behind one button" — picking a name here does both
  * `PUT …/assignee` and `PUT …/status` (`useAssignAndMoveTaskMutation`). No
  * "Unassigned" option, unlike `AssigneePickerDialog`: an assignee is exactly
  * what this task is missing (F02 D5). Listed alphabetically, everyone
  * enabled — the "has room" sort and "at capacity" disabling from
- * `docs/ui/screens/AssignPicker.dc.html` are slice 3.5, not scheduled.
+ * `docs/design/SPEC.md` §5.5 and `docs/design/png/AssignPicker.png` are slice 3.5, not scheduled.
  */
 export function AssignAndMoveDialog({
   taskTitle,
@@ -45,7 +56,7 @@ export function AssignAndMoveDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgb(16_16_24_/_40%)] p-[var(--space-4)]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-overlay p-[var(--space-4)]"
       onClick={() => !isPending && onClose()}
     >
       <div
@@ -53,11 +64,17 @@ export function AssignAndMoveDialog({
         aria-modal="true"
         aria-labelledby="am-title"
         aria-describedby="am-description"
-        className="flex w-full max-w-[400px] flex-col gap-[var(--space-3)] rounded-xl bg-surface-raised p-[var(--space-5)] shadow-raised"
+        className="flex w-full max-w-[400px] flex-col gap-[var(--space-3)] rounded-xl bg-surface-raised p-[var(--space-5)] shadow-modal"
         onClick={(event) => event.stopPropagation()}
       >
+        <span
+          aria-hidden="true"
+          className="inline-flex size-8 items-center justify-center rounded-control bg-danger-surface text-danger"
+        >
+          <PersonIcon />
+        </span>
         <div className="flex items-center gap-[var(--space-2)]">
-          <h2 id="am-title" className="m-0 text-[length:var(--font-size-lg)] font-semibold">
+          <h2 id="am-title" className="m-0 text-[length:var(--font-size-dialog-title)] font-semibold">
             Pick someone to start it
           </h2>
           <button
@@ -73,7 +90,7 @@ export function AssignAndMoveDialog({
         </div>
 
         <p id="am-description" className="m-0 text-text-muted [line-height:var(--line-height)]">
-          &ldquo;{taskTitle}&rdquo; needs an assignee before it can move to {toStatusLabel}.
+          “{taskTitle}” needs an assignee before it can move to {toStatusLabel}.
         </p>
 
         {errorCode !== null && (
@@ -106,7 +123,22 @@ export function AssignAndMoveDialog({
         <ul role="listbox" aria-label="Assign to and start" className="m-0 flex list-none flex-col p-0">
           {assignees.map((assignee) => (
             <li key={assignee.id} role="option" aria-selected="false">
-              <button type="button" className={optionClass} disabled={isPending} onClick={() => onSelect(assignee.id)}>
+              <button
+                type="button"
+                className={clsx(optionClass, 'gap-[var(--space-2)]')}
+                disabled={isPending}
+                onClick={() => onSelect(assignee.id)}
+              >
+                <span
+                  aria-hidden="true"
+                  className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold"
+                  style={{
+                    backgroundColor: `var(--avatar-${avatarPaletteIndex(assignee.id)}-bg)`,
+                    color: `var(--avatar-${avatarPaletteIndex(assignee.id)}-ink)`,
+                  }}
+                >
+                  {initialsOf(assignee.userName)}
+                </span>
                 Assign to {assignee.userName} and start
               </button>
             </li>

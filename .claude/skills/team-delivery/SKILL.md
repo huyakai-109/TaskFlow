@@ -44,7 +44,7 @@ The goal is a running skeleton with one real path through it, not a feature set.
 - [ ] Database wired (local service by `devops-lead`, schema by the backend lead); first migration additive.
 - [ ] Authentication boundary, if the product has users.
 - [ ] Test project in place; first slice's business rules tested.
-- [ ] Frontend (if any): stack approved, conventions and tokens recorded in `docs/ui.md`.
+- [ ] Frontend (if any): stack approved, conventions and tokens recorded in `docs/design/SPEC.md`.
 - [ ] Dockerfile/compose when they make local setup or deployment easier; one CI workflow (build + test) when a remote repository exists — `devops-lead`, in parallel with the first slice, owning only infrastructure files.
 - [ ] Deployment approach written down — deciding is not deploying; `/ship setup` records it later.
 - [ ] One end-to-end slice implemented and verified.

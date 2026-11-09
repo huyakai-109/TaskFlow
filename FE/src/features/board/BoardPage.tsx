@@ -10,13 +10,13 @@ import { AssignAndMoveDialog } from '../../shared/components/AssignAndMoveDialog
 import { MoveRefusalDialog } from '../../shared/components/MoveRefusalDialog'
 import { MoveToast } from '../../shared/components/MoveToast'
 import { useAssignAndMoveTaskMutation } from '../../shared/hooks/useAssignAndMoveTaskMutation'
+import { useBoardQuery } from '../../shared/hooks/useBoardQuery'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
 import { useOverdueTasksQuery } from '../../shared/hooks/useOverdueTasksQuery'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 
 import { BoardColumn } from './components/BoardColumn'
 import { NewTaskDialog } from './components/NewTaskDialog'
-import { useBoardQuery } from './hooks/useBoardQuery'
 import { useColumnPagesQuery } from './hooks/useColumnPagesQuery'
 import { mergeColumnItems } from './utils/mergeColumnItems'
 
@@ -68,13 +68,13 @@ const CONFLICT_CODES = new Set(['Task.Move.Conflict', 'Task.Move.NotFound'])
 /**
  * The board: five fixed columns, drag-and-drop between them (F01 D9, D10).
  * Every move available by drag is also a button on the card (`TaskCard`), so
- * the non-drag path is never a lesser one (`docs/ui.md` "Keep a non-drag
+ * the non-drag path is never a lesser one (`docs/design/SPEC.md` "Keep a non-drag
  * path"). A column not in the dragged card's own `allowedTransitions` is a
  * genuinely disabled drop target, not just a dimmed one (`BoardColumn`).
  *
  * The sidebar, search, team-capacity popover and "N at capacity" chip from the
  * wireframe are left out here: they need F02 (capacity), a user roster or
- * routes this slice does not build (`docs/ui.md`'s MVP scope note). The
+ * routes this slice does not build (`docs/design/SPEC.md`'s MVP scope note). The
  * "N overdue" chip stays and links to `/overdue` (F05 T9); its count comes
  * from `useOverdueTasksQuery`'s `pagination.totalItems` — the same source of
  * truth as the Overdue view — rather than counting only the loaded page of
@@ -221,26 +221,41 @@ export function BoardPage() {
 
   return (
     <section>
+      {/*
+       * `docs/design/SPEC.md` §5.1 toolbar, trimmed per §10 Gate A: no List
+       * segment (view doesn't exist — a dead segment is worse than none), no
+       * "N at capacity" pill or avatar stack/Team-capacity popover (per-user
+       * capacity counts are deferred BE work, point 3).
+       */}
       <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-        <h2 className="text-[length:var(--font-size-xl)] font-semibold">Board</h2>
+        <h1 className="m-0 inline-flex min-h-9 items-center rounded-control-lg bg-column px-[var(--space-3)] text-[length:var(--font-size-sm)] font-semibold">
+          Board
+        </h1>
         <span
-          className="text-[length:var(--font-size-sm)] text-text-muted"
+          className="inline-flex min-h-9 items-center gap-[var(--space-1)] rounded-control-lg border border-border px-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted"
           title="Urgent → High → Normal, then earliest due date. Tasks with no date go last."
         >
-          Sort: <strong>Priority</strong>
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 4v16M7 4 4 7M7 4l3 3M17 20V4M17 20l-3-3M17 20l3-3" />
+          </svg>
+          Sort: <strong className="ml-[var(--space-1)] font-semibold text-text">Priority</strong>
         </span>
         <div className="ml-auto flex items-center gap-[var(--space-3)] max-[600px]:ml-0">
           {overdueCount > 0 && (
             <Link
               to="/overdue"
-              className="inline-flex items-center rounded-pill bg-overdue-surface px-[var(--space-3)] py-[2px] text-[length:var(--font-size-sm)] font-semibold text-overdue no-underline hover:underline"
+              className="inline-flex min-h-9 items-center gap-[var(--space-1)] rounded-pill bg-overdue-surface px-[var(--space-3)] text-[length:var(--font-size-sm)] font-semibold text-overdue no-underline hover:underline"
             >
+              <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+              </svg>
               {overdueCount} overdue
             </Link>
           )}
           <button
             type="button"
-            className="min-h-10 cursor-pointer rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
+            className="min-h-10 cursor-pointer rounded-control-lg border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
             onClick={() => setCreateOpen(true)}
           >
             New task

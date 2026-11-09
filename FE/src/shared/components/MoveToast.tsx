@@ -6,7 +6,7 @@ interface MoveToastProps {
 }
 
 /**
- * The dark pill toast `docs/ui.md` calls for ("a short confirmation"), reused
+ * The dark pill toast `docs/design/SPEC.md` calls for ("a short confirmation"), reused
  * here for a conflict/not-found move: the board or task view has already
  * refetched by the time this shows, so it is a notice, not a blocking dialog.
  */

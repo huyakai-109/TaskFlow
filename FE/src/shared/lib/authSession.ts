@@ -1,4 +1,5 @@
-import { setPermissionsListener, setSessionExpiredListener } from '../../api/client'
+import { getAccessToken, setPermissionsListener, setSessionExpiredListener } from '../../api/client'
+import { getUserIdFromToken } from './jwt'
 
 /**
  * Module-level session store (`docs/features/f01-login.md` file list):
@@ -13,9 +14,11 @@ export type AuthStatus = 'unknown' | 'authenticated' | 'unauthenticated'
 export interface AuthSessionSnapshot {
   status: AuthStatus
   permissions: string[]
+  /** From the access token's own `nameid` claim — read once here so the sidebar can look the caller up by id (`shared/lib/jwt.ts`). */
+  userId: number | null
 }
 
-let snapshot: AuthSessionSnapshot = { status: 'unknown', permissions: [] }
+let snapshot: AuthSessionSnapshot = { status: 'unknown', permissions: [], userId: null }
 const listeners = new Set<() => void>()
 
 function emit(): void {
@@ -36,12 +39,13 @@ export function getSnapshot(): AuthSessionSnapshot {
 }
 
 export function setSession(permissions: string[]): void {
-  snapshot = { status: 'authenticated', permissions }
+  const token = getAccessToken()
+  snapshot = { status: 'authenticated', permissions, userId: token === null ? null : getUserIdFromToken(token) }
   emit()
 }
 
 export function clearSession(): void {
-  snapshot = { status: 'unauthenticated', permissions: [] }
+  snapshot = { status: 'unauthenticated', permissions: [], userId: null }
   emit()
 }
 

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 import type { TaskDetail, TaskPriority } from '../../../api/types'
+import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
 const dateTimeFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -56,13 +57,13 @@ interface PropertiesPanelProps {
 
 /**
  * The properties panel. No "Reviewer" field: F01 D5 has no reviewer role —
- * `docs/ui.md`'s "Wireframe vs. decided specs" table says to drop it and let
+ * `docs/design/SPEC.md`'s "Wireframe vs. decided specs" table says to drop it and let
  * the history timeline show who submitted the task for review instead.
  *
  * Priority and due date are edited inline (`PUT …/priority`, `PUT …/due-date`);
  * assignee opens `AssigneePickerDialog` instead of an inline control, because
  * "Unassigned" plus a names list does not fit a one-line row as cleanly as a
- * dropdown does for priority — `docs/ui.md` does not say either way for this
+ * dropdown does for priority — `docs/design/SPEC.md` does not say either way for this
  * screen's not-yet-designed controls, so this is a deliberate pick, not a
  * guess at a spec.
  */
@@ -77,10 +78,13 @@ export function PropertiesPanel({
   onOpenAssigneePicker,
   isAssigneePending,
 }: PropertiesPanelProps) {
+  const usersQuery = useUsersQuery()
+  const createdByName = usersQuery.data?.find((user) => user.id === task.createdBy)?.userName ?? null
+
   return (
     <aside
       aria-label="Properties"
-      className="flex min-w-[260px] max-w-[360px] flex-[1_1_300px] flex-col gap-[var(--space-1)] rounded-xl border border-border bg-column p-[var(--space-5)]"
+      className="flex min-w-[260px] max-w-[300px] flex-[1_1_300px] flex-col gap-[var(--space-1)] rounded-xl border border-border bg-side-panel p-[var(--space-5)]"
     >
       <PropertyRow label="Status">{STATUS_LABELS[task.status]}</PropertyRow>
 
@@ -142,13 +146,21 @@ export function PropertiesPanel({
           </span>
         )}
       </PropertyRow>
+      {task.isOverdue && (
+        <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">
+          Moving the date into the future clears the overdue flag.
+        </p>
+      )}
       {dueDateError !== null && (
         <p role="alert" className={fieldErrorClass}>
           {dueDateError}
         </p>
       )}
 
-      <PropertyRow label="Created">{formatInstant(task.createdAt)}</PropertyRow>
+      <PropertyRow label="Created">
+        {formatInstant(task.createdAt)}
+        {createdByName !== null && ` by ${createdByName}`}
+      </PropertyRow>
       <PropertyRow label="Updated">{formatInstant(task.updatedAt)}</PropertyRow>
     </aside>
   )

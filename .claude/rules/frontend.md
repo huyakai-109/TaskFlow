@@ -21,10 +21,10 @@ Client-side code. The kit carries no frontend house style: **every convention co
 | Framework + version, language strictness, build tool, commands (dev, build, lint, typecheck, test) | `package.json`, lockfile, `tsconfig`, framework config, CI |
 | Structure — by feature or by type; where pages, components, hooks/services, types live | directory tree |
 | Component, state, data-fetching, form, routing/guard, styling and i18n conventions | two comparable screens, read end to end — ideally one list and one form |
-| Design system — component library, tokens (colour, spacing, type), layout shell, any UI doc (`docs/ui.md`, a design-system folder) | styles setup, shared UI folder |
+| Design system — component library, tokens (colour, spacing, type), layout shell, any UI doc (`docs/design/SPEC.md`, a design-system folder) | styles setup, shared UI folder |
 
 - **[M]** Never assume React, Angular, Vue, Tailwind, a state library or anything else — read it. Never write code in a framework the project does not use.
-- **[M]** No client code exists → do not pick a stack. Ask, unless the user approved a stack during `team-delivery` bootstrap; then record its conventions in `docs/ui.md` (tokens, component library, layout shell, breakpoints) so every later screen follows one source.
+- **[M]** No client code exists → do not pick a stack. Ask, unless the user approved a stack during `team-delivery` bootstrap; then record its conventions in `docs/design/SPEC.md` (tokens, component library, layout shell, breakpoints) so every later screen follows one source.
 
 ## 2. Structure and components
 

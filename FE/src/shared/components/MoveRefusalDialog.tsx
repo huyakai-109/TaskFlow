@@ -3,6 +3,14 @@ import { useEffect, useRef } from 'react'
 import { describeErrorCode } from '../../api/errorMessages'
 import { DEFAULT_REFUSAL_TITLE, MOVE_REFUSAL_TITLES } from '../lib/moveRefusalTitles'
 
+function ArrowIcon() {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  )
+}
+
 interface MoveRefusalDialogProps {
   code: string | null
   taskTitle: string
@@ -12,7 +20,7 @@ interface MoveRefusalDialogProps {
 }
 
 /**
- * The blocked-move dialog (`docs/ui/screens/BlockedActions.dc.html`): names
+ * The blocked-move dialog (`docs/design/SPEC.md` §5.6 and `docs/design/png/BlockedActions.png`): names
  * the task and the rule, then offers the one way out — here, just
  * acknowledging it and trying a legal move instead, since the dialog closes
  * onto a board/detail view that already shows the legal moves as buttons.
@@ -47,7 +55,7 @@ export function MoveRefusalDialog({ code, taskTitle, message = null, onClose }: 
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgb(16_16_24_/_40%)] p-[var(--space-4)]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-overlay p-[var(--space-4)]"
       onClick={onClose}
     >
       <div
@@ -55,10 +63,16 @@ export function MoveRefusalDialog({ code, taskTitle, message = null, onClose }: 
         aria-modal="true"
         aria-labelledby="move-refusal-title"
         aria-describedby="move-refusal-description"
-        className="flex max-w-[420px] flex-col gap-[var(--space-3)] rounded-xl bg-surface-raised p-[var(--space-5)] shadow-raised"
+        className="flex max-w-[420px] flex-col gap-[var(--space-3)] rounded-xl bg-surface-raised p-[var(--space-5)] shadow-modal"
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 id="move-refusal-title" className="text-[length:var(--font-size-lg)] font-semibold">
+        <span
+          aria-hidden="true"
+          className="inline-flex size-8 items-center justify-center rounded-control bg-column text-text-muted"
+        >
+          <ArrowIcon />
+        </span>
+        <h2 id="move-refusal-title" className="text-[length:var(--font-size-dialog-title)] font-semibold">
           {title}
         </h2>
         <p id="move-refusal-description" className="text-text-muted [line-height:var(--line-height)]">

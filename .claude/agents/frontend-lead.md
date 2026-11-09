@@ -13,7 +13,7 @@ You are the Frontend Lead. The kit carries no frontend house style: every conven
 2. Do the discovery in `frontend.md` §1 (it loads when you open the first client file) and report it in a few lines: framework and version, structure, component/state/data/form/styling conventions, design system, commands. Anything not found is `UNVERIFIED`.
 3. Read two comparable screens end to end and model the work on them. State the plan in 2–3 lines.
 
-No client code exists → stop and ask, unless the brief says the user approved a stack for bootstrap; then record its conventions in `docs/ui.md` first.
+No client code exists → stop and ask, unless the brief says the user approved a stack for bootstrap; then record its conventions in `docs/design/SPEC.md` first.
 
 ## Scope
 

@@ -4,58 +4,18 @@ import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 
 import type { TaskStatus, TaskSummary } from '../../../api/types'
+import { chipBase, DueChip, OverdueChip } from '../../../shared/components/DueDateChips'
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
+import { dueDateFormatter } from '../../../shared/lib/dueDate'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
-const chipBase =
-  'inline-flex items-center gap-[var(--space-1)] rounded-sm border border-border px-[var(--space-2)] py-[2px]'
-
-const dueDateFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })
-
-/**
- * `dueDate` is a calendar date with no zone of its own (F01); "today" for the
- * due chip is read from the browser's local date, which is an approximation
- * of the server's `Asia/Ho_Chi_Minh` "today" used for `isOverdue` (F05). The
- * server's `isOverdue` flag, not this comparison, is what the overdue chip
- * below is driven by.
- */
-function parseDueDate(dueDate: string): Date {
-  const [year, month, day] = dueDate.split('-').map(Number)
-  return new Date(year, month - 1, day)
-}
-
-function isToday(dueDate: string): boolean {
-  const today = new Date()
-  const parsed = parseDueDate(dueDate)
+function LockIcon() {
   return (
-    parsed.getFullYear() === today.getFullYear() &&
-    parsed.getMonth() === today.getMonth() &&
-    parsed.getDate() === today.getDate()
-  )
-}
-
-function DueChip({ dueDate }: { dueDate: string | null }) {
-  if (dueDate === null) {
-    return <span className={clsx(chipBase, 'border-dashed')}>No due date</span>
-  }
-
-  if (isToday(dueDate)) {
-    return <span className={clsx(chipBase, 'font-medium text-text')}>Due today</span>
-  }
-
-  return <span className={chipBase}>{dueDateFormatter.format(parseDueDate(dueDate))}</span>
-}
-
-function OverdueChip({ dueDate }: { dueDate: string | null }) {
-  return (
-    <span className={clsx(chipBase, 'border-transparent bg-overdue-surface font-semibold text-overdue')}>
-      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7v5l3 2" />
-      </svg>
-      {dueDate === null ? 'Overdue' : `Overdue · ${dueDateFormatter.format(parseDueDate(dueDate))}`}
-    </span>
+    <svg aria-hidden="true" width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="7" width="10" height="7" rx="1.5" />
+      <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" />
+    </svg>
   )
 }
 
@@ -80,7 +40,7 @@ interface TaskCardProps {
 /**
  * A board card: draggable to any column in its own `allowedTransitions` (F01
  * D10), plus the same moves as plain buttons underneath — the "non-drag path"
- * `docs/ui.md` requires for keyboard and screen-reader users. The drag handle
+ * `docs/design/SPEC.md` requires for keyboard and screen-reader users. The drag handle
  * itself is `aria-hidden` and out of the tab order: it is a pointer-only
  * shortcut, not a second way to reach the same action for keyboard users, who
  * use the buttons instead.
@@ -96,20 +56,23 @@ export function TaskCard({ task, onMove }: TaskCardProps) {
   const style: CSSProperties | undefined =
     transform !== null ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 10 } : undefined
 
+  const isDone = task.status === 'Done'
+
   return (
     <article
       ref={setNodeRef}
       style={style}
       className={clsx(
-        'flex flex-col gap-[var(--space-2)] rounded-md border border-border bg-surface p-[var(--space-3)] shadow-card',
+        'flex flex-col gap-[var(--space-2)] rounded-md border border-border bg-surface p-[13px] shadow-card',
         task.isOverdue && 'border-overdue-border',
+        isDone && 'opacity-85',
         isDragging && 'opacity-60 shadow-raised',
       )}
     >
       <div className="flex items-center gap-[var(--space-2)]">
         <Link
           to={`/tasks/${task.id}`}
-          className="font-mono text-[length:var(--font-size-xs)] text-text-muted no-underline hover:underline"
+          className="font-mono text-[length:var(--font-size-2xs)] text-text-muted no-underline hover:underline"
         >
           #{task.id}
         </Link>
@@ -139,7 +102,12 @@ export function TaskCard({ task, onMove }: TaskCardProps) {
           </span>
         )}
       </div>
-      <h3 className="m-0 text-[length:var(--font-size-base)] font-medium [line-height:1.4]">
+      <h3
+        className={clsx(
+          'm-0 text-[length:var(--font-size-base)] font-medium [line-height:20px]',
+          isDone && 'text-text-muted',
+        )}
+      >
         <Link to={`/tasks/${task.id}`} className="text-inherit no-underline hover:underline">
           {task.title}
         </Link>
@@ -151,6 +119,13 @@ export function TaskCard({ task, onMove }: TaskCardProps) {
         </span>
         {task.isOverdue ? <OverdueChip dueDate={task.dueDate} /> : <DueChip dueDate={task.dueDate} />}
       </div>
+      {isDone && (
+        <p className="m-0 flex items-center gap-[var(--space-1)] text-[length:var(--font-size-xs)] text-text-muted">
+          <LockIcon />
+          Locked
+          {task.completedAt !== null && ` · ${dueDateFormatter.format(new Date(task.completedAt))}`}
+        </p>
+      )}
       {moves.length > 0 && (
         <div className="flex flex-wrap gap-[var(--space-2)]" role="group" aria-label={`Move "${task.title}" to`}>
           {moves.map((move) => (

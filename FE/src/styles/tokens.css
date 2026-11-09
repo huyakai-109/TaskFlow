@@ -2,7 +2,7 @@
  * Design tokens. Every colour, space and radius in the app comes from here —
  * components reference `var(--…)` and never a literal colour.
  *
- * Values follow the TaskFlow wireframe (docs/ui.md, docs/ui/screens/).
+ * Values follow the TaskFlow wireframe (docs/design/SPEC.md, docs/design/png/).
  *
  * Light is the default. Dark follows the OS under `prefers-color-scheme`, and
  * `data-theme` on <html> overrides either way, so a future theme switch needs no
@@ -21,7 +21,10 @@
   --color-text: #18181d;
   --color-text-muted: #5e5f69;
   --color-text-inverse: #ffffff;
-  --color-kbd: #f2f2f5;
+  --color-faint: #a3a4ae;
+  --color-dashed-border: #cfcfd6;
+  --color-side-panel: #f5f5f8;
+  --color-overlay: rgb(24 24 29 / 32%);
 
   /* Interaction */
   --color-accent: #4f4fcc;
@@ -38,7 +41,6 @@
   --color-warning: #c85a14;
   --color-warning-surface: #fff6ec;
   --color-success: #1f7a4d;
-  --color-success-surface: #e6f4ec;
 
   /* Priority — F03 ranks Urgent above High above Normal */
   --color-priority-urgent: #d92f37;
@@ -69,6 +71,8 @@
 
   --shadow-card: 0 1px 2px rgb(16 16 24 / 6%);
   --shadow-raised: 0 16px 40px rgb(16 16 24 / 16%);
+  --shadow-modal: 0 12px 32px rgb(16 16 24 / 10%);
+  --shadow-modal-lg: 0 24px 64px rgb(16 16 24 / 24%);
 
   /* Spacing */
   --space-1: 0.25rem;
@@ -78,21 +82,36 @@
   --space-5: 1.5rem;
   --space-6: 2rem;
 
-  /* Shape — chip · card · column · popover/dialog */
+  /*
+   * Shape. sm/md/lg/xl/pill (existing) already cover the wireframe's chip 6 ·
+   * card 10 · column 12 · modal 16 · pill radii. The remaining sizes from
+   * `docs/design/SPEC.md` §2.3 that don't land on that scale get their own
+   * tokens, named by role rather than size, so a later resize doesn't ripple.
+   */
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-pill: 999px;
+  --radius-meter: 3px;
+  --radius-logo: 7px;
+  --radius-control: 8px;
+  --radius-control-lg: 9px;
+  --radius-card-lg: 14px;
 
   /* Type — Geist / Geist Mono are self-hosted, see global.css */
   --font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --font-size-2xs: 0.6875rem;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.8125rem;
   --font-size-base: 0.875rem;
+  --font-size-md: 0.9375rem;
+  --font-size-dialog-title: 1rem;
   --font-size-lg: 1.125rem;
+  --font-size-greeting: 1.25rem;
   --font-size-xl: 1.5rem;
+  --font-size-display: 1.875rem;
   --line-height: 1.5;
 
   /* Motion — honoured only when the user allows it, see global.css */
@@ -111,7 +130,11 @@
     --color-text: #ededf0;
     --color-text-muted: #a3a4ae;
     --color-text-inverse: #111114;
-    --color-kbd: #2a2a31;
+    --color-faint: #80818b;
+    --color-dashed-border: #2d2d35;
+    /* Not drawn in dark by the design; closest raised surface as a reasonable default. */
+    --color-side-panel: #26262d;
+    --color-overlay: rgb(24 24 29 / 32%);
 
     --color-accent: #8b8bf5;
     --color-accent-hover: #a3a3f8;
@@ -126,7 +149,6 @@
     --color-warning: #ff9f5a;
     --color-warning-surface: #3a2a1a;
     --color-success: #5fd39a;
-    --color-success-surface: #17301f;
 
     --color-priority-urgent: #ff6b6b;
     --color-priority-high: #ff9f5a;
@@ -149,6 +171,8 @@
 
     --shadow-card: none;
     --shadow-raised: 0 16px 40px rgb(0 0 0 / 55%);
+    --shadow-modal: 0 12px 32px rgb(0 0 0 / 45%);
+    --shadow-modal-lg: 0 24px 64px rgb(0 0 0 / 55%);
   }
 }
 
@@ -163,7 +187,10 @@
   --color-text: #ededf0;
   --color-text-muted: #a3a4ae;
   --color-text-inverse: #111114;
-  --color-kbd: #2a2a31;
+  --color-faint: #80818b;
+  --color-dashed-border: #2d2d35;
+  --color-side-panel: #26262d;
+  --color-overlay: rgb(24 24 29 / 32%);
 
   --color-accent: #8b8bf5;
   --color-accent-hover: #a3a3f8;
@@ -178,7 +205,6 @@
   --color-warning: #ff9f5a;
   --color-warning-surface: #3a2a1a;
   --color-success: #5fd39a;
-  --color-success-surface: #17301f;
 
   --color-priority-urgent: #ff6b6b;
   --color-priority-high: #ff9f5a;
@@ -201,4 +227,6 @@
 
   --shadow-card: none;
   --shadow-raised: 0 16px 40px rgb(0 0 0 / 55%);
+  --shadow-modal: 0 12px 32px rgb(0 0 0 / 45%);
+  --shadow-modal-lg: 0 24px 64px rgb(0 0 0 / 55%);
 }
