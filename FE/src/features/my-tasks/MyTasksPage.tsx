@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 
 import { describeError, describeErrorCode } from '../../api/errorMessages'
 import type { TaskStatus, TaskSummary } from '../../api/types'
+import { DueChip, OverdueChip } from '../../shared/components/DueDateChips'
 import { MoveToast } from '../../shared/components/MoveToast'
 import { PriorityIcon } from '../../shared/components/PriorityIcon'
 import { useAuthSession } from '../../shared/hooks/useAuthSession'
@@ -10,7 +11,6 @@ import { useBoardQuery } from '../../shared/hooks/useBoardQuery'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
 import { useUsersQuery } from '../../shared/hooks/useUsersQuery'
 import { avatarPaletteIndex, initialsOf } from '../../shared/lib/avatar'
-import { dueDateFormatter, isToday, parseDueDate } from '../../shared/lib/dueDate'
 import { moveButtonLabel } from '../../shared/lib/moveButtonLabel'
 
 /** "Good morning"/"afternoon"/"evening" by the viewer's local clock — decorative copy only, not a server fact. */
@@ -21,27 +21,17 @@ function greetingWord(): string {
   return 'evening'
 }
 
-function dueLabel(task: TaskSummary): string {
-  if (task.dueDate === null) {
-    return 'No due date'
-  }
-  if (task.isOverdue) {
-    return `Overdue · ${dueDateFormatter.format(parseDueDate(task.dueDate))}`
-  }
-  if (isToday(task.dueDate)) {
-    return 'Due today'
-  }
-  return `Due ${dueDateFormatter.format(parseDueDate(task.dueDate))}`
-}
-
 interface TaskRowProps {
   task: TaskSummary
   primary?: boolean
-  onMove: (taskId: number, toStatus: TaskStatus, version: string) => void
+  /** Set only for a Todo→InProgress "Start" row while the viewer is already at 3 in progress — disables the button and shows why (SPEC §5.8's "Frees up when one of your 3 moves to Review."), a client-side hint only; the server stays the real enforcer. */
+  disabledReason?: string
+  onMove: (taskId: number, toStatus: TaskStatus, version: string, taskTitle: string) => void
 }
 
-function TaskRow({ task, primary = false, onMove }: TaskRowProps) {
+function TaskRow({ task, primary = false, disabledReason, onMove }: TaskRowProps) {
   const move = task.allowedTransitions.find((t) => t.operation === 'Move')
+  const disabled = disabledReason !== undefined
 
   return (
     <div className="flex flex-wrap items-center gap-[var(--space-3)] rounded-card-lg border border-border bg-surface p-[var(--space-3)]">
@@ -62,22 +52,29 @@ function TaskRow({ task, primary = false, onMove }: TaskRowProps) {
         <Link to={`/tasks/${task.id}`} className="truncate font-medium text-text no-underline hover:underline">
           {task.title} <span className="font-mono text-[length:var(--font-size-2xs)] text-text-muted">#{task.id}</span>
         </Link>
-        <span className={task.isOverdue ? 'text-[length:var(--font-size-xs)] font-semibold text-overdue' : 'text-[length:var(--font-size-xs)] text-text-muted'}>
-          {dueLabel(task)}
+        <span className="mt-[2px] flex flex-wrap gap-[var(--space-2)]">
+          {task.isOverdue ? <OverdueChip dueDate={task.dueDate} /> : <DueChip dueDate={task.dueDate} />}
         </span>
       </div>
       {move !== undefined && (
-        <button
-          type="button"
-          className={
-            primary
-              ? 'min-h-10 cursor-pointer rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover'
-              : 'min-h-10 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-4)] font-medium text-text hover:bg-column'
-          }
-          onClick={() => onMove(task.id, move.status, task.version)}
-        >
-          {moveButtonLabel(task.status, move)}
-        </button>
+        <div className="flex flex-col items-end gap-[2px]">
+          <button
+            type="button"
+            disabled={disabled}
+            title={disabledReason}
+            className={
+              primary
+                ? 'min-h-10 cursor-pointer rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60'
+                : 'min-h-10 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-4)] font-medium text-text hover:bg-column disabled:cursor-not-allowed disabled:opacity-60'
+            }
+            onClick={() => onMove(task.id, move.status, task.version, task.title)}
+          >
+            {moveButtonLabel(task.status, move)}
+          </button>
+          {disabledReason !== undefined && (
+            <span className="max-w-[200px] text-right text-[length:var(--font-size-2xs)] text-text-muted">{disabledReason}</span>
+          )}
+        </div>
       )}
     </div>
   )
@@ -143,8 +140,8 @@ export function MyTasksPage() {
   const todoMayBeIncomplete = columnHasMore('Todo')
   const reviewMayBeIncomplete = columnHasMore('Review')
 
-  function handleMove(taskId: number, toStatus: TaskStatus, version: string) {
-    moveMutation.mutate({ taskId, toStatus, version, taskTitle: `#${taskId}` })
+  function handleMove(taskId: number, toStatus: TaskStatus, version: string, taskTitle: string) {
+    moveMutation.mutate({ taskId, toStatus, version, taskTitle })
   }
 
   return (
@@ -183,7 +180,9 @@ export function MyTasksPage() {
             Nothing in progress.
           </p>
         ) : (
-          inProgress.map((task, index) => <TaskRow key={task.id} task={task} primary={index === 0} onMove={handleMove} />)
+          inProgress.map((task, index) => (
+            <TaskRow key={task.id} task={task} primary={index === 0} onMove={handleMove} />
+          ))
         )}
       </div>
 
@@ -205,7 +204,14 @@ export function MyTasksPage() {
             Nothing queued up.
           </p>
         ) : (
-          upNext.map((task) => <TaskRow key={task.id} task={task} onMove={handleMove} />)
+          upNext.map((task) => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              disabledReason={inProgress.length >= 3 ? 'Frees up when one of your 3 moves to Review.' : undefined}
+              onMove={handleMove}
+            />
+          ))
         )}
       </div>
 

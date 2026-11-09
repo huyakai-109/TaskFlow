@@ -4,36 +4,11 @@ import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 
 import type { TaskStatus, TaskSummary } from '../../../api/types'
+import { chipBase, DueChip, OverdueChip } from '../../../shared/components/DueDateChips'
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
-import { daysLate, dueDateFormatter, isToday, parseDueDate } from '../../../shared/lib/dueDate'
+import { dueDateFormatter } from '../../../shared/lib/dueDate'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
-
-const chipBase = 'inline-flex min-h-[21px] items-center gap-[var(--space-1)] rounded-sm border border-border px-[var(--space-2)]'
-
-function DueChip({ dueDate }: { dueDate: string | null }) {
-  if (dueDate === null) {
-    return <span className={clsx(chipBase, 'border-dashed border-dashed-border')}>No due date</span>
-  }
-
-  if (isToday(dueDate)) {
-    return <span className={clsx(chipBase, 'font-medium text-text')}>Due today</span>
-  }
-
-  return <span className={chipBase}>{dueDateFormatter.format(parseDueDate(dueDate))}</span>
-}
-
-function OverdueChip({ dueDate }: { dueDate: string | null }) {
-  return (
-    <span className={clsx(chipBase, 'border-transparent bg-overdue-surface font-semibold text-overdue')}>
-      <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7v5l3 2" />
-      </svg>
-      {dueDate === null ? 'Overdue' : `Overdue ${daysLate(dueDate)}d`}
-    </span>
-  )
-}
 
 function LockIcon() {
   return (
