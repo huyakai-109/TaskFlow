@@ -95,7 +95,6 @@ export function BoardPage() {
     toStatus: TaskStatus
     taskTitle: string
     version: string
-    reasonMessage: string | null
   } | null>(null)
   const [assignAndMoveErrorCode, setAssignAndMoveErrorCode] = useState<string | null>(null)
   const [assignAndMoveErrorMessage, setAssignAndMoveErrorMessage] = useState<string | null>(null)
@@ -146,12 +145,7 @@ export function BoardPage() {
         return
       }
 
-      // A task with no assignee at all, and a task whose assignee is already
-      // full, both resolve the same way — reassign and retry the same move
-      // (approved 2026-11-09, folding SPEC.md §5.6's "Lan is at capacity"
-      // picker into the existing AssigneeRequired flow rather than leaving it
-      // a dead-end refusal).
-      if (code === 'Task.Move.AssigneeRequired' || code === 'Task.Move.CapacityReached') {
+      if (code === 'Task.Move.AssigneeRequired') {
         setAssignAndMoveErrorCode(null)
         setAssignAndMoveErrorMessage(null)
         setAssignAndMove({
@@ -159,7 +153,6 @@ export function BoardPage() {
           toStatus: variables.toStatus,
           taskTitle: variables.taskTitle,
           version: variables.version,
-          reasonMessage: code === 'Task.Move.CapacityReached' ? describeErrorCode(code, message) : null,
         })
         return
       }
@@ -334,7 +327,6 @@ export function BoardPage() {
         <AssignAndMoveDialog
           taskTitle={assignAndMove.taskTitle}
           toStatusLabel={STATUS_LABELS[assignAndMove.toStatus]}
-          reasonMessage={assignAndMove.reasonMessage ?? undefined}
           isPending={assignAndMoveMutation.isPending}
           errorCode={assignAndMoveErrorCode}
           errorMessage={assignAndMoveErrorMessage}

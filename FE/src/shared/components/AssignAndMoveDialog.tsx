@@ -19,13 +19,6 @@ interface AssignAndMoveDialogProps {
   taskTitle: string
   /** Display label for the target column, e.g. "In Progress". */
   toStatusLabel: string
-  /**
-   * Why this dialog opened — `Task.Move.AssigneeRequired`'s generic sentence
-   * by default, or the server's own `Task.Move.CapacityReached` message
-   * (names the current assignee and the limit) when that's what triggered
-   * it. Same dialog, same chained assign-then-move, different opening line.
-   */
-  reasonMessage?: string
   isPending: boolean
   errorCode: string | null
   /** The server's raw `error` string — shown verbatim for `CapacityReached`. */
@@ -49,7 +42,6 @@ const optionClass =
 export function AssignAndMoveDialog({
   taskTitle,
   toStatusLabel,
-  reasonMessage,
   isPending,
   errorCode,
   errorMessage,
@@ -98,7 +90,7 @@ export function AssignAndMoveDialog({
         </div>
 
         <p id="am-description" className="m-0 text-text-muted [line-height:var(--line-height)]">
-          {reasonMessage ?? `“${taskTitle}” needs an assignee before it can move to ${toStatusLabel}.`}
+          “{taskTitle}” needs an assignee before it can move to {toStatusLabel}.
         </p>
 
         {errorCode !== null && (

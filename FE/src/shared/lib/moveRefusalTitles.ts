@@ -10,17 +10,21 @@
  * failing"), so those get a toast instead of a dialog (`MoveToast` in
  * `BoardPage`/`TaskDetailPage`).
  *
- * `Task.Move.AssigneeRequired` and `Task.Move.CapacityReached` are
- * deliberately absent: `BoardPage`/`TaskDetailPage` open `AssignAndMoveDialog`
- * for both codes instead of this dialog — a task with no assignee and a task
- * whose assignee is already full both resolve the same way, reassign and
- * retry (F02, slice 3.4; CapacityReached folded in during the UI redesign's
- * slice 4, approved 2026-11-09).
+ * `Task.Move.AssigneeRequired` is deliberately absent: `BoardPage`/`TaskDetailPage`
+ * open `AssignAndMoveDialog` for that code instead of this dialog (F02, slice 3.4).
+ *
+ * `Task.Move.CapacityReached` stays a plain refusal here, not the picker —
+ * `docs/features/f02-capacity.md` AC22 requires the client to "show the
+ * right message and roll the card back" for this exact code, and slice 3.5
+ * (sorting/reassignment affordances) was rejected 2026-11-05. The UI
+ * redesign briefly folded it into `AssignAndMoveDialog` (slice 4) before
+ * this was checked against AC22; reverted 2026-11-09.
  */
 export const MOVE_REFUSAL_TITLES: Record<string, string> = {
   'Task.Move.InvalidTransition': 'Move it one step at a time',
   'Task.Move.SameStatus': 'Already there',
   'Task.Move.ActorIsAssignee': "You're the assignee",
+  'Task.Move.CapacityReached': 'At capacity',
 }
 
 export const DEFAULT_REFUSAL_TITLE = 'The move could not be completed'
