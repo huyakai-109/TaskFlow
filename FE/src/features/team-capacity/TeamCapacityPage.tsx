@@ -1,3 +1,7 @@
+import { ComingSoon } from '../../shared/components/ComingSoon'
+import { useComingSoon } from '../../shared/hooks/useComingSoon'
+import { Link } from 'react-router-dom'
+
 import { avatarPaletteIndex, initialsOf } from '../../shared/lib/avatar'
 import { IN_PROGRESS_LIMIT, useTeamCapacity } from '../../shared/hooks/useTeamCapacity'
 
@@ -7,18 +11,43 @@ import { IN_PROGRESS_LIMIT, useTeamCapacity } from '../../shared/hooks/useTeamCa
  * name, meter, `n/3`/"Full"), same full-first/most-loaded-first order, same
  * summary line. The popover itself (anchored under the Board toolbar's
  * avatar stack) is not built this session — `docs/design/COMING-SOON.md` A9.
+ *
+ * The header's "max —" (`docs/design/COMING-SOON.md` B4) is a real "Coming
+ * soon" stub: the configured in-progress limit isn't exposed by any
+ * endpoint, so this shows `—` rather than the `IN_PROGRESS_LIMIT` constant
+ * the rows below still use internally (an already-approved, flagged
+ * assumption for sorting/grouping — unchanged by this stub).
  */
 export function TeamCapacityPage() {
   const capacity = useTeamCapacity()
+  const comingSoon = useComingSoon('Reading the configured limit from the server is coming soon.')
 
   return (
     <section className="flex max-w-[560px] flex-col gap-[var(--space-4)]">
       <div>
         <h1 className="m-0 text-[length:var(--font-size-xl)] font-semibold">Team capacity</h1>
         <p className="m-0 mt-[var(--space-1)] text-[length:var(--font-size-sm)] text-text-muted">
-          In progress · max {IN_PROGRESS_LIMIT}
+          In progress · max{' '}
+          <button
+            type="button"
+            aria-disabled="true"
+            className="cursor-pointer border-0 bg-transparent p-0 text-inherit underline decoration-dashed [font:inherit]"
+            onClick={() => comingSoon.show()}
+          >
+            —
+          </button>
         </p>
       </div>
+
+      {!capacity.isPending && !capacity.isError && capacity.mayBeIncomplete && (
+        <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">
+          This list may not be complete —{' '}
+          <Link to="/board" className="text-accent-ink underline">
+            see the full In Progress column on the Board
+          </Link>{' '}
+          for complete data.
+        </p>
+      )}
 
       {capacity.isPending && (
         <p role="status" className="text-[length:var(--font-size-sm)] text-text-muted">
@@ -93,6 +122,8 @@ export function TeamCapacityPage() {
           </ul>
         </>
       )}
+
+      {comingSoon.message !== null && <ComingSoon message={comingSoon.message} onDismiss={comingSoon.hide} />}
     </section>
   )
 }

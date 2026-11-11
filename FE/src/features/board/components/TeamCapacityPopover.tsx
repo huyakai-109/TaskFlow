@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { ComingSoon } from '../../../shared/components/ComingSoon'
+import { useComingSoon } from '../../../shared/hooks/useComingSoon'
 import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
 import { IN_PROGRESS_LIMIT, useTeamCapacity } from '../../../shared/hooks/useTeamCapacity'
 
@@ -14,11 +16,13 @@ interface TeamCapacityPopoverProps {
  * built this session). Same `useTeamCapacity` data and ordering as the
  * standalone `/team-capacity` page (A2) — same completeness caveat (board's
  * `InProgress` column, capped at `BoardColumnPageSize`, see COMING-SOON.md).
- * The page behind is not dimmed (§5.2).
+ * The page behind is not dimmed (§5.2). The header's "max —" is the same
+ * B4 Coming-soon stub as the standalone page's.
  */
 export function TeamCapacityPopover({ onClose }: TeamCapacityPopoverProps) {
   const capacity = useTeamCapacity()
   const [query, setQuery] = useState('')
+  const comingSoon = useComingSoon('Reading the configured limit from the server is coming soon.')
 
   const filtered = capacity.entries.filter((entry) => entry.user.userName.toLowerCase().includes(query.trim().toLowerCase()))
 
@@ -31,7 +35,17 @@ export function TeamCapacityPopover({ onClose }: TeamCapacityPopoverProps) {
       <div className="flex items-start justify-between gap-[var(--space-2)]">
         <div>
           <h2 className="m-0 text-[length:var(--font-size-base)] font-semibold">Team capacity</h2>
-          <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">In progress · max {IN_PROGRESS_LIMIT}</p>
+          <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">
+            In progress · max{' '}
+            <button
+              type="button"
+              aria-disabled="true"
+              className="cursor-pointer border-0 bg-transparent p-0 text-inherit underline decoration-dashed [font:inherit]"
+              onClick={() => comingSoon.show()}
+            >
+              —
+            </button>
+          </p>
         </div>
         <button
           type="button"
@@ -66,6 +80,16 @@ export function TeamCapacityPopover({ onClose }: TeamCapacityPopoverProps) {
       {capacity.isPending && (
         <p role="status" className="text-[length:var(--font-size-sm)] text-text-muted">
           Loading…
+        </p>
+      )}
+
+      {!capacity.isPending && !capacity.isError && capacity.mayBeIncomplete && (
+        <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">
+          May not be complete —{' '}
+          <Link to="/board" className="text-accent-ink underline" onClick={onClose}>
+            see the full Board
+          </Link>
+          .
         </p>
       )}
 
@@ -118,6 +142,8 @@ export function TeamCapacityPopover({ onClose }: TeamCapacityPopoverProps) {
       >
         Open Team capacity →
       </Link>
+
+      {comingSoon.message !== null && <ComingSoon message={comingSoon.message} onDismiss={comingSoon.hide} />}
     </div>
   )
 }

@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
 
 import { describeError } from '../../api/errorMessages'
+import { ComingSoon } from '../../shared/components/ComingSoon'
 import { avatarPaletteIndex, initialsOf } from '../../shared/lib/avatar'
 import { PriorityIcon } from '../../shared/components/PriorityIcon'
+import { useComingSoon } from '../../shared/hooks/useComingSoon'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 import { daysLate, dueDateFormatter, isToday, parseDueDate } from '../../shared/lib/dueDate'
 import { useOverdueTasksQuery } from '../../shared/hooks/useOverdueTasksQuery'
@@ -27,10 +29,13 @@ const cellClass = 'px-[var(--space-3)] py-[var(--space-3)] text-left align-middl
 /**
  * The Overdue view (F05 T9) — "Overdue now" plus "Due today — not overdue
  * yet" (`docs/design/SPEC.md` §5.7, reopened 2026-11-11, SPEC §10 point 4;
- * `docs/design/COMING-SOON.md` A10). "Flag cleared this week", "last check"
- * and "late by N days" copy stay out — those need data this contract does
- * not provide (COMING-SOON.md B1/B3). Server order (priority, then earliest
- * due date) is rendered as-is, never re-sorted client-side.
+ * `docs/design/COMING-SOON.md` A10, both real). "Last check" (B3) and "Flag
+ * cleared this week" (B1) are real "Coming soon" stubs — `—` placeholders,
+ * no fake numbers, clickable but never call an API — because the data
+ * (scheduler's last run, an overdue-cleared history event) doesn't exist
+ * yet. "Late by N days" copy inside those stubs stays out entirely. Server
+ * order on "Overdue now" (priority, then earliest due date) is rendered
+ * as-is, never re-sorted client-side.
  */
 export function OverdueListPage() {
   const query = useOverdueTasksQuery()
@@ -48,16 +53,32 @@ export function OverdueListPage() {
   const nonOverdueTotal = dueTodayPagination?.totalItems ?? nonOverdueScanned.length
   const dueTodayHasMoreToScan = nonOverdueScanned.length < nonOverdueTotal
 
+  const lastCheckComingSoon = useComingSoon('Showing the scheduler’s last check time is coming soon.')
+  const flagClearedComingSoon = useComingSoon('Showing tasks cleared this week is coming soon.')
+
   return (
     <section>
       {/* AppLayout no longer owns a page-level h1 (docs/design/SPEC.md shell redesign) — each routed page is its own landmark now, like BoardPage's and TaskDetailPage's. */}
       <h1 className="m-0 text-[length:var(--font-size-xl)] font-semibold">Overdue tasks</h1>
       <div className="mt-[var(--space-3)] flex items-start gap-[var(--space-2)] rounded-lg border border-border bg-surface p-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted">
         <ClockIcon />
-        <p className="m-0">
-          Checked automatically every night at 00:05. A task due today becomes overdue tomorrow. Finishing it, or
-          moving the due date into the future, clears the flag.
-        </p>
+        <div className="flex flex-col gap-[var(--space-1)]">
+          <p className="m-0">
+            Checked automatically every night at 00:05. A task due today becomes overdue tomorrow. Finishing it, or
+            moving the due date into the future, clears the flag.
+          </p>
+          <p className="m-0">
+            Last check:{' '}
+            <button
+              type="button"
+              aria-disabled="true"
+              className="cursor-pointer border-0 bg-transparent p-0 text-inherit underline decoration-dashed [font:inherit]"
+              onClick={() => lastCheckComingSoon.show()}
+            >
+              —
+            </button>
+          </p>
+        </div>
       </div>
 
       {query.isPending && (
@@ -261,6 +282,28 @@ export function OverdueListPage() {
           </button>
         )}
       </div>
+
+      <div className="mt-[var(--space-6)] flex flex-col gap-[var(--space-3)]">
+        <h2 className="m-0 flex items-center gap-[var(--space-2)] text-[length:var(--font-size-sm)] font-semibold">
+          <span className="size-2 shrink-0 rounded-pill bg-success" aria-hidden="true" />
+          Flag cleared this week
+        </h2>
+        <button
+          type="button"
+          aria-disabled="true"
+          className="cursor-pointer rounded-card-lg border border-dashed border-dashed-border bg-transparent p-[var(--space-4)] text-left text-[length:var(--font-size-sm)] text-text-muted [font:inherit]"
+          onClick={() => flagClearedComingSoon.show()}
+        >
+          — tasks cleared this week
+        </button>
+      </div>
+
+      {lastCheckComingSoon.message !== null && (
+        <ComingSoon message={lastCheckComingSoon.message} onDismiss={lastCheckComingSoon.hide} />
+      )}
+      {flagClearedComingSoon.message !== null && (
+        <ComingSoon message={flagClearedComingSoon.message} onDismiss={flagClearedComingSoon.hide} />
+      )}
     </section>
   )
 }
