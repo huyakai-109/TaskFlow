@@ -75,7 +75,7 @@ export function BoardSearch({ tasks }: BoardSearchProps) {
           id="board-search-input"
           ref={inputRef}
           type="text"
-          placeholder="Search tasks…"
+          placeholder="Search or jump to…"
           className="min-w-0 flex-1 border-0 bg-transparent text-[length:var(--font-size-sm)] text-text outline-none"
           value={query}
           onChange={(event) => {
