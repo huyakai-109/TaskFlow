@@ -307,7 +307,13 @@ export function BoardPage() {
           Sort: <strong className="ml-[var(--space-1)] font-semibold text-text">Priority</strong>
         </span>
         <div className="ml-auto flex items-center gap-[var(--space-3)] max-[600px]:ml-0 max-[600px]:w-full max-[600px]:flex-wrap">
-          <BoardSearch tasks={BOARD_COLUMNS.flatMap((status) => mergedItemsFor(status))} />
+          <BoardSearch
+            tasks={BOARD_COLUMNS.flatMap((status) => mergedItemsFor(status))}
+            mayBeIncomplete={BOARD_COLUMNS.some((status) => {
+              const pagination = boardQuery.data?.columns.find((c) => c.status === status)?.pagination
+              return pagination !== null && pagination !== undefined && mergedItemsFor(status).length < pagination.totalItems
+            })}
+          />
           {overdueCount > 0 && (
             <Link
               to="/overdue"

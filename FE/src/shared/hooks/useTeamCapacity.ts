@@ -39,6 +39,8 @@ export interface UseTeamCapacityResult {
   entries: TeamCapacityEntry[]
   fullCount: number
   almostFullCount: number
+  /** `InProgress` has more pages than loaded (`BoardColumnPageSize`) — counts above may undercount. Same pattern as My Tasks's own "may not be complete" note. */
+  mayBeIncomplete: boolean
 }
 
 export function useTeamCapacity(): UseTeamCapacityResult {
@@ -74,11 +76,17 @@ export function useTeamCapacity(): UseTeamCapacityResult {
       })
   }, [usersQuery.data, boardQuery.data])
 
+  const inProgressColumn = boardQuery.data?.columns.find((c) => c.status === 'InProgress')
+  const inProgressPagination = inProgressColumn?.pagination ?? null
+  const mayBeIncomplete =
+    inProgressPagination !== null && (inProgressColumn?.items.length ?? 0) < inProgressPagination.totalItems
+
   return {
     isPending: usersQuery.isPending || boardQuery.isPending,
     isError: usersQuery.isError || boardQuery.isError,
     entries,
     fullCount: entries.filter((e) => e.isFull).length,
     almostFullCount: entries.filter((e) => !e.isFull && e.inProgressCount === IN_PROGRESS_LIMIT - 1).length,
+    mayBeIncomplete,
   }
 }

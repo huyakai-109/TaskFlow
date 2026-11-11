@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import type { TaskSummary } from '../../../api/types'
 
 interface BoardSearchProps {
   tasks: TaskSummary[]
+  /** Any board column has more pages than loaded (`BoardColumnPageSize`) — a match on an unloaded task won't be found. Same pattern as My Tasks's/Team capacity's "may not be complete" note. */
+  mayBeIncomplete: boolean
 }
 
 function matches(task: TaskSummary, query: string): boolean {
@@ -23,7 +25,7 @@ function matches(task: TaskSummary, query: string): boolean {
  * endpoint (`docs/design/COMING-SOON.md` A4). Scoped to the Board page: the
  * data it searches (`useBoardQuery`) is already loaded there.
  */
-export function BoardSearch({ tasks }: BoardSearchProps) {
+export function BoardSearch({ tasks, mayBeIncomplete }: BoardSearchProps) {
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -123,6 +125,15 @@ export function BoardSearch({ tasks }: BoardSearchProps) {
               </button>
             </li>
           ))}
+          {mayBeIncomplete && (
+            <li className="border-t border-border px-[var(--space-3)] py-[var(--space-2)] text-[length:var(--font-size-xs)] text-text-muted">
+              May not be complete —{' '}
+              <Link to="/board" className="text-accent-ink underline" onClick={() => setOpen(false)}>
+                see the full Board
+              </Link>
+              .
+            </li>
+          )}
         </ul>
       )}
     </div>
