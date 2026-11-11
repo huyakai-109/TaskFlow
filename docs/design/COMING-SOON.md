@@ -28,7 +28,7 @@ new decision overriding the one named.
 | A6 | Keyboard shortcuts `J`/`K` — next/previous task | **Built**, Task detail page only, steps within the task's own status column | `GET /tasks/board`'s matching column (`items`, in server order) | **May be incomplete** in the same sense as A3/A4: stepping only reaches tasks already loaded for that column; unlike A3, there is no "Show more" reachable from Task detail itself. In practice, F02 keeps any one person's `InProgress` count ≤ 3 (always within page 1), and a single status column exceeding 50/20 items is an edge case, not the common one — still a real, documented gap, not silently "impossible." |
 | A7 | Keyboard shortcut `⌘↵`/`Ctrl+Enter` — primary action | **Built**, Task detail (first allowed Move) and New task dialog (submit) | n/a (acts on the one task already loaded on the page) | N/A — not data-derived. |
 | A8 | Assign picker "HAS ROOM · MOST FIRST" / "AT CAPACITY" grouping + disabled "Full" rows (§5.5) | **Not built this session** — unblocked | Same as A2 | Same caveat as A2 — inherits it, not yet built. |
-| A9 | Board toolbar AvatarStack + capacity pill + Team popover (§5.1, §5.2) | **Not built this session** — unblocked; only the standalone Team capacity page (A2) exists, not the popover-under-avatar-stack variant | Same as A2 | Same caveat as A2 — inherits it, not yet built. |
+| A9 | Board toolbar AvatarStack + capacity pill + Team popover (§5.1, §5.2) | **Built** — `AvatarStack` (ring `urgent` when full, "+N" overflow, chevron), "`N` at capacity" pill (links to `/team-capacity`, same treatment as the existing "N overdue" pill), and `TeamCapacityPopover` (search, summary line, rows, "Open Team capacity →") | Same as A2 | Same caveat as A2 (not yet shown in the popover's own UI either — same gap, not duplicated). Popover made no API call of its own on open (confirmed by Playwright network log) — reads only the already-cached `['board']`/`['users']` queries, same as the page. |
 | A10 | Overdue list — "Due today, not overdue yet" group (§5.7) | **Not built this session** — unblocked | `GET /tasks?isOverdue=false&start=&length=` filtered client-side to `dueDate` = today, **not** derived from the board cache | **Complete, if built this way.** Unlike A2/A8/A9, this should be its own paginated fetch (same shape as the existing "Overdue now" `useOverdueTasksQuery`), not a read of the capped board cache — flagged here so a future slice doesn't accidentally wire it to `useBoardQuery` and inherit a cap it doesn't need to have. |
 | A11 | My tasks — "Sent back by `<name>` for rework" chip (§5.8) | **Not built this session** — unblocked | `GET /tasks/{id}/history` — latest `Review → InProgress` entry's `actorName` | **Complete.** Reads one task's full history (not paginated-away in practice; `length=100` default already covers any real task), for a small, already-bounded set of cards (≤3 In-progress + Up next + Review) — not a board-wide read, no cap applies. |
 | A12 | Done card "Approved by `<name>` · `<date>`" (§4 TaskCard) | **Not built this session** — unblocked | `GET /tasks/{id}/history`, same read as A11, once per visible Done card | **May be incomplete** only in the sense that the Done *column itself* is capped at `DoneColumnPageSize` (20) before any of these cards are fetched — a pre-existing Board/List cap (A3), not a new one this feature would add. |
@@ -66,9 +66,9 @@ containing section's frame before the data exists, wire its action to `ComingSoo
 
 ## Summary
 
-- **A: 12** items identified; **7 built** this session (A1–A7: Inbox, Team capacity, List view,
-  search, and the three keyboard shortcuts); **5 not built**, all unblocked for a future slice
-  without any backend change (A8–A12).
+- **A: 12** items identified; **8 built** (A1–A7, A9: Inbox, Team capacity page + popover +
+  AvatarStack + capacity pill, List view, search, and the three keyboard shortcuts); **4 not
+  built**, all unblocked for a future slice without any backend change (A8, A10–A12).
 - **Completeness re-audit (2026-11-11, second pass):** every A item above now states its
   endpoint(s)/field(s) and whether its number/list can be incomplete given the board's
   page-1-per-column cap. One real gap found and fixed this session: List view (A3) had no
