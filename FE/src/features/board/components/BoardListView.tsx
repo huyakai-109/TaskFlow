@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 
 import { BOARD_COLUMNS } from '../../../api/types'
-import type { TaskStatus, TaskSummary } from '../../../api/types'
+import type { PaginationRes, TaskStatus, TaskSummary } from '../../../api/types'
 import { DueChip, OverdueChip } from '../../../shared/components/DueDateChips'
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
@@ -11,6 +11,10 @@ const cellClass = 'px-[var(--space-3)] py-[var(--space-2)] text-left align-middl
 
 interface BoardListViewProps {
   itemsByStatus: Record<TaskStatus, TaskSummary[]>
+  /** Board page 1's pagination per column, same source `BoardColumn` reads — `null` entries while the board is still loading. */
+  paginationByStatus: Record<TaskStatus, PaginationRes | null>
+  onLoadMore: (status: TaskStatus) => void
+  isLoadingMore: (status: TaskStatus) => boolean
 }
 
 /**
@@ -19,8 +23,14 @@ interface BoardListViewProps {
  * view already has as one flat table, grouped by status in board order —
  * no new request, same data, same per-column ordering the server already
  * sends (priority, then earliest due date; F03).
+ *
+ * Each status's rows are capped the same way the board's own column is
+ * (`BoardColumnPageSize`/`DoneColumnPageSize`, `docs/design/COMING-SOON.md`
+ * A3) — this view gets its own "Show more" per status, same control
+ * `BoardColumn` already has, so List is never silently missing rows Board
+ * itself would show via its own "Show more".
  */
-export function BoardListView({ itemsByStatus }: BoardListViewProps) {
+export function BoardListView({ itemsByStatus, paginationByStatus, onLoadMore, isLoadingMore }: BoardListViewProps) {
   const allEmpty = BOARD_COLUMNS.every((status) => itemsByStatus[status].length === 0)
 
   if (allEmpty) {
@@ -50,8 +60,13 @@ export function BoardListView({ itemsByStatus }: BoardListViewProps) {
           </tr>
         </thead>
         <tbody>
-          {BOARD_COLUMNS.flatMap((status) =>
-            itemsByStatus[status].map((task) => (
+          {BOARD_COLUMNS.flatMap((status) => {
+            const items = itemsByStatus[status]
+            const pagination = paginationByStatus[status]
+            const totalItems = pagination?.totalItems ?? items.length
+            const hasMore = items.length < totalItems
+
+            const rows = items.map((task) => (
               <tr key={task.id} className="border-t border-border">
                 <td className={cellClass}>
                   <Link
@@ -90,8 +105,27 @@ export function BoardListView({ itemsByStatus }: BoardListViewProps) {
                   )}
                 </td>
               </tr>
-            )),
-          )}
+            ))
+
+            if (hasMore) {
+              rows.push(
+                <tr key={`${status}-more`} className="border-t border-border">
+                  <td className={cellClass} colSpan={5}>
+                    <button
+                      type="button"
+                      className="min-h-8 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-3)] text-[length:var(--font-size-xs)] font-medium text-text hover:border-accent hover:bg-accent-soft hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={() => onLoadMore(status)}
+                      disabled={isLoadingMore(status)}
+                    >
+                      {isLoadingMore(status) ? 'Loading…' : `Show more ${STATUS_LABELS[status]} (${items.length} of ${totalItems})`}
+                    </button>
+                  </td>
+                </tr>,
+              )
+            }
+
+            return rows
+          })}
         </tbody>
       </table>
     </div>

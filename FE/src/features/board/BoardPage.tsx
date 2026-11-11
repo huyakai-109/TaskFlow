@@ -384,6 +384,13 @@ export function BoardPage() {
       {boardQuery.isSuccess && view === 'list' && (
         <BoardListView
           itemsByStatus={Object.fromEntries(BOARD_COLUMNS.map((status) => [status, mergedItemsFor(status)])) as Record<TaskStatus, TaskSummary[]>}
+          paginationByStatus={
+            Object.fromEntries(
+              BOARD_COLUMNS.map((status) => [status, boardQuery.data.columns.find((c) => c.status === status)?.pagination ?? null]),
+            ) as Record<TaskStatus, (typeof boardQuery.data.columns)[number]['pagination']>
+          }
+          onLoadMore={loadMore}
+          isLoadingMore={(status) => columnPages[status].isFetchingNextPage}
         />
       )}
 
