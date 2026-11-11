@@ -337,6 +337,7 @@ export function TaskDetailPage() {
       {assigneePickerOpen && (
         <AssigneePickerDialog
           currentAssigneeId={task.assignee?.id ?? null}
+          taskStatus={task.status}
           isPending={assignMutation.isPending}
           errorCode={assignErrorCode}
           errorMessage={assignErrorMessage}

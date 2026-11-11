@@ -3,7 +3,7 @@ import { useRef } from 'react'
 
 import { describeErrorCode } from '../../api/errorMessages'
 import { useDialogA11y } from '../hooks/useDialogA11y'
-import { useUsersQuery } from '../hooks/useUsersQuery'
+import { IN_PROGRESS_LIMIT, useTeamCapacity } from '../hooks/useTeamCapacity'
 import { avatarPaletteIndex, initialsOf } from '../lib/avatar'
 
 function PersonIcon() {
@@ -35,9 +35,16 @@ const optionClass =
  * may chain both calls behind one button" — picking a name here does both
  * `PUT …/assignee` and `PUT …/status` (`useAssignAndMoveTaskMutation`). No
  * "Unassigned" option, unlike `AssigneePickerDialog`: an assignee is exactly
- * what this task is missing (F02 D5). Listed alphabetically, everyone
- * enabled — the "has room" sort and "at capacity" disabling from
- * `docs/design/SPEC.md` §5.5 and `docs/design/png/AssignPicker.png` are slice 3.5, not scheduled.
+ * what this task is missing (F02 D5).
+ *
+ * "HAS ROOM · MOST FIRST" / "AT CAPACITY" grouping (`docs/design/SPEC.md`
+ * §5.5 and `docs/design/png/AssignPicker.png`, reopened 2026-11-11, SPEC §10
+ * point 2; `docs/design/COMING-SOON.md` A8) — unlike `AssigneePickerDialog`,
+ * this dialog is always about to send the task into `InProgress`, so
+ * disabling someone already full is never wrong here the way it could be for
+ * a general reassignment of a Backlog/Todo task (F01 D1 — assigning those has
+ * no limit). Counts: `useTeamCapacity`, same source and completeness caveat
+ * as Team capacity (A2).
  */
 export function AssignAndMoveDialog({
   taskTitle,
@@ -48,9 +55,14 @@ export function AssignAndMoveDialog({
   onClose,
   onSelect,
 }: AssignAndMoveDialogProps) {
-  const usersQuery = useUsersQuery()
-  const assignees = usersQuery.data ?? []
+  const capacity = useTeamCapacity()
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  // "HAS ROOM · MOST FIRST" sorts by most room (fewest in-progress) first —
+  // the opposite of `useTeamCapacity`'s own full-first order (built for the
+  // Team capacity page/popover) — so each group is re-sorted locally.
+  const hasRoom = capacity.entries.filter((e) => !e.isFull).sort((a, b) => a.inProgressCount - b.inProgressCount || a.user.userName.localeCompare(b.user.userName))
+  const atCapacity = capacity.entries.filter((e) => e.isFull).sort((a, b) => a.user.userName.localeCompare(b.user.userName))
 
   useDialogA11y(closeButtonRef, onClose, isPending)
 
@@ -102,48 +114,88 @@ export function AssignAndMoveDialog({
           </p>
         )}
 
-        {usersQuery.isPending && (
+        {capacity.isPending && (
           <p role="status" className="m-0 text-[length:var(--font-size-sm)] text-text-muted">
             Loading people…
           </p>
         )}
 
-        {usersQuery.isError && (
+        {capacity.isError && (
           <p role="alert" className="m-0 text-[length:var(--font-size-sm)] text-danger">
             The list of people could not be loaded. Try closing and reopening this dialog.
           </p>
         )}
 
-        {usersQuery.isSuccess && assignees.length === 0 && (
+        {!capacity.isPending && !capacity.isError && capacity.entries.length === 0 && (
           <p className="m-0 text-[length:var(--font-size-sm)] text-text-muted">
             No one is in the directory yet, so there is no one to assign this to.
           </p>
         )}
 
-        <ul role="listbox" aria-label="Assign to and start" className="m-0 flex list-none flex-col p-0">
-          {assignees.map((assignee) => (
-            <li key={assignee.id} role="option" aria-selected="false">
-              <button
-                type="button"
-                className={clsx(optionClass, 'gap-[var(--space-2)]')}
-                disabled={isPending}
-                onClick={() => onSelect(assignee.id)}
-              >
-                <span
-                  aria-hidden="true"
-                  className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold"
-                  style={{
-                    backgroundColor: `var(--avatar-${avatarPaletteIndex(assignee.id)}-bg)`,
-                    color: `var(--avatar-${avatarPaletteIndex(assignee.id)}-ink)`,
-                  }}
-                >
-                  {initialsOf(assignee.userName)}
-                </span>
-                Assign to {assignee.userName} and start
-              </button>
-            </li>
-          ))}
-        </ul>
+        {!capacity.isPending && !capacity.isError && capacity.entries.length > 0 && (
+          <>
+            {hasRoom.length > 0 && (
+              <p className="m-0 text-[length:var(--font-size-2xs)] font-semibold tracking-[0.44px] text-text-muted uppercase">
+                Has room · most first
+              </p>
+            )}
+            <ul role="listbox" aria-label="Assign to and start" className="m-0 flex list-none flex-col p-0">
+              {hasRoom.map(({ user, inProgressCount }) => (
+                <li key={user.id} role="option" aria-selected="false">
+                  <button
+                    type="button"
+                    className={clsx(optionClass, 'gap-[var(--space-2)]')}
+                    disabled={isPending}
+                    onClick={() => onSelect(user.id)}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold"
+                      style={{
+                        backgroundColor: `var(--avatar-${avatarPaletteIndex(user.id)}-bg)`,
+                        color: `var(--avatar-${avatarPaletteIndex(user.id)}-ink)`,
+                      }}
+                    >
+                      {initialsOf(user.userName)}
+                    </span>
+                    Assign to {user.userName} and start
+                    <span className="ml-auto text-[length:var(--font-size-xs)] text-text-muted">
+                      {inProgressCount}/{IN_PROGRESS_LIMIT}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            {atCapacity.length > 0 && (
+              <>
+                <p className="m-0 text-[length:var(--font-size-2xs)] font-semibold tracking-[0.44px] text-text-muted uppercase">
+                  At capacity
+                </p>
+                <ul role="listbox" aria-label="At capacity" className="m-0 flex list-none flex-col p-0">
+                  {atCapacity.map(({ user }) => (
+                    <li key={user.id} role="option" aria-selected="false" aria-disabled="true">
+                      <button type="button" className={clsx(optionClass, 'gap-[var(--space-2)] opacity-60')} disabled>
+                        <span
+                          aria-hidden="true"
+                          className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold opacity-60"
+                          style={{
+                            backgroundColor: `var(--avatar-${avatarPaletteIndex(user.id)}-bg)`,
+                            color: `var(--avatar-${avatarPaletteIndex(user.id)}-ink)`,
+                          }}
+                        >
+                          {initialsOf(user.userName)}
+                        </span>
+                        {user.userName} · can&rsquo;t take more active work
+                        <span className="ml-auto text-[length:var(--font-size-xs)] font-semibold text-danger">Full</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </>
+        )}
       </div>
     </div>
   )
