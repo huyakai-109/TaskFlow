@@ -9,7 +9,11 @@ page-1-per-column cap (`BoardColumnPageSize` = 50, `DoneColumnPageSize` = 20 for
 `BE/TaskFlow.BusinessLogic/Services/TaskService.cs`) — the same constraint already named in SPEC
 §10 point 9 for My tasks. Nothing here shows a possibly-wrong count as if it were certain: every
 row that reads board-column data either names its "may be incomplete" caveat (same pattern as My
-tasks) or, for List view, has had that gap closed this session (see A3).
+tasks) or, for List view, has had that gap closed this session (see A3). **Third pass, same day:**
+the two remaining caveat-display gaps (A2/A8/A9, A4) were closed with real UI, not just documented;
+A11/A12 turned out to be N+1 fetch patterns on closer review and were reverted to category B
+(B5/B6); real "Coming soon" stubs (`—` placeholders, no API call, confirmed via Playwright) were
+built for the four genuinely-blocked B items (B1–B4).
 
 Legend — **A**: real with the current API (reads data already returned by an existing endpoint).
 **B**: needs a backend addition (new endpoint, field, or migration) — gets a "Coming soon"
@@ -21,41 +25,44 @@ new decision overriding the one named.
 | # | Item | Current status | Endpoint(s) + field(s) | Completeness |
 |---|---|---|---|---|
 | A1 | Inbox page (`/inbox`) | **Built** | `GET /notifications?isRead=&start=&length=` — `taskId`, `event`, `isRead`, `createdAt` | **Complete.** Own infinite-scroll "Show more" (`useInboxQuery`, 20/page) walks every page via `pagination.totalPages`; nothing is silently capped. |
-| A2 | Team capacity page (`/team-capacity`) | **Built** | `GET /tasks/board`'s `InProgress` column (`assignee.id`, `assignee.userName`) reduced to a per-user count in `useTeamCapacity`, plus `GET /users` (`id`, `userName`, `role` — not paginated, always the full roster) | **May be incomplete.** `InProgress` is capped at `BoardColumnPageSize` (50) on page 1, raised only if the Board view's own "Show more" for that column has been clicked in the same session (shares the `['board']` cache). A `0/3`/`n/3` count is always exact *for the tasks currently loaded*; team-wide InProgress tasks beyond the first 50 (not per-user — F02 caps a person at 3 regardless) would undercount others. `TeamCapacityPage` does not yet show this caveat to the user (gap — see Summary). |
+| A2 | Team capacity page (`/team-capacity`) | **Built** | `GET /tasks/board`'s `InProgress` column (`assignee.id`, `assignee.userName`) reduced to a per-user count in `useTeamCapacity`, plus `GET /users` (`id`, `userName`, `role` — not paginated, always the full roster) | **May be incomplete, now disclosed.** `InProgress` is capped at `BoardColumnPageSize` (50) on page 1, raised only if the Board view's own "Show more" for that column has been clicked in the same session (shares the `['board']` cache). `TeamCapacityPage.tsx` and `TeamCapacityPopover.tsx` both show "This list may not be complete — see the full In Progress column on the Board" whenever `useTeamCapacity().mayBeIncomplete` is true. |
 | A3 | Board List view (segmented control) | **Built** | `GET /tasks/board` (page 1) + `GET /tasks?status=&start=&length=` (page 2+, via the Board view's existing "Show more") | **Complete, as of this session's fix.** `BoardListView` originally re-rendered only the capped page-1 data with no affordance of its own — closed by giving it the same per-status "Show more" `BoardColumn` has (`onLoadMore`/`isLoadingMore` passed through from `BoardPage`), so List can always reach every row Board can. |
-| A4 | Search (`⌘K`) quick-switch to a task | **Built** — client-side match over already-loaded board tasks (`title`, `id`); not a server search, there is no search endpoint | `GET /tasks/board` + any expanded "Show more" pages (same cache as A3) | **May be incomplete.** Only searches tasks already loaded into the `['board']` cache for the current session — a task in a column beyond page 1 that hasn't been expanded via "Show more" is not found. Acceptable for a "jump to a visible task" tool (not pitched as a project-wide search), but not stated in the UI itself (gap — see Summary). |
+| A4 | Search (`⌘K`) quick-switch to a task | **Built** — client-side match over already-loaded board tasks (`title`, `id`); not a server search, there is no search endpoint | `GET /tasks/board` + any expanded "Show more" pages (same cache as A3) | **May be incomplete, now disclosed.** Only searches tasks already loaded into the `['board']` cache for the current session. `BoardSearch.tsx`'s results dropdown shows "May not be complete — see the full Board" whenever any column has unloaded pages (a `mayBeIncomplete` prop computed in `BoardPage.tsx`). |
 | A5 | Keyboard shortcut `C` — new task | **Built**, Board page only | n/a (UI-only, no list/count rendered) | N/A — not data-derived. |
 | A6 | Keyboard shortcuts `J`/`K` — next/previous task | **Built**, Task detail page only, steps within the task's own status column | `GET /tasks/board`'s matching column (`items`, in server order) | **May be incomplete** in the same sense as A3/A4: stepping only reaches tasks already loaded for that column; unlike A3, there is no "Show more" reachable from Task detail itself. In practice, F02 keeps any one person's `InProgress` count ≤ 3 (always within page 1), and a single status column exceeding 50/20 items is an edge case, not the common one — still a real, documented gap, not silently "impossible." |
 | A7 | Keyboard shortcut `⌘↵`/`Ctrl+Enter` — primary action | **Built**, Task detail (first allowed Move) and New task dialog (submit) | n/a (acts on the one task already loaded on the page) | N/A — not data-derived. |
 | A8 | Assign picker "HAS ROOM · MOST FIRST" / "AT CAPACITY" grouping + disabled "Full" rows (§5.5) | **Built** — in both pickers that assign while a task occupies/will occupy an `InProgress` slot: `AssignAndMoveDialog` (`Task.Move.AssigneeRequired`, always about to start) unconditionally, and `AssigneePickerDialog` (Task detail's general reassignment) **only when the task's current status is `InProgress`** (F02 D2 `TaskCapacityRule.OccupiesSlot` — reassigning a Backlog/Todo/Review/Done task has no capacity limit per F01 D1, so grouping/disabling there would be actively misleading; that picker stays its old plain alphabetical list for those four statuses) | Same as A2 | Same caveat as A2 — inherits it. |
-| A9 | Board toolbar AvatarStack + capacity pill + Team popover (§5.1, §5.2) | **Built** — `AvatarStack` (ring `urgent` when full, "+N" overflow, chevron), "`N` at capacity" pill (links to `/team-capacity`, same treatment as the existing "N overdue" pill), and `TeamCapacityPopover` (search, summary line, rows, "Open Team capacity →") | Same as A2 | Same caveat as A2 (not yet shown in the popover's own UI either — same gap, not duplicated). Popover made no API call of its own on open (confirmed by Playwright network log) — reads only the already-cached `['board']`/`['users']` queries, same as the page. |
+| A9 | Board toolbar AvatarStack + capacity pill + Team popover (§5.1, §5.2) | **Built** — `AvatarStack` (ring `urgent` when full, "+N" overflow, chevron), "`N` at capacity" pill (links to `/team-capacity`, same treatment as the existing "N overdue" pill), and `TeamCapacityPopover` (search, summary line, rows, "Open Team capacity →") | Same as A2 | Same caveat as A2, now shown in the popover's own UI too ("May not be complete — see the full Board", same `mayBeIncomplete` flag). Popover made no API call of its own on open (confirmed by Playwright network log) — reads only the already-cached `['board']`/`['users']` queries, same as the page. |
 | A10 | Overdue list — "Due today, not overdue yet" group (§5.7) | **Built** — `useDueTodayTasksQuery`, its own paginated fetch (not derived from the board cache, per this row's own earlier flag) | `GET /tasks?isOverdue=false&start=&length=` filtered client-side to `dueDate` = today | **Honestly bounded, same pattern as "Overdue now".** Only as many non-overdue tasks as have been fetched are ever scanned; its own "Check more non-overdue tasks for 'due today'" button (distinct copy from a per-row "Show more") fetches further pages and says exactly how many of the total non-overdue count have been checked so far — never claims completeness it doesn't have. |
-| A11 | My tasks — "Sent back by `<name>` for rework" chip (§5.8) | **Built** — `useSentBackBy`, "In progress" section rows only | `GET /tasks/{id}/history` — latest `Review → InProgress` entry's `actorName` | **Complete.** Reads one task's full history (not paginated-away in practice; `length=100` default already covers any real task), for a small, already-bounded set of rows (≤3 In-progress cards) — not a board-wide read, no cap applies. |
-| A12 | Done card "Approved by `<name>` · `<date>`" (§4 TaskCard) | **Built** — `useApprovedBy` reads the task's history for the latest `StatusChanged` entry with `toValue: "Done"`; falls back to the old "Locked · `<completedAt>`" line while loading/on error/if no such entry is found (never blank, never a wrong name) | `GET /tasks/{id}/history`, same read as A11, once per visible Done card | **May be incomplete** only in the sense that the Done *column itself* is capped at `DoneColumnPageSize` (20) before any of these cards are fetched — a pre-existing Board/List cap (A3), not a new one this feature adds. |
 
-**Two caveat-display gaps found by this audit, not yet fixed:** A2/A8/A9's "may be incomplete"
-condition is not shown anywhere in `TeamCapacityPage` itself (no footnote), and A4's search has no
-in-UI note that it only reaches loaded tasks. Both are copy-only additions for a future slice —
-tracked here rather than silently left for someone to rediscover.
+**A11 and A12 were built, then reverted and moved to category B** on closer review (third pass,
+2026-11-11) — see B5/B6 below. Both had an N+1 fetch pattern this project's own `backend.md` §6
+rule ("no N+1: join or project in one query") exists precisely to catch, just on the client side
+instead: one extra `GET /tasks/{id}/history` request per *rendered row/card*, not a single batched
+call. Bounded (≤3 rows / ≤20 Done cards) is not the same as "not N+1" — removed rather than kept
+as a quietly-scaling pattern.
+
+**Two caveat-display gaps found by the 2026-11-11 completeness audit — now fixed (third pass):**
+A2/A8/A9's "may be incomplete" condition is now shown in `TeamCapacityPage.tsx` and
+`TeamCapacityPopover.tsx` (a `useTeamCapacity().mayBeIncomplete` flag, linking to the full Board),
+and A4's search now shows the same note inside its results dropdown (`BoardSearch.tsx`, a
+`mayBeIncomplete` prop computed in `BoardPage.tsx` from every column's own pagination).
 
 ## B — needs a backend addition (real "Coming soon" stubs)
 
-| # | Item | Behaviour now | Endpoint/field needed | Read or write | Migration? |
+| # | Item | Stub lives in (file / control) | Endpoint/field needed | Read or write | Migration? |
 |---|---|---|---|---|---|
-| B1 | Overdue list — "Flag cleared this week" group (§5.7), "Was N days late" / "Cleared — moved to Done …" / "Cleared — due date moved …" copy | Nav/section not shown; no stub control exists to replace (there's no single button to wire to "Coming soon" — the whole group is just absent) | An overdue-cleared history event (or equivalent) carrying: the date it was flagged, the date/reason it was cleared, and whether clearing was "finished" vs. "due date moved" | Read | No (a new `TaskHistoryEvent` value + write-path entry, not a schema rewrite) — but is backend application work, not just a read |
-| B2 | My tasks — "You finished N tasks this week" footer line | Footer line not shown | A per-user, dated aggregate: count of `StatusChanged → Done` events for the caller in the last 7 days | Read | No (aggregate query), but needs new service/endpoint surface, e.g. `GET /tasks/me/finished-this-week` or similar — not designed here, left to the backend lead |
-| B3 | Overdue list — "Last check: today, 00:05" | Not shown | Either expose the scheduler's last successful run timestamp, or derive it is accepted as "tonight at 00:05" copy without a real value — needs a decision, not just a read | Read | Possibly none (could be a config/health value) |
-| B4 | Team capacity (A2) / Assign picker grouping (A8) — the `3` in every `n/3`/"Full" label | **Built anyway, with a flagged assumption**: `useTeamCapacity.ts`'s `IN_PROGRESS_LIMIT` is hardcoded to `3`, matching the backend's *default* `Workflow:MaxInProgressPerAssignee` (`BE/TaskFlow.Api/appsettings.json`) — but that value is configurable (`ConfigKeys.Workflow.MaxInProgressPerAssignee`) and no endpoint returns it to the client. If an environment ever configures a value other than 3, this display goes stale silently (coding-standards.md §4: "limits agree across layers" — this one doesn't, for lack of a layer to read it from) | A read-only field or endpoint exposing the configured `MaxInProgressPerAssignee` (e.g. a field on `GET /users` or `GET /tasks/board`, or a tiny `GET /config/workflow` — not designed here) | Read | No |
+| B1 | Overdue list — "Flag cleared this week" group (§5.7), "Was N days late" / "Cleared — moved to Done …" / "Cleared — due date moved …" copy | `FE/src/features/overdue/OverdueListPage.tsx` — a dashed placeholder block under the "Flag cleared this week" heading, text "— tasks cleared this week", the whole block is a button (`aria-disabled`) wired to `useComingSoon`/`ComingSoon` | An overdue-cleared history event (or equivalent) carrying: the date it was flagged, the date/reason it was cleared, and whether clearing was "finished" vs. "due date moved" | Read | No (a new `TaskHistoryEvent` value + write-path entry, not a schema rewrite) — but is backend application work, not just a read |
+| B2 | My tasks — "You finished N tasks this week" footer line | `FE/src/features/my-tasks/MyTasksPage.tsx` — footer strip, text "— tasks finished this week" + a "Show" button wired to `useComingSoon`/`ComingSoon` | A per-user, dated aggregate: count of `StatusChanged → Done` events for the caller in the last 7 days | Read | No (aggregate query), but needs new service/endpoint surface, e.g. `GET /tasks/me/finished-this-week` or similar — not designed here, left to the backend lead |
+| B3 | Overdue list — "Last check: today, 00:05" | `FE/src/features/overdue/OverdueListPage.tsx` — a second line in the existing info card, "Last check: —", the `—` is a button wired to `useComingSoon`/`ComingSoon` | Either expose the scheduler's last successful run timestamp, or decide "tonight at 00:05" copy without a real value is acceptable — needs a decision, not just a read | Read | Possibly none (could be a config/health value) |
+| B4 | Team capacity (A2) / Assign picker grouping (A8) — the configured in-progress limit, shown as "max —" | `FE/src/features/team-capacity/TeamCapacityPage.tsx` and `FE/src/features/board/components/TeamCapacityPopover.tsx` — both headers now show "`max` —" (the `—` is a button wired to `useComingSoon`/`ComingSoon`), replacing the literal `IN_PROGRESS_LIMIT` constant in that one display. The constant itself (`useTeamCapacity.ts`) is **unchanged** and still drives the per-row `n/3`/meter/"Full" grouping internally (an already-approved, separately-flagged assumption — showing `—` there too would break a working, approved feature; only the *display of the limit as a confirmed fact* was the target of this stub) | A read-only field or endpoint exposing the configured `MaxInProgressPerAssignee` (e.g. a field on `GET /users` or `GET /tasks/board`, or a tiny `GET /config/workflow` — not designed here) | Read | No |
+| B5 | My tasks — "Sent back by `<name>` for rework" chip (§5.8) | Not stubbed — reverted to no chip (the row still shows everything else); no dedicated control exists to wire "Coming soon" to, since the chip was additive, not a replaced frame | A field already on `TaskSummary`/the board response (e.g. `lastReworkActor`), or a batch "history summary" endpoint — not a per-task `GET …/history` call per visible row | Read | No |
+| B6 | Done card "Approved by `<name>` · `<date>`" (§4 TaskCard) | Not stubbed — reverted to the original "Locked · `<date>`" line (`FE/src/features/board/components/TaskCard.tsx`) | A field already on `TaskSummary`/the board response (e.g. `lastApprovedBy`), or a batch endpoint — not a per-task `GET …/history` call per visible Done card | Read | No |
 
-No "Coming soon" control was built for B1–B3 this session (B4 was built anyway, as a stated
-assumption rather than a stub — it's a single integer with a safe, documented default, not a
-missing feature): none of them replace an existing,
-clickable control in the current app (they are missing *sections*, not disabled *buttons*) — per
-the brief's own rule ("if the empty frame is meaningless, a nav item showing Coming soon is
-enough"), and no nav item points at any of these specifically. If a future slice adds the
-containing section's frame before the data exists, wire its action to `ComingSoon`
-(`FE/src/shared/components/ComingSoon.tsx` / `useComingSoon.ts`, built this session) the same way
-`TeamCapacityPage`'s "not yet wired" fallback would, rather than inventing numbers.
+Every stub above except B5/B6 replaces a real, visible control or adds one where the design draws
+one (a dashed block, a footer line, a header caption) — none invent a number. B5/B6 have no control
+to stub: they were additive chips on rows that work fine without them, so reverting is the whole
+fix, not "revert + also add a disabled button nobody asked for."
 
 ## C — contradicts a signed-off contract/decision, not built
 
@@ -66,20 +73,21 @@ containing section's frame before the data exists, wire its action to `ComingSoo
 
 ## Summary
 
-- **A: 12** items identified; **all 12 built.** Inbox, Team capacity page + popover + AvatarStack +
-  capacity pill, List view, search, the three keyboard shortcuts, Assign picker grouping, Done
-  card "Approved by", Overdue "Due today", My tasks "Sent back for rework" chip.
-- **Completeness re-audit (2026-11-11, second pass):** every A item above now states its
-  endpoint(s)/field(s) and whether its number/list can be incomplete given the board's
-  page-1-per-column cap. One real gap found and fixed this session: List view (A3) had no
-  "Show more" of its own and could silently truncate past the Board view's own cap — closed.
-  Two gaps found and left open (copy-only, tracked above, not yet fixed): Team capacity /
-  Assign-picker-grouping's "may be incomplete" condition (A2/A8/A9) and search's
-  loaded-tasks-only scope (A4) are not disclosed anywhere in the UI itself.
-- **B: 4** items, genuinely blocked on backend work (one of them — B4 — built anyway as a stated
-  assumption, not a stub, since it's a safe-defaulted integer rather than a missing feature).
-  Grouped by what they need: (1) an overdue-cleared history event (B1), (2) a dated per-user
-  aggregate endpoint (B2), (3) a scheduler-status value or a decision to invent none (B3), (4) a
-  way to read the configured in-progress limit instead of assuming the default of 3 (B4).
+- **A: 10** items built: Inbox, Team capacity page + popover + AvatarStack + capacity pill, List
+  view, search, the three keyboard shortcuts, Assign picker grouping, Overdue "Due today". Two
+  (A11, A12) were built and then reverted to category B (see below) after a closer look found an
+  N+1 fetch pattern in both.
+- **Completeness re-audit (2026-11-11, second pass):** every A item states its endpoint(s)/field(s)
+  and whether its number/list can be incomplete given the board's page-1-per-column cap. One real
+  gap found and fixed: List view (A3) had no "Show more" of its own. Two caveat-display gaps found
+  and now fixed (third pass): Team capacity's and search's own "may be incomplete" notes are built
+  (`useTeamCapacity().mayBeIncomplete`, `BoardSearch`'s `mayBeIncomplete` prop).
+- **B: 6** items. Four are real "Coming soon" stubs built this session (B1–B4: flag-cleared,
+  finished-this-week, last-check, the in-progress limit display) — every clickable control shows
+  `—` for the data and makes no API call (confirmed via Playwright's network log, all four
+  theme/width combinations). Two (B5, B6) are reverted features, not stubs: My tasks "Sent back by"
+  and the Done card "Approved by" line both turned out to need one extra history request per
+  rendered row/card — removed rather than kept as a scaling N+1 pattern, with no replacement
+  control (nothing was there to stub; the row/card works fine without the extra line).
 - **C: 2** items, not built because they contradict a signed-off contract (F01 D5, F02 AC22) —
   never build these without a new decision overriding the one named.
