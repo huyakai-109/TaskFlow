@@ -10,8 +10,6 @@ import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
 import { dueDateFormatter } from '../../../shared/lib/dueDate'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
-import { useApprovedBy } from '../hooks/useApprovedBy'
-
 function LockIcon() {
   return (
     <svg aria-hidden="true" width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -59,8 +57,6 @@ export function TaskCard({ task, onMove }: TaskCardProps) {
     transform !== null ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 10 } : undefined
 
   const isDone = task.status === 'Done'
-  const approvedByQuery = useApprovedBy(task.id, isDone)
-  const approvedBy = approvedByQuery.data
 
   return (
     <article
@@ -126,17 +122,8 @@ export function TaskCard({ task, onMove }: TaskCardProps) {
       {isDone && (
         <p className="m-0 flex items-center gap-[var(--space-1)] text-[length:var(--font-size-xs)] text-text-muted">
           <LockIcon />
-          {approvedBy !== null && approvedBy !== undefined ? (
-            <>
-              Approved by {approvedBy.actorName ?? 'someone'}
-              {` · ${dueDateFormatter.format(new Date(approvedBy.occurredAtLocal))}`}
-            </>
-          ) : (
-            <>
-              Locked
-              {task.completedAt !== null && ` · ${dueDateFormatter.format(new Date(task.completedAt))}`}
-            </>
-          )}
+          Locked
+          {task.completedAt !== null && ` · ${dueDateFormatter.format(new Date(task.completedAt))}`}
         </p>
       )}
       {moves.length > 0 && (

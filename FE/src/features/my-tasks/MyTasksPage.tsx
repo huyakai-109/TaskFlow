@@ -3,17 +3,17 @@ import { Link } from 'react-router-dom'
 
 import { describeError, describeErrorCode } from '../../api/errorMessages'
 import type { TaskStatus, TaskSummary } from '../../api/types'
+import { ComingSoon } from '../../shared/components/ComingSoon'
 import { DueChip, OverdueChip } from '../../shared/components/DueDateChips'
 import { MoveToast } from '../../shared/components/MoveToast'
 import { PriorityIcon } from '../../shared/components/PriorityIcon'
 import { useAuthSession } from '../../shared/hooks/useAuthSession'
 import { useBoardQuery } from '../../shared/hooks/useBoardQuery'
+import { useComingSoon } from '../../shared/hooks/useComingSoon'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
 import { useUsersQuery } from '../../shared/hooks/useUsersQuery'
 import { avatarPaletteIndex, initialsOf } from '../../shared/lib/avatar'
 import { moveButtonLabel } from '../../shared/lib/moveButtonLabel'
-
-import { useSentBackBy } from './hooks/useSentBackBy'
 
 /** "Good morning"/"afternoon"/"evening" by the viewer's local clock — decorative copy only, not a server fact. */
 function greetingWord(): string {
@@ -28,16 +28,12 @@ interface TaskRowProps {
   primary?: boolean
   /** Set only for a Todo→InProgress "Start" row while the viewer is already at 3 in progress — disables the button and shows why (SPEC §5.8's "Frees up when one of your 3 moves to Review."), a client-side hint only; the server stays the real enforcer. */
   disabledReason?: string
-  /** "In progress" section only (`docs/design/COMING-SOON.md` A11) — a small, bounded per-row history read, not a board-wide one. */
-  checkSentBack?: boolean
   onMove: (taskId: number, toStatus: TaskStatus, version: string, taskTitle: string) => void
 }
 
-function TaskRow({ task, primary = false, disabledReason, checkSentBack = false, onMove }: TaskRowProps) {
+function TaskRow({ task, primary = false, disabledReason, onMove }: TaskRowProps) {
   const move = task.allowedTransitions.find((t) => t.operation === 'Move')
   const disabled = disabledReason !== undefined
-  const sentBackQuery = useSentBackBy(task.id, checkSentBack)
-  const sentBackBy = sentBackQuery.data
 
   return (
     <div className="flex flex-wrap items-center gap-[var(--space-3)] rounded-card-lg border border-border bg-surface p-[var(--space-3)]">
@@ -60,11 +56,6 @@ function TaskRow({ task, primary = false, disabledReason, checkSentBack = false,
         </Link>
         <span className="mt-[2px] flex flex-wrap gap-[var(--space-2)]">
           {task.isOverdue ? <OverdueChip dueDate={task.dueDate} /> : <DueChip dueDate={task.dueDate} />}
-          {sentBackBy !== null && sentBackBy !== undefined && (
-            <span className="inline-flex min-h-[21px] items-center gap-[var(--space-1)] rounded-sm border border-transparent bg-warning-surface px-[var(--space-2)] font-semibold text-warning">
-              Sent back by {sentBackBy.actorName ?? 'someone'} for rework
-            </span>
-          )}
         </span>
       </div>
       {move !== undefined && (
@@ -92,14 +83,19 @@ function TaskRow({ task, primary = false, disabledReason, checkSentBack = false,
 }
 
 /**
- * `docs/design/SPEC.md` §5.8. "Sent back by `<name>` for rework" (reopened
- * 2026-11-11, `docs/design/COMING-SOON.md` A11) reads each visible
- * "In progress" row's own history — a small, bounded set of requests (≤3
- * cards), not a board-wide read. "You finished N tasks this week" stays out
- * (§10 point 6, COMING-SOON.md B2 — needs a dated aggregate this branch
- * doesn't add). Reads the already-loaded board — no new endpoint for the
- * task lists themselves (§10 point 9); a per-user item beyond a column's
- * first `BoardColumnPageSize` (50) page would be missing, a documented
+ * `docs/design/SPEC.md` §5.8. "Sent back by `<name>` for rework" was briefly
+ * built (reopened 2026-11-11, then `docs/design/COMING-SOON.md` A11),
+ * reading each visible "In progress" row's own history — but that is one
+ * extra `GET /tasks/{id}/history` request per rendered row, an N+1 fetch
+ * pattern (bounded to ≤3 rows by F02's cap, but still N+1, not a single
+ * batched call). Reverted and reclassified **B5**: needs either a field
+ * already on `TaskSummary`/the board response, or a batch endpoint, not a
+ * per-row fetch — see COMING-SOON.md. "You finished N tasks this week"
+ * stays out too (§10 point 6, COMING-SOON.md B2 — needs a dated aggregate
+ * this branch doesn't add; its "Coming soon" stub is the footer strip
+ * below). Reads the already-loaded board — no new endpoint for the task
+ * lists themselves (§10 point 9); a per-user item beyond a column's first
+ * `BoardColumnPageSize` (50) page would be missing, a documented
  * limitation, not something this page tries to paper over with its own
  * pagination.
  */
@@ -108,6 +104,7 @@ export function MyTasksPage() {
   const boardQuery = useBoardQuery()
   const usersQuery = useUsersQuery()
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const comingSoon = useComingSoon('Showing finished-this-week counts is coming soon.')
 
   const moveMutation = useMoveTaskMutation({
     onRefused: (code, _variables, message) => setToastMessage(describeErrorCode(code, message)),
@@ -196,7 +193,7 @@ export function MyTasksPage() {
           </p>
         ) : (
           inProgress.map((task, index) => (
-            <TaskRow key={task.id} task={task} primary={index === 0} checkSentBack onMove={handleMove} />
+            <TaskRow key={task.id} task={task} primary={index === 0} onMove={handleMove} />
           ))
         )}
       </div>
@@ -252,7 +249,20 @@ export function MyTasksPage() {
         )}
       </div>
 
+      <div className="flex items-center justify-between gap-[var(--space-3)] rounded-card-lg border border-border bg-surface p-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted">
+        <span>— tasks finished this week</span>
+        <button
+          type="button"
+          aria-disabled="true"
+          className="min-h-9 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-3)] font-medium text-text hover:bg-column"
+          onClick={() => comingSoon.show()}
+        >
+          Show
+        </button>
+      </div>
+
       {toastMessage !== null && <MoveToast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
+      {comingSoon.message !== null && <ComingSoon message={comingSoon.message} onDismiss={comingSoon.hide} />}
     </section>
   )
 }
