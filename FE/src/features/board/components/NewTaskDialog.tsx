@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { ApiError } from '../../../api/client'
@@ -43,9 +43,23 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const titleRef = useRef<HTMLInputElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
   const mutation = useCreateTaskMutation()
 
   useDialogA11y(titleRef, onClose, mutation.isPending)
+
+  // `⌘↵`/`Ctrl+Enter` — primary action (`docs/design/SPEC.md` §5.4/§6 point 7, built 2026-11-11).
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && !mutation.isPending) {
+        event.preventDefault()
+        formRef.current?.requestSubmit()
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [mutation.isPending])
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -85,6 +99,7 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
       onClick={() => !mutation.isPending && onClose()}
     >
       <form
+        ref={formRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="nt-title"
@@ -241,10 +256,18 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
           </button>
           <button
             type="submit"
-            className="ml-auto min-h-11 cursor-pointer rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60 max-[600px]:ml-0"
+            className="ml-auto inline-flex min-h-11 cursor-pointer items-center gap-[var(--space-2)] rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60 max-[600px]:ml-0"
             disabled={mutation.isPending}
           >
             {mutation.isPending ? 'Creating…' : 'Create task'}
+            {!mutation.isPending && (
+              <kbd
+                aria-hidden="true"
+                className="rounded-[5px] bg-[rgba(255,255,255,0.18)] px-[6px] py-[1px] font-mono text-[length:var(--font-size-2xs)] font-normal"
+              >
+                ⌘↵
+              </kbd>
+            )}
           </button>
         </div>
       </form>

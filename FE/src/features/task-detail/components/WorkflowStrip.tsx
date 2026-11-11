@@ -78,14 +78,23 @@ export function WorkflowStrip({ status, moves, reopen, onMove, onReopenRequested
       </ol>
 
       <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-        {moves.map((move) => (
+        {moves.map((move, index) => (
           <button
             key={move.status}
             type="button"
-            className="inline-flex min-h-11 cursor-pointer items-center rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
+            className="inline-flex min-h-11 cursor-pointer items-center gap-[var(--space-2)] rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
             onClick={() => onMove(move.status)}
           >
             {moveButtonLabel(status, move)}
+            {/* `⌘↵` acts on the first allowed move (`docs/design/SPEC.md` §5.3/§6 point 7, built 2026-11-11). */}
+            {index === 0 && (
+              <kbd
+                aria-hidden="true"
+                className="rounded-[5px] bg-[rgba(255,255,255,0.18)] px-[6px] py-[1px] font-mono text-[length:var(--font-size-2xs)] font-normal"
+              >
+                ⌘↵
+              </kbd>
+            )}
           </button>
         ))}
 

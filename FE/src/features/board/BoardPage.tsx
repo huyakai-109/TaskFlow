@@ -1,6 +1,7 @@
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
-import { useMemo, useState } from 'react'
+import clsx from 'clsx'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { BOARD_COLUMNS } from '../../api/types'
@@ -16,9 +17,18 @@ import { useOverdueTasksQuery } from '../../shared/hooks/useOverdueTasksQuery'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 
 import { BoardColumn } from './components/BoardColumn'
+import { BoardListView } from './components/BoardListView'
+import { BoardSearch } from './components/BoardSearch'
 import { NewTaskDialog } from './components/NewTaskDialog'
 import { useColumnPagesQuery } from './hooks/useColumnPagesQuery'
 import { mergeColumnItems } from './utils/mergeColumnItems'
+
+type BoardView = 'board' | 'list'
+
+/** Typing `c` while focused in a field must never pop a dialog. */
+function isTypingTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+}
 
 function StatusIcon({ status }: { status: TaskStatus }) {
   switch (status) {
@@ -90,6 +100,7 @@ export function BoardPage() {
   )
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [view, setView] = useState<BoardView>('board')
   const [assignAndMove, setAssignAndMove] = useState<{
     taskId: number
     toStatus: TaskStatus
@@ -218,6 +229,29 @@ export function BoardPage() {
   )
 
   const overdueCount = overdueTasksQuery.data?.pages.at(-1)?.pagination?.totalItems ?? 0
+  const anyDialogOpen = refusal !== null || createOpen || assignAndMove !== null
+
+  // `C` new task (`docs/design/SPEC.md` §3/§6 point 7, built 2026-11-11 — SPEC §10
+  // point 5). Scoped to the Board page, where the New task dialog and its
+  // mutation already live; never fires while typing in a field or while
+  // another dialog is already open.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key.toLowerCase() !== 'c' || event.metaKey || event.ctrlKey || event.altKey) {
+        return
+      }
+
+      if (isTypingTarget(event.target) || anyDialogOpen) {
+        return
+      }
+
+      event.preventDefault()
+      setCreateOpen(true)
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [anyDialogOpen])
 
   return (
     <section>
@@ -228,9 +262,37 @@ export function BoardPage() {
        * capacity counts are deferred BE work, point 3).
        */}
       <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-        <h1 className="m-0 inline-flex min-h-9 items-center rounded-control-lg bg-column px-[var(--space-3)] text-[length:var(--font-size-sm)] font-semibold">
-          Board
-        </h1>
+        <h1 className="sr-only">Board</h1>
+        <div
+          role="tablist"
+          aria-label="Board view"
+          className="inline-flex min-h-9 items-center gap-[2px] rounded-control-lg bg-column p-[2px]"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'board'}
+            className={clsx(
+              'min-h-8 cursor-pointer rounded-control border-0 px-[var(--space-3)] text-[length:var(--font-size-sm)]',
+              view === 'board' ? 'bg-surface font-semibold text-text shadow-card' : 'bg-transparent text-text-muted',
+            )}
+            onClick={() => setView('board')}
+          >
+            Board
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'list'}
+            className={clsx(
+              'min-h-8 cursor-pointer rounded-control border-0 px-[var(--space-3)] text-[length:var(--font-size-sm)]',
+              view === 'list' ? 'bg-surface font-semibold text-text shadow-card' : 'bg-transparent text-text-muted',
+            )}
+            onClick={() => setView('list')}
+          >
+            List
+          </button>
+        </div>
         <span
           className="inline-flex min-h-9 items-center gap-[var(--space-1)] rounded-control-lg border border-border px-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted"
           title="Urgent → High → Normal, then earliest due date. Tasks with no date go last."
@@ -240,7 +302,8 @@ export function BoardPage() {
           </svg>
           Sort: <strong className="ml-[var(--space-1)] font-semibold text-text">Priority</strong>
         </span>
-        <div className="ml-auto flex items-center gap-[var(--space-3)] max-[600px]:ml-0">
+        <div className="ml-auto flex items-center gap-[var(--space-3)] max-[600px]:ml-0 max-[600px]:w-full max-[600px]:flex-wrap">
+          <BoardSearch tasks={BOARD_COLUMNS.flatMap((status) => mergedItemsFor(status))} />
           {overdueCount > 0 && (
             <Link
               to="/overdue"
@@ -255,10 +318,16 @@ export function BoardPage() {
           )}
           <button
             type="button"
-            className="min-h-10 cursor-pointer rounded-control-lg border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
+            className="inline-flex min-h-10 cursor-pointer items-center gap-[var(--space-2)] rounded-control-lg border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
             onClick={() => setCreateOpen(true)}
           >
             New task
+            <kbd
+              aria-hidden="true"
+              className="rounded-[5px] bg-[rgba(255,255,255,0.18)] px-[6px] py-[1px] font-mono text-[length:var(--font-size-2xs)] font-normal"
+            >
+              C
+            </kbd>
           </button>
         </div>
       </div>
@@ -281,7 +350,7 @@ export function BoardPage() {
         </div>
       )}
 
-      {boardQuery.isSuccess && (
+      {boardQuery.isSuccess && view === 'board' && (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActiveTask(null)}>
           <div className="mt-[var(--space-5)] grid grid-flow-col auto-cols-[minmax(232px,1fr)] items-start gap-[var(--space-4)] overflow-x-auto max-[600px]:auto-cols-[85vw]">
             {BOARD_COLUMNS.map((status) => {
@@ -310,6 +379,12 @@ export function BoardPage() {
             })}
           </div>
         </DndContext>
+      )}
+
+      {boardQuery.isSuccess && view === 'list' && (
+        <BoardListView
+          itemsByStatus={Object.fromEntries(BOARD_COLUMNS.map((status) => [status, mergedItemsFor(status)])) as Record<TaskStatus, TaskSummary[]>}
+        />
       )}
 
       {refusal !== null && (

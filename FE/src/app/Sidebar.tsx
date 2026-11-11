@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import { NavLink } from 'react-router-dom'
 
+import { useNotificationsQuery } from '../features/notifications/hooks/useNotificationsQuery'
 import { useAuthSession } from '../shared/hooks/useAuthSession'
 import { useOverdueTasksQuery } from '../shared/hooks/useOverdueTasksQuery'
 import { useUsersQuery } from '../shared/hooks/useUsersQuery'
@@ -25,6 +26,25 @@ function MyTasksIcon() {
   )
 }
 
+function InboxIcon() {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 6.5 4 2h8l2 4.5" />
+      <path d="M2 6.5h3.2l.9 2h3.8l.9-2H14V13a.9.9 0 0 1-.9.9H2.9A.9.9 0 0 1 2 13z" />
+    </svg>
+  )
+}
+
+function TeamCapacityIcon() {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="5.5" cy="5" r="2" />
+      <circle cx="11" cy="6" r="1.6" />
+      <path d="M1.5 13c0-2.5 1.8-3.8 4-3.8s4 1.3 4 3.8M9.8 9.6c1.7.1 3.2 1.3 3.2 3.4" />
+    </svg>
+  )
+}
+
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   clsx(
     'flex min-h-[34px] items-center gap-[var(--space-2)] rounded-control px-[var(--space-2)] text-[length:var(--font-size-base)] no-underline',
@@ -34,17 +54,19 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 /**
  * `docs/design/SPEC.md` §3. Scoped down per Gate A (approved 2026-11-08,
  * SPEC.md §10): no "Team Alpha" workspace label (CLAUDE.md — no team entity),
- * no Inbox/Team capacity nav items or search box (not built, hidden rather
- * than dead-linked), no "Due this week" (not in scope at all). My tasks
- * shipped in slice 5.
+ * no "Due this week" (not in scope at all). Inbox and Team capacity were
+ * reopened and built 2026-11-11 (SPEC.md §10 point 5) — both read data an
+ * existing endpoint already returns, not a new backend addition.
  */
 export function Sidebar() {
   const logout = useLogout()
   const { userId } = useAuthSession()
   const overdueTasksQuery = useOverdueTasksQuery()
   const usersQuery = useUsersQuery()
+  const notificationsQuery = useNotificationsQuery()
 
   const overdueCount = overdueTasksQuery.data?.pages.at(-1)?.pagination?.totalItems ?? 0
+  const unreadCount = notificationsQuery.data?.result?.length ?? 0
   const currentUser = usersQuery.data?.find((user) => user.id === userId) ?? null
 
   return (
@@ -57,6 +79,11 @@ export function Sidebar() {
       </div>
 
       <nav aria-label="Primary" className="flex flex-col gap-[2px]">
+        <NavLink to="/inbox" className={navLinkClass}>
+          <InboxIcon />
+          Inbox
+          {unreadCount > 0 && <span className="ml-auto text-text-muted">{unreadCount}</span>}
+        </NavLink>
         <NavLink to="/my-tasks" className={navLinkClass}>
           <MyTasksIcon />
           My tasks
@@ -64,6 +91,10 @@ export function Sidebar() {
         <NavLink to="/board" className={navLinkClass}>
           <BoardIcon />
           Board
+        </NavLink>
+        <NavLink to="/team-capacity" className={navLinkClass}>
+          <TeamCapacityIcon />
+          Team capacity
         </NavLink>
       </nav>
 

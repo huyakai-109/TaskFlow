@@ -63,6 +63,24 @@
           { "patterns": ["**/board/**", "**/task-detail/**", "**/notifications/**", "**/auth/**", "**/app/**"] }
         ]
       }
+    },
+    {
+      "files": ["src/features/inbox/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          { "patterns": ["**/board/**", "**/task-detail/**", "**/notifications/**", "**/overdue/**", "**/team-capacity/**", "**/auth/**", "**/app/**"] }
+        ]
+      }
+    },
+    {
+      "files": ["src/features/team-capacity/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          { "patterns": ["**/board/**", "**/task-detail/**", "**/notifications/**", "**/overdue/**", "**/inbox/**", "**/auth/**", "**/app/**"] }
+        ]
+      }
     }
   ]
 }
