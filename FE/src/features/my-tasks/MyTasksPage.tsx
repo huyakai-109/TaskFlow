@@ -13,6 +13,8 @@ import { useUsersQuery } from '../../shared/hooks/useUsersQuery'
 import { avatarPaletteIndex, initialsOf } from '../../shared/lib/avatar'
 import { moveButtonLabel } from '../../shared/lib/moveButtonLabel'
 
+import { useSentBackBy } from './hooks/useSentBackBy'
+
 /** "Good morning"/"afternoon"/"evening" by the viewer's local clock — decorative copy only, not a server fact. */
 function greetingWord(): string {
   const hour = new Date().getHours()
@@ -26,12 +28,16 @@ interface TaskRowProps {
   primary?: boolean
   /** Set only for a Todo→InProgress "Start" row while the viewer is already at 3 in progress — disables the button and shows why (SPEC §5.8's "Frees up when one of your 3 moves to Review."), a client-side hint only; the server stays the real enforcer. */
   disabledReason?: string
+  /** "In progress" section only (`docs/design/COMING-SOON.md` A11) — a small, bounded per-row history read, not a board-wide one. */
+  checkSentBack?: boolean
   onMove: (taskId: number, toStatus: TaskStatus, version: string, taskTitle: string) => void
 }
 
-function TaskRow({ task, primary = false, disabledReason, onMove }: TaskRowProps) {
+function TaskRow({ task, primary = false, disabledReason, checkSentBack = false, onMove }: TaskRowProps) {
   const move = task.allowedTransitions.find((t) => t.operation === 'Move')
   const disabled = disabledReason !== undefined
+  const sentBackQuery = useSentBackBy(task.id, checkSentBack)
+  const sentBackBy = sentBackQuery.data
 
   return (
     <div className="flex flex-wrap items-center gap-[var(--space-3)] rounded-card-lg border border-border bg-surface p-[var(--space-3)]">
@@ -54,6 +60,11 @@ function TaskRow({ task, primary = false, disabledReason, onMove }: TaskRowProps
         </Link>
         <span className="mt-[2px] flex flex-wrap gap-[var(--space-2)]">
           {task.isOverdue ? <OverdueChip dueDate={task.dueDate} /> : <DueChip dueDate={task.dueDate} />}
+          {sentBackBy !== null && sentBackBy !== undefined && (
+            <span className="inline-flex min-h-[21px] items-center gap-[var(--space-1)] rounded-sm border border-transparent bg-warning-surface px-[var(--space-2)] font-semibold text-warning">
+              Sent back by {sentBackBy.actorName ?? 'someone'} for rework
+            </span>
+          )}
         </span>
       </div>
       {move !== undefined && (
@@ -81,12 +92,16 @@ function TaskRow({ task, primary = false, disabledReason, onMove }: TaskRowProps
 }
 
 /**
- * `docs/design/SPEC.md` §5.8, trimmed per §10 point 6: no "Sent back by
- * <name>" chip, no "You finished N tasks this week" line (both need data
- * this branch doesn't add). Reads the already-loaded board — no new
- * endpoint (§10 point 9); a per-user item beyond a column's first
- * `BoardColumnPageSize` (50) page would be missing, a documented limitation,
- * not something this page tries to paper over with its own pagination.
+ * `docs/design/SPEC.md` §5.8. "Sent back by `<name>` for rework" (reopened
+ * 2026-11-11, `docs/design/COMING-SOON.md` A11) reads each visible
+ * "In progress" row's own history — a small, bounded set of requests (≤3
+ * cards), not a board-wide read. "You finished N tasks this week" stays out
+ * (§10 point 6, COMING-SOON.md B2 — needs a dated aggregate this branch
+ * doesn't add). Reads the already-loaded board — no new endpoint for the
+ * task lists themselves (§10 point 9); a per-user item beyond a column's
+ * first `BoardColumnPageSize` (50) page would be missing, a documented
+ * limitation, not something this page tries to paper over with its own
+ * pagination.
  */
 export function MyTasksPage() {
   const { userId } = useAuthSession()
@@ -181,7 +196,7 @@ export function MyTasksPage() {
           </p>
         ) : (
           inProgress.map((task, index) => (
-            <TaskRow key={task.id} task={task} primary={index === 0} onMove={handleMove} />
+            <TaskRow key={task.id} task={task} primary={index === 0} checkSentBack onMove={handleMove} />
           ))
         )}
       </div>

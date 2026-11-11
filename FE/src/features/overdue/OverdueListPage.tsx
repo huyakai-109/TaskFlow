@@ -4,8 +4,10 @@ import { describeError } from '../../api/errorMessages'
 import { avatarPaletteIndex, initialsOf } from '../../shared/lib/avatar'
 import { PriorityIcon } from '../../shared/components/PriorityIcon'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
-import { daysLate, dueDateFormatter, parseDueDate } from '../../shared/lib/dueDate'
+import { daysLate, dueDateFormatter, isToday, parseDueDate } from '../../shared/lib/dueDate'
 import { useOverdueTasksQuery } from '../../shared/hooks/useOverdueTasksQuery'
+
+import { useDueTodayTasksQuery } from './hooks/useDueTodayTasksQuery'
 
 function formatDueDate(dueDate: string): string {
   return dueDateFormatter.format(parseDueDate(dueDate))
@@ -23,10 +25,12 @@ function ClockIcon() {
 const cellClass = 'px-[var(--space-3)] py-[var(--space-3)] text-left align-middle'
 
 /**
- * The Overdue view (F05 T9) — "Overdue now" only, per the signed-off scope:
- * no "due today", "flag cleared this week", "last check" or "late by N days"
- * (those need data this contract does not provide). Server order (priority,
- * then earliest due date) is rendered as-is, never re-sorted client-side.
+ * The Overdue view (F05 T9) — "Overdue now" plus "Due today — not overdue
+ * yet" (`docs/design/SPEC.md` §5.7, reopened 2026-11-11, SPEC §10 point 4;
+ * `docs/design/COMING-SOON.md` A10). "Flag cleared this week", "last check"
+ * and "late by N days" copy stay out — those need data this contract does
+ * not provide (COMING-SOON.md B1/B3). Server order (priority, then earliest
+ * due date) is rendered as-is, never re-sorted client-side.
  */
 export function OverdueListPage() {
   const query = useOverdueTasksQuery()
@@ -35,6 +39,14 @@ export function OverdueListPage() {
   const pagination = pages.at(-1)?.pagination ?? null
   const totalItems = pagination?.totalItems ?? items.length
   const hasMore = items.length < totalItems
+
+  const dueTodayQuery = useDueTodayTasksQuery()
+  const dueTodayPages = dueTodayQuery.data?.pages ?? []
+  const nonOverdueScanned = dueTodayPages.flatMap((page) => page.result ?? [])
+  const dueTodayItems = nonOverdueScanned.filter((task) => task.dueDate !== null && isToday(task.dueDate))
+  const dueTodayPagination = dueTodayPages.at(-1)?.pagination ?? null
+  const nonOverdueTotal = dueTodayPagination?.totalItems ?? nonOverdueScanned.length
+  const dueTodayHasMoreToScan = nonOverdueScanned.length < nonOverdueTotal
 
   return (
     <section>
@@ -171,6 +183,84 @@ export function OverdueListPage() {
           )}
         </div>
       )}
+
+      <div className="mt-[var(--space-6)] flex flex-col gap-[var(--space-3)]">
+        <h2 className="m-0 flex items-center gap-[var(--space-2)] text-[length:var(--font-size-sm)] font-semibold">
+          <span className="size-2 shrink-0 rounded-pill bg-priority-high" aria-hidden="true" />
+          Due today — not overdue yet
+        </h2>
+
+        {dueTodayQuery.isPending && (
+          <p role="status" className="m-0 text-[length:var(--font-size-sm)] text-text-muted">
+            Checking for tasks due today…
+          </p>
+        )}
+
+        {dueTodayQuery.isError && (
+          <p role="alert" className="m-0 text-[length:var(--font-size-sm)] text-danger">
+            {describeError(dueTodayQuery.error)}
+          </p>
+        )}
+
+        {dueTodayQuery.isSuccess && dueTodayItems.length === 0 && (
+          <p className="m-0 text-[length:var(--font-size-sm)] text-text-muted">
+            None of the {nonOverdueScanned.length} non-overdue tasks checked so far are due today.
+            {dueTodayHasMoreToScan && ' More may still be unchecked below.'}
+          </p>
+        )}
+
+        {dueTodayQuery.isSuccess && dueTodayItems.length > 0 && (
+          <div className="overflow-x-auto rounded-lg border border-border bg-surface">
+            <table className="w-full min-w-[480px] border-collapse text-[length:var(--font-size-sm)]">
+              <thead>
+                <tr className="text-left text-text-muted">
+                  <th scope="col" className={cellClass}>
+                    Task
+                  </th>
+                  <th scope="col" className={cellClass}>
+                    Due
+                  </th>
+                  <th scope="col" className={cellClass}>
+                    Assignee
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {dueTodayItems.map((task) => (
+                  <tr key={task.id} className="border-t border-border">
+                    <td className={cellClass}>
+                      <Link
+                        to={`/tasks/${task.id}`}
+                        className="inline-flex items-baseline gap-[var(--space-2)] text-text no-underline hover:underline"
+                      >
+                        <span className="font-mono text-[length:var(--font-size-xs)] text-text-muted">#{task.id}</span>
+                        <span className="font-medium">{task.title}</span>
+                      </Link>
+                    </td>
+                    <td className={cellClass}>Due today, {task.dueDate !== null ? formatDueDate(task.dueDate) : ''}</td>
+                    <td className={cellClass}>
+                      {task.assignee !== null ? task.assignee.userName : <span className="text-text-muted">Unassigned</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {dueTodayHasMoreToScan && (
+          <button
+            type="button"
+            className="min-h-10 cursor-pointer self-start rounded-md border border-border bg-surface px-[var(--space-3)] text-[length:var(--font-size-sm)] font-medium text-text hover:border-accent hover:bg-accent-soft hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={() => dueTodayQuery.fetchNextPage()}
+            disabled={dueTodayQuery.isFetchingNextPage}
+          >
+            {dueTodayQuery.isFetchingNextPage
+              ? 'Checking…'
+              : `Check more non-overdue tasks for "due today" (checked ${nonOverdueScanned.length} of ${nonOverdueTotal})`}
+          </button>
+        )}
+      </div>
     </section>
   )
 }
