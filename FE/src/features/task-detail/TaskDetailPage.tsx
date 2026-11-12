@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { describeError, describeErrorCode } from '../../api/errorMessages'
 import type { TaskPriority, TaskStatus } from '../../api/types'
@@ -7,7 +7,9 @@ import { AssignAndMoveDialog } from '../../shared/components/AssignAndMoveDialog
 import { MoveRefusalDialog } from '../../shared/components/MoveRefusalDialog'
 import { MoveToast } from '../../shared/components/MoveToast'
 import { useAssignAndMoveTaskMutation } from '../../shared/hooks/useAssignAndMoveTaskMutation'
+import { useBoardQuery } from '../../shared/hooks/useBoardQuery'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
+import { isTypingTarget } from '../../shared/lib/isTypingTarget'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 
 import { AssigneePickerDialog } from './components/AssigneePickerDialog'
@@ -42,9 +44,16 @@ function isConflictLike(code: string | null): boolean {
  */
 export function TaskDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const taskId = Number(id)
   const taskQuery = useTaskQuery(taskId)
   const historyQuery = useTaskHistoryQuery(taskId)
+  // `J`/`K` previous/next task, `⌘↵` primary action (`docs/design/SPEC.md`
+  // §5.3/§6 point 7, built 2026-11-11). Board data, already cached by
+  // `useBoardQuery` elsewhere in the app (same `['board']` query key), gives
+  // the ordered list of same-status tasks to step through; a cold visit
+  // directly to `/tasks/:id` fetches it fresh.
+  const boardQuery = useBoardQuery()
 
   const [refusal, setRefusal] = useState<{ code: string | null; taskTitle: string; message: string | null } | null>(
     null,
@@ -131,6 +140,49 @@ export function TaskDetailPage() {
     },
   })
 
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const task = taskQuery.data
+
+      if (task === undefined || isTypingTarget(event.target)) {
+        return
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        const firstMove = task.allowedTransitions.find((t) => t.operation === 'Move')
+
+        if (firstMove !== undefined) {
+          event.preventDefault()
+          moveMutation.mutate({ taskId: task.id, toStatus: firstMove.status, version: task.version, taskTitle: task.title })
+        }
+
+        return
+      }
+
+      const key = event.key.toLowerCase()
+
+      if ((key !== 'j' && key !== 'k') || event.metaKey || event.ctrlKey || event.altKey) {
+        return
+      }
+
+      const items = boardQuery.data?.columns.find((c) => c.status === task.status)?.items ?? []
+      const index = items.findIndex((item) => item.id === task.id)
+
+      if (index === -1) {
+        return
+      }
+
+      const target = items[key === 'j' ? index + 1 : index - 1]
+
+      if (target !== undefined) {
+        navigate(`/tasks/${target.id}`)
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [taskQuery.data, boardQuery.data, moveMutation, navigate])
+
   if (taskQuery.isPending) {
     return (
       <p className={noteClass} role="status">
@@ -172,15 +224,11 @@ export function TaskDetailPage() {
   }
 
   return (
-    <section className="flex max-w-[1100px] flex-col gap-[var(--space-5)]">
-      <Link
-        to="/board"
-        className="self-start text-[length:var(--font-size-sm)] text-text-muted no-underline hover:underline"
-      >
-        ‹ Board / <span className="font-mono">#{task.id}</span>
-      </Link>
-
-      <div className="flex max-w-[800px] flex-col gap-[var(--space-3)]">
+    // No hard `max-w` beyond the shared ultra-wide cap (layout fix,
+    // 2026-11-12 again) — `main` below already has a large flex-grow factor
+    // and only needed its own `max-w-[800px]` removed to actually use it.
+    <section className="mx-auto flex w-full max-w-[1680px] flex-col gap-[var(--space-5)]">
+      <div className="flex flex-col gap-[var(--space-3)]">
         <div className="flex flex-wrap items-center gap-[var(--space-3)]">
           <h1 className="m-0 text-[length:var(--font-size-display)] font-semibold tracking-[-0.02em]">{task.title}</h1>
           <button
@@ -190,6 +238,11 @@ export function TaskDetailPage() {
           >
             Edit
           </button>
+          <span className="ml-auto flex items-center gap-[var(--space-1)] text-[length:var(--font-size-xs)] text-text-muted">
+            <kbd className="rounded-[5px] bg-sidebar px-[6px] py-[1px] font-mono">J</kbd>
+            <kbd className="rounded-[5px] bg-sidebar px-[6px] py-[1px] font-mono">K</kbd>
+            next / previous task
+          </span>
         </div>
         {task.description !== null && task.description !== '' && (
           <p className="text-[length:var(--font-size-md)] text-text-muted [line-height:24px]">{task.description}</p>
@@ -197,7 +250,7 @@ export function TaskDetailPage() {
       </div>
 
       <div className="flex flex-wrap items-start gap-[var(--space-5)]">
-        <main className="flex min-w-[320px] max-w-[800px] flex-[999_1_540px] flex-col gap-[var(--space-5)]">
+        <main className="flex min-w-[320px] flex-[999_1_540px] flex-col gap-[var(--space-5)]">
           <WorkflowStrip
             status={task.status}
             moves={moves}
@@ -274,6 +327,7 @@ export function TaskDetailPage() {
       {assigneePickerOpen && (
         <AssigneePickerDialog
           currentAssigneeId={task.assignee?.id ?? null}
+          taskStatus={task.status}
           isPending={assignMutation.isPending}
           errorCode={assignErrorCode}
           errorMessage={assignErrorMessage}

@@ -62,6 +62,23 @@ export async function getOverdueTasks(
   })
 }
 
+/**
+ * `GET /tasks?isOverdue=false&start=&length=` — the Overdue view's "Due
+ * today, not overdue yet" group (`docs/design/COMING-SOON.md` A10, built
+ * this session). Same shape as `getOverdueTasks`; the caller filters the
+ * (not-yet-overdue) results down to `dueDate` = today client-side, since
+ * there is no dedicated due-date filter.
+ */
+export async function getNonOverdueTasks(
+  start: number,
+  length: number,
+  signal?: AbortSignal,
+): Promise<PaginationResultRes<TaskSummary[]>> {
+  return request<PaginationResultRes<TaskSummary[]>>(`/tasks?isOverdue=false&start=${start}&length=${length}`, {
+    signal,
+  })
+}
+
 /** `GET /tasks/{id}` (T5 #2) — the task detail screen's read. */
 export async function getTask(id: number, signal?: AbortSignal): Promise<TaskDetail> {
   const envelope = await request<ResultRes<TaskDetail>>(`/tasks/${id}`, { signal })

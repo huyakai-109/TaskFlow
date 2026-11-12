@@ -2,7 +2,7 @@ import clsx from 'clsx'
 
 import { daysLate, dueDateFormatter, isToday, parseDueDate } from '../lib/dueDate'
 
-export const chipBase = 'inline-flex min-h-[21px] items-center gap-[var(--space-1)] rounded-sm border border-border px-[var(--space-2)]'
+export const chipBase = 'inline-flex min-h-[21px] shrink-0 items-center gap-[var(--space-1)] whitespace-nowrap rounded-sm border border-border px-[var(--space-2)]'
 
 /** Second use (`MyTasksPage.tsx`) — pulled out of `TaskCard.tsx` so both share one due/overdue chip, not two hand-rolled formats. */
 export function DueChip({ dueDate }: { dueDate: string | null }) {

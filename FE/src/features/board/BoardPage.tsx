@@ -1,7 +1,8 @@
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import clsx from 'clsx'
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
 import { BOARD_COLUMNS } from '../../api/types'
 import type { TaskStatus, TaskSummary } from '../../api/types'
@@ -13,12 +14,16 @@ import { useAssignAndMoveTaskMutation } from '../../shared/hooks/useAssignAndMov
 import { useBoardQuery } from '../../shared/hooks/useBoardQuery'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
 import { useOverdueTasksQuery } from '../../shared/hooks/useOverdueTasksQuery'
+import { useTeamCapacity } from '../../shared/hooks/useTeamCapacity'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 
+import { AvatarStack } from './components/AvatarStack'
 import { BoardColumn } from './components/BoardColumn'
-import { NewTaskDialog } from './components/NewTaskDialog'
+import { BoardListView } from './components/BoardListView'
 import { useColumnPagesQuery } from './hooks/useColumnPagesQuery'
 import { mergeColumnItems } from './utils/mergeColumnItems'
+
+type BoardView = 'board' | 'list'
 
 function StatusIcon({ status }: { status: TaskStatus }) {
   switch (status) {
@@ -81,7 +86,6 @@ const CONFLICT_CODES = new Set(['Task.Move.Conflict', 'Task.Move.NotFound'])
  * each column, a pre-existing defect this slice fixes.
  */
 export function BoardPage() {
-  const navigate = useNavigate()
   const boardQuery = useBoardQuery()
   const overdueTasksQuery = useOverdueTasksQuery()
   const [activeTask, setActiveTask] = useState<TaskSummary | null>(null)
@@ -89,7 +93,11 @@ export function BoardPage() {
     null,
   )
   const [toastMessage, setToastMessage] = useState<string | null>(null)
-  const [createOpen, setCreateOpen] = useState(false)
+  const [view, setView] = useState<BoardView>('board')
+  // Below 640px the board shows one status at a time, chosen from a pinned
+  // tab bar instead of a horizontally-scrolling row of columns (layout fix,
+  // 2026-11-12 again). Desktop ignores this entirely (CSS-only hidden).
+  const [mobileStatus, setMobileStatus] = useState<TaskStatus>('Backlog')
   const [assignAndMove, setAssignAndMove] = useState<{
     taskId: number
     toStatus: TaskStatus
@@ -218,19 +226,54 @@ export function BoardPage() {
   )
 
   const overdueCount = overdueTasksQuery.data?.pages.at(-1)?.pagination?.totalItems ?? 0
+  const teamCapacity = useTeamCapacity()
 
   return (
-    <section>
+    <section className="flex h-full min-h-0 flex-col gap-[var(--space-3)]">
       {/*
-       * `docs/design/SPEC.md` §5.1 toolbar, trimmed per §10 Gate A: no List
-       * segment (view doesn't exist — a dead segment is worse than none), no
-       * "N at capacity" pill or avatar stack/Team-capacity popover (per-user
-       * capacity counts are deferred BE work, point 3).
+       * `docs/design/SPEC.md` §5.1 toolbar. List segment, search, "N at
+       * capacity" pill and the avatar stack/Team popover were reopened and
+       * built 2026-11-11 (SPEC.md §10 point 5 superseded, `docs/design/COMING-SOON.md`
+       * A3/A9) — per-user capacity counts turned out derivable from the
+       * board's already-loaded data, not new backend work. Search and "New
+       * task" moved to the shared `Topbar` (layout fix) so they work from
+       * every page, not only here. `shrink-0`: this row stays put above the
+       * scrolling board/list area below it (Jira-style layout fix,
+       * 2026-11-12) — `<main>` itself never scrolls on this page, only the
+       * area under this toolbar does.
        */}
-      <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-        <h1 className="m-0 inline-flex min-h-9 items-center rounded-control-lg bg-column px-[var(--space-3)] text-[length:var(--font-size-sm)] font-semibold">
-          Board
-        </h1>
+      <div className="flex shrink-0 flex-wrap items-center gap-[var(--space-3)]">
+        <h1 className="sr-only">Board</h1>
+        <div
+          role="tablist"
+          aria-label="Board view"
+          className="inline-flex min-h-9 items-center gap-[2px] rounded-control-lg bg-column p-[2px]"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'board'}
+            className={clsx(
+              'min-h-8 cursor-pointer rounded-control border-0 px-[var(--space-3)] text-[length:var(--font-size-sm)]',
+              view === 'board' ? 'bg-surface font-semibold text-text shadow-card' : 'bg-transparent text-text-muted',
+            )}
+            onClick={() => setView('board')}
+          >
+            Board
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'list'}
+            className={clsx(
+              'min-h-8 cursor-pointer rounded-control border-0 px-[var(--space-3)] text-[length:var(--font-size-sm)]',
+              view === 'list' ? 'bg-surface font-semibold text-text shadow-card' : 'bg-transparent text-text-muted',
+            )}
+            onClick={() => setView('list')}
+          >
+            List
+          </button>
+        </div>
         <span
           className="inline-flex min-h-9 items-center gap-[var(--space-1)] rounded-control-lg border border-border px-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted"
           title="Urgent → High → Normal, then earliest due date. Tasks with no date go last."
@@ -240,7 +283,7 @@ export function BoardPage() {
           </svg>
           Sort: <strong className="ml-[var(--space-1)] font-semibold text-text">Priority</strong>
         </span>
-        <div className="ml-auto flex items-center gap-[var(--space-3)] max-[600px]:ml-0">
+        <div className="ml-auto flex items-center gap-[var(--space-3)] max-[600px]:ml-0 max-[600px]:w-full max-[600px]:flex-wrap">
           {overdueCount > 0 && (
             <Link
               to="/overdue"
@@ -253,15 +296,68 @@ export function BoardPage() {
               {overdueCount} overdue
             </Link>
           )}
-          <button
-            type="button"
-            className="min-h-10 cursor-pointer rounded-control-lg border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
-            onClick={() => setCreateOpen(true)}
-          >
-            New task
-          </button>
+          {!teamCapacity.isPending && !teamCapacity.isError && teamCapacity.fullCount > 0 && (
+            <Link
+              to="/team-capacity"
+              className="inline-flex min-h-9 items-center gap-[var(--space-1)] rounded-pill border border-danger-border px-[var(--space-3)] text-[length:var(--font-size-sm)] font-semibold text-danger no-underline hover:underline"
+            >
+              <span aria-hidden="true" className="size-2 shrink-0 rounded-pill bg-danger" />
+              {teamCapacity.fullCount} at capacity
+            </Link>
+          )}
+          <span aria-hidden="true" className="h-6 w-px bg-border" />
+          <AvatarStack />
         </div>
       </div>
+
+      {/*
+       * Below 640px the board shows one status at a time instead of a row of
+       * columns (layout fix, 2026-11-12 again) — switched here, or with the
+       * arrow keys while this tab bar has focus; moving a task is the "Move
+       * to …" button on the card (drag never was the only path — see
+       * `TaskCard`'s own doc comment).
+       */}
+      {boardQuery.isSuccess && view === 'board' && (
+        <div
+          role="tablist"
+          aria-label="Board status"
+          className="hidden shrink-0 items-center gap-[2px] overflow-x-auto rounded-control-lg bg-column p-[2px] max-[639px]:flex"
+          onKeyDown={(event) => {
+            if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') {
+              return
+            }
+
+            event.preventDefault()
+            const index = BOARD_COLUMNS.indexOf(mobileStatus)
+            const delta = event.key === 'ArrowRight' ? 1 : -1
+            const next = BOARD_COLUMNS[(index + delta + BOARD_COLUMNS.length) % BOARD_COLUMNS.length]
+            setMobileStatus(next)
+          }}
+        >
+          {BOARD_COLUMNS.map((status) => {
+            const column = boardQuery.data.columns.find((c) => c.status === status)
+            const totalItems = column?.pagination?.totalItems ?? mergedItemsFor(status).length
+
+            return (
+              <button
+                key={status}
+                type="button"
+                role="tab"
+                aria-selected={mobileStatus === status}
+                className={clsx(
+                  'flex min-h-8 shrink-0 cursor-pointer items-center gap-[var(--space-1)] rounded-control border-0 px-[var(--space-2)] text-[length:var(--font-size-xs)]',
+                  mobileStatus === status ? 'bg-surface font-semibold text-text shadow-card' : 'bg-transparent text-text-muted',
+                )}
+                onClick={() => setMobileStatus(status)}
+              >
+                <StatusIcon status={status} />
+                <span className="max-w-[56px] truncate">{STATUS_LABELS[status]}</span>
+                <span className="font-normal">{totalItems}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {boardQuery.isPending && (
         <p className="mt-[var(--space-5)] text-[length:var(--font-size-sm)] text-text-muted" role="status">
@@ -281,35 +377,64 @@ export function BoardPage() {
         </div>
       )}
 
-      {boardQuery.isSuccess && (
+      {boardQuery.isSuccess && view === 'board' && (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActiveTask(null)}>
-          <div className="mt-[var(--space-5)] grid grid-flow-col auto-cols-[minmax(232px,1fr)] items-start gap-[var(--space-4)] overflow-x-auto max-[600px]:auto-cols-[85vw]">
-            {BOARD_COLUMNS.map((status) => {
-              const column = boardQuery.data.columns.find((c) => c.status === status)
-              const items = mergedItemsFor(status)
-              const pages = columnPages[status]
+          {/*
+           * `docs/design/SPEC.md` §5.1 — the board area: the one vertical
+           * scroll region of this page (layout fix, 2026-11-12 again —
+           * `overflow-x-hidden`, never a horizontal scrollbar: all five
+           * columns are `grid-cols-5` `minmax(0,1fr)` tracks that shrink and
+           * grow with the viewport instead of a fixed width). Capped at
+           * ~420px per column and centred past ~2180px wide so columns don't
+           * grow unreasonably large on an ultra-wide monitor. Below 640px,
+           * `grid-cols-1` and only the status picked in the tab bar above
+           * renders at all (`BoardColumn`'s `isMobileHidden`).
+           */}
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+            <div className="mx-auto grid min-h-full max-w-[2180px] grid-cols-1 items-stretch gap-[clamp(10px,1.5vw,16px)] pb-[var(--space-1)] min-[640px]:grid-cols-5">
+              {BOARD_COLUMNS.map((status) => {
+                const column = boardQuery.data.columns.find((c) => c.status === status)
+                const items = mergedItemsFor(status)
+                const pages = columnPages[status]
 
-              return (
-                <BoardColumn
-                  key={status}
-                  status={status}
-                  label={STATUS_LABELS[status]}
-                  icon={<StatusIcon status={status} />}
-                  items={items}
-                  pagination={column?.pagination ?? null}
-                  onLoadMore={() => loadMore(status)}
-                  isLoadingMore={pages.isFetchingNextPage}
-                  isDragging={activeTask !== null}
-                  isDropTarget={allowedTargetsForActiveDrag.has(status)}
-                  onMove={(taskId, toStatus, version) => {
-                    const task = findTask(taskId)
-                    moveMutation.mutate({ taskId, toStatus, version, taskTitle: task?.title ?? `#${taskId}` })
-                  }}
-                />
-              )
-            })}
+                return (
+                  <BoardColumn
+                    key={status}
+                    status={status}
+                    label={STATUS_LABELS[status]}
+                    icon={<StatusIcon status={status} />}
+                    items={items}
+                    pagination={column?.pagination ?? null}
+                    onLoadMore={() => loadMore(status)}
+                    isLoadingMore={pages.isFetchingNextPage}
+                    isDragging={activeTask !== null}
+                    isDropTarget={allowedTargetsForActiveDrag.has(status)}
+                    isMobileHidden={status !== mobileStatus}
+                    onMove={(taskId, toStatus, version) => {
+                      const task = findTask(taskId)
+                      moveMutation.mutate({ taskId, toStatus, version, taskTitle: task?.title ?? `#${taskId}` })
+                    }}
+                  />
+                )
+              })}
+            </div>
           </div>
         </DndContext>
+      )}
+
+      {boardQuery.isSuccess && view === 'list' && (
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-lg border border-border">
+          <BoardListView
+            itemsByStatus={Object.fromEntries(BOARD_COLUMNS.map((status) => [status, mergedItemsFor(status)])) as Record<TaskStatus, TaskSummary[]>}
+            paginationByStatus={
+              Object.fromEntries(
+                BOARD_COLUMNS.map((status) => [status, boardQuery.data.columns.find((c) => c.status === status)?.pagination ?? null]),
+              ) as Record<TaskStatus, (typeof boardQuery.data.columns)[number]['pagination']>
+            }
+            onLoadMore={loadMore}
+            isLoadingMore={(status) => columnPages[status].isFetchingNextPage}
+          />
+        </div>
       )}
 
       {refusal !== null && (
@@ -322,7 +447,6 @@ export function BoardPage() {
       )}
 
       {toastMessage !== null && <MoveToast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
-
       {assignAndMove !== null && (
         <AssignAndMoveDialog
           taskTitle={assignAndMove.taskTitle}
@@ -342,16 +466,6 @@ export function BoardPage() {
               { onSuccess: () => setAssignAndMove(null) },
             )
           }
-        />
-      )}
-
-      {createOpen && (
-        <NewTaskDialog
-          onClose={() => setCreateOpen(false)}
-          onCreated={(taskId) => {
-            setCreateOpen(false)
-            navigate(`/tasks/${taskId}`)
-          }}
         />
       )}
     </section>

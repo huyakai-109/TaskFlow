@@ -1,13 +1,17 @@
 import clsx from 'clsx'
 import { useRef } from 'react'
 
+import type { TaskStatus } from '../../../api/types'
 import { describeErrorCode } from '../../../api/errorMessages'
 import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
+import { IN_PROGRESS_LIMIT, useTeamCapacity } from '../../../shared/hooks/useTeamCapacity'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
 
 interface AssigneePickerDialogProps {
   currentAssigneeId: number | null
+  /** F02 D2: only `InProgress` occupies a capacity slot — the "HAS ROOM"/"AT CAPACITY" grouping below only applies then (F01 D1: assigning a Backlog/Todo/Review/Done task has no limit). */
+  taskStatus: TaskStatus
   isPending: boolean
   errorCode: string | null
   /** The server's raw `error` string — shown verbatim for `Task.Assign.CapacityReached`. */
@@ -20,25 +24,36 @@ const optionClass =
   'flex min-h-10 w-full cursor-pointer items-center rounded-sm border-0 bg-transparent px-[var(--space-3)] text-left text-text [font:inherit] [&:hover:not(:disabled)]:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-60'
 
 /**
- * `docs/design/SPEC.md` §5.5 and `docs/design/png/AssignPicker.png`, minus its "has room" sort and
- * "at capacity" disabling — both are F02's rejected slice 3.5 ("Workload in
- * the picker", not scheduled, `docs/ROADMAP.md` unit 3). Listed
- * alphabetically; everyone enabled. Stays open on a non-conflict failure
- * (e.g. `AssigneeNotFound`, `CapacityReached`) so the user can pick again; a
- * conflict closes it, because the page's own refusal handler already
- * refreshes the task.
+ * `docs/design/SPEC.md` §5.5 and `docs/design/png/AssignPicker.png` — its
+ * "HAS ROOM · MOST FIRST" / "AT CAPACITY" grouping (reopened 2026-11-11,
+ * SPEC §10 point 2; `docs/design/COMING-SOON.md` A8) applies only while
+ * `taskStatus === 'InProgress'` (F02 D2 `TaskCapacityRule.OccupiesSlot`) —
+ * reassigning a Backlog/Todo/Review/Done task has no capacity limit (F01
+ * D1), so grouping/disabling people there would be actively misleading.
+ * Everywhere else, the list stays the plain alphabetical one it always was.
+ * Stays open on a non-conflict failure (e.g. `AssigneeNotFound`,
+ * `CapacityReached`) so the user can pick again; a conflict closes it,
+ * because the page's own refusal handler already refreshes the task.
  */
 export function AssigneePickerDialog({
   currentAssigneeId,
+  taskStatus,
   isPending,
   errorCode,
   errorMessage = null,
   onClose,
   onSelect,
 }: AssigneePickerDialogProps) {
+  const appliesCapacityGrouping = taskStatus === 'InProgress'
   const usersQuery = useUsersQuery()
+  const capacity = useTeamCapacity()
   const assignees = usersQuery.data ?? []
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  const hasRoom = appliesCapacityGrouping
+    ? capacity.entries.filter((e) => !e.isFull).sort((a, b) => a.inProgressCount - b.inProgressCount || a.user.userName.localeCompare(b.user.userName))
+    : []
+  const atCapacity = appliesCapacityGrouping ? capacity.entries.filter((e) => e.isFull).sort((a, b) => a.user.userName.localeCompare(b.user.userName)) : []
 
   useDialogA11y(closeButtonRef, onClose, isPending)
 
@@ -71,7 +86,9 @@ export function AssigneePickerDialog({
         </div>
 
         <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">
-          Listed alphabetically, everyone shown — the workload limit isn&rsquo;t shown here.
+          {appliesCapacityGrouping
+            ? 'People already at the in-progress limit are shown last and can’t be picked.'
+            : 'Listed alphabetically, everyone shown — the workload limit isn’t shown here.'}
         </p>
 
         {errorCode !== null && (
@@ -100,41 +117,109 @@ export function AssigneePickerDialog({
               Unassigned
             </button>
           </li>
-          {assignees.map((assignee) => (
-            <li key={assignee.id} role="option" aria-selected={currentAssigneeId === assignee.id}>
-              <button
-                type="button"
-                className={clsx(
-                  optionClass,
-                  'gap-[var(--space-2)]',
-                  currentAssigneeId === assignee.id && 'bg-accent-soft font-semibold text-accent-ink',
-                )}
-                disabled={isPending}
-                onClick={() => onSelect(assignee.id)}
-              >
-                <span
-                  aria-hidden="true"
-                  className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold"
-                  style={{
-                    backgroundColor: `var(--avatar-${avatarPaletteIndex(assignee.id)}-bg)`,
-                    color: `var(--avatar-${avatarPaletteIndex(assignee.id)}-ink)`,
-                  }}
-                >
-                  {initialsOf(assignee.userName)}
-                </span>
-                {assignee.userName}
-              </button>
-            </li>
-          ))}
         </ul>
 
-        {usersQuery.isPending && (
+        {appliesCapacityGrouping && hasRoom.length > 0 && (
+          <p className="m-0 text-[length:var(--font-size-2xs)] font-semibold tracking-[0.44px] text-text-muted uppercase">
+            Has room · most first
+          </p>
+        )}
+
+        <ul role="listbox" aria-label={appliesCapacityGrouping ? 'People with room' : 'Assign to'} className="m-0 flex list-none flex-col p-0">
+          {!appliesCapacityGrouping &&
+            assignees.map((assignee) => (
+              <li key={assignee.id} role="option" aria-selected={currentAssigneeId === assignee.id}>
+                <button
+                  type="button"
+                  className={clsx(
+                    optionClass,
+                    'gap-[var(--space-2)]',
+                    currentAssigneeId === assignee.id && 'bg-accent-soft font-semibold text-accent-ink',
+                  )}
+                  disabled={isPending}
+                  onClick={() => onSelect(assignee.id)}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold"
+                    style={{
+                      backgroundColor: `var(--avatar-${avatarPaletteIndex(assignee.id)}-bg)`,
+                      color: `var(--avatar-${avatarPaletteIndex(assignee.id)}-ink)`,
+                    }}
+                  >
+                    {initialsOf(assignee.userName)}
+                  </span>
+                  {assignee.userName}
+                </button>
+              </li>
+            ))}
+          {appliesCapacityGrouping &&
+            hasRoom.map(({ user, inProgressCount }) => (
+              <li key={user.id} role="option" aria-selected={currentAssigneeId === user.id}>
+                <button
+                  type="button"
+                  className={clsx(
+                    optionClass,
+                    'gap-[var(--space-2)]',
+                    currentAssigneeId === user.id && 'bg-accent-soft font-semibold text-accent-ink',
+                  )}
+                  disabled={isPending}
+                  onClick={() => onSelect(user.id)}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold"
+                    style={{
+                      backgroundColor: `var(--avatar-${avatarPaletteIndex(user.id)}-bg)`,
+                      color: `var(--avatar-${avatarPaletteIndex(user.id)}-ink)`,
+                    }}
+                  >
+                    {initialsOf(user.userName)}
+                  </span>
+                  {user.userName}
+                  <span className="ml-auto text-[length:var(--font-size-xs)] text-text-muted">
+                    {inProgressCount}/{IN_PROGRESS_LIMIT}
+                  </span>
+                </button>
+              </li>
+            ))}
+        </ul>
+
+        {appliesCapacityGrouping && atCapacity.length > 0 && (
+          <>
+            <p className="m-0 text-[length:var(--font-size-2xs)] font-semibold tracking-[0.44px] text-text-muted uppercase">
+              At capacity
+            </p>
+            <ul role="listbox" aria-label="At capacity" className="m-0 flex list-none flex-col p-0">
+              {atCapacity.map(({ user }) => (
+                <li key={user.id} role="option" aria-selected="false" aria-disabled="true">
+                  <button type="button" className={clsx(optionClass, 'gap-[var(--space-2)] opacity-60')} disabled>
+                    <span
+                      aria-hidden="true"
+                      className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold opacity-60"
+                      style={{
+                        backgroundColor: `var(--avatar-${avatarPaletteIndex(user.id)}-bg)`,
+                        color: `var(--avatar-${avatarPaletteIndex(user.id)}-ink)`,
+                      }}
+                    >
+                      {initialsOf(user.userName)}
+                    </span>
+                    {user.userName} · can&rsquo;t take more active work
+                    <span className="ml-auto text-[length:var(--font-size-xs)] font-semibold text-danger">Full</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {(appliesCapacityGrouping ? capacity.isPending : usersQuery.isPending) && (
           <p role="status" className="m-0 text-[length:var(--font-size-sm)] text-text-muted">
             Loading people…
           </p>
         )}
 
-        {usersQuery.isSuccess && assignees.length === 0 && (
+        {!appliesCapacityGrouping && usersQuery.isSuccess && assignees.length === 0 && (
           <p className="m-0 text-[length:var(--font-size-sm)] text-text-muted">
             No one is in the directory yet, so there is no one to pick besides Unassigned.
           </p>
