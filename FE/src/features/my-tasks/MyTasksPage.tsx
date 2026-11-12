@@ -157,7 +157,10 @@ export function MyTasksPage() {
   }
 
   return (
-    <section className="flex max-w-[1000px] flex-col gap-[var(--space-5)]">
+    // No hard `max-w` (layout fix, 2026-11-12 again) — the three sections
+    // below go side by side at >=1100px (`min-[1100px]:grid-cols-3`) instead
+    // of one narrow stretched column, so the width is actually used.
+    <section className="mx-auto flex w-full max-w-[1680px] flex-col gap-[var(--space-5)]">
       <h1 className="m-0 text-[length:var(--font-size-xl)] font-semibold">My tasks</h1>
 
       <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] rounded-xl border border-border bg-surface p-[var(--space-4)] shadow-card">
@@ -183,6 +186,12 @@ export function MyTasksPage() {
         </div>
       </div>
 
+      {/*
+       * Three columns side by side at >=1100px wide, stacked below that
+       * (layout fix, 2026-11-12 again) — each section's own cards keep their
+       * existing `TaskRow` markup and behaviour unchanged.
+       */}
+      <div className="grid grid-cols-1 items-start gap-[var(--space-5)] min-[1100px]:grid-cols-3">
       <div className="flex flex-col gap-[var(--space-3)]">
         <h2 className="m-0 text-[length:var(--font-size-sm)] font-semibold text-text-muted">
           In progress <span className="font-normal">{inProgress.length}</span>
@@ -247,6 +256,7 @@ export function MyTasksPage() {
         ) : (
           review.map((task) => <TaskRow key={task.id} task={task} onMove={handleMove} />)
         )}
+      </div>
       </div>
 
       <div className="flex items-center justify-between gap-[var(--space-3)] rounded-card-lg border border-border bg-surface p-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted">

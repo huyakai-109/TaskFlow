@@ -224,8 +224,11 @@ export function TaskDetailPage() {
   }
 
   return (
-    <section className="flex max-w-[1100px] flex-col gap-[var(--space-5)]">
-      <div className="flex max-w-[800px] flex-col gap-[var(--space-3)]">
+    // No hard `max-w` beyond the shared ultra-wide cap (layout fix,
+    // 2026-11-12 again) — `main` below already has a large flex-grow factor
+    // and only needed its own `max-w-[800px]` removed to actually use it.
+    <section className="mx-auto flex w-full max-w-[1680px] flex-col gap-[var(--space-5)]">
+      <div className="flex flex-col gap-[var(--space-3)]">
         <div className="flex flex-wrap items-center gap-[var(--space-3)]">
           <h1 className="m-0 text-[length:var(--font-size-display)] font-semibold tracking-[-0.02em]">{task.title}</h1>
           <button
@@ -247,7 +250,7 @@ export function TaskDetailPage() {
       </div>
 
       <div className="flex flex-wrap items-start gap-[var(--space-5)]">
-        <main className="flex min-w-[320px] max-w-[800px] flex-[999_1_540px] flex-col gap-[var(--space-5)]">
+        <main className="flex min-w-[320px] flex-[999_1_540px] flex-col gap-[var(--space-5)]">
           <WorkflowStrip
             status={task.status}
             moves={moves}

@@ -25,7 +25,10 @@ export function InboxPage() {
   const hasMore = items.length < totalItems
 
   return (
-    <section className="flex max-w-[720px] flex-col gap-[var(--space-4)]">
+    // No hard `max-w` (layout fix, 2026-11-12 again) — rows already span
+    // full width with the timestamp right-aligned; only the artificial cap
+    // was gating them into a corner of a wider content area.
+    <section className="mx-auto flex w-full max-w-[1680px] flex-col gap-[var(--space-4)]">
       <h1 className="m-0 text-[length:var(--font-size-xl)] font-semibold">Inbox</h1>
 
       {query.isPending && (

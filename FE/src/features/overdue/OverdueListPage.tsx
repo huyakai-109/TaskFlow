@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import { Link } from 'react-router-dom'
 
 import { describeError } from '../../api/errorMessages'
@@ -57,7 +58,10 @@ export function OverdueListPage() {
   const flagClearedComingSoon = useComingSoon('Showing tasks cleared this week is coming soon.')
 
   return (
-    <section>
+    // `mx-auto max-w-[1680px]` for the same ultra-wide cap every other page
+    // now shares (layout fix, 2026-11-12 again) — this page had no
+    // artificial narrow cap already, just the two tables' own `min-width`.
+    <section className="mx-auto w-full max-w-[1680px]">
       {/* AppLayout no longer owns a page-level h1 (docs/design/SPEC.md shell redesign) — each routed page is its own landmark now, like BoardPage's and TaskDetailPage's. */}
       <h1 className="m-0 text-[length:var(--font-size-xl)] font-semibold">Overdue tasks</h1>
       <div className="mt-[var(--space-3)] flex items-start gap-[var(--space-2)] rounded-lg border border-border bg-surface p-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted">
@@ -109,26 +113,30 @@ export function OverdueListPage() {
             <span className="size-2 shrink-0 rounded-pill bg-danger" aria-hidden="true" />
             Overdue now <span className="font-normal text-text-muted">{totalItems}</span>
           </h2>
-          <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-            <table className="w-full min-w-[640px] border-collapse text-[length:var(--font-size-sm)]">
+          {/* `table-fixed` + `%` widths, no `min-w` (layout fix, 2026-11-12
+              again) — a hard `min-width` forced a horizontal scrollbar on
+              this table below it, even at widths the page otherwise needs
+              none at. Cells wrap instead of forcing the table wider. */}
+          <div className="rounded-lg border border-border bg-surface">
+            <table className="w-full table-fixed border-collapse text-[length:var(--font-size-sm)]">
               <thead>
                 <tr className="text-left text-text-muted">
-                  <th scope="col" className={cellClass}>
+                  <th scope="col" className={clsx(cellClass, 'w-[30%]')}>
                     Task
                   </th>
-                  <th scope="col" className={cellClass}>
+                  <th scope="col" className={clsx(cellClass, 'w-[13%]')}>
                     Status
                   </th>
-                  <th scope="col" className={cellClass}>
+                  <th scope="col" className={clsx(cellClass, 'w-[13%]')}>
                     Priority
                   </th>
-                  <th scope="col" className={cellClass}>
+                  <th scope="col" className={clsx(cellClass, 'w-[13%]')}>
                     Due
                   </th>
-                  <th scope="col" className={cellClass}>
+                  <th scope="col" className={clsx(cellClass, 'w-[13%]')}>
                     Late by
                   </th>
-                  <th scope="col" className={cellClass}>
+                  <th scope="col" className={clsx(cellClass, 'w-[18%]')}>
                     Assignee
                   </th>
                 </tr>
@@ -139,12 +147,12 @@ export function OverdueListPage() {
                     <td className={cellClass}>
                       <Link
                         to={`/tasks/${task.id}`}
-                        className="inline-flex items-baseline gap-[var(--space-2)] text-text no-underline hover:underline"
+                        className="flex min-w-0 items-baseline gap-[var(--space-2)] text-text no-underline hover:underline"
                       >
-                        <span className="font-mono text-[length:var(--font-size-xs)] text-text-muted">
+                        <span className="shrink-0 font-mono text-[length:var(--font-size-xs)] text-text-muted">
                           #{task.id}
                         </span>
-                        <span className="font-medium">{task.title}</span>
+                        <span className="min-w-0 break-words font-medium">{task.title}</span>
                       </Link>
                     </td>
                     <td className={cellClass}>{STATUS_LABELS[task.status]}</td>
@@ -231,17 +239,17 @@ export function OverdueListPage() {
         )}
 
         {dueTodayQuery.isSuccess && dueTodayItems.length > 0 && (
-          <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-            <table className="w-full min-w-[480px] border-collapse text-[length:var(--font-size-sm)]">
+          <div className="rounded-lg border border-border bg-surface">
+            <table className="w-full table-fixed border-collapse text-[length:var(--font-size-sm)]">
               <thead>
                 <tr className="text-left text-text-muted">
-                  <th scope="col" className={cellClass}>
+                  <th scope="col" className={clsx(cellClass, 'w-[50%]')}>
                     Task
                   </th>
-                  <th scope="col" className={cellClass}>
+                  <th scope="col" className={clsx(cellClass, 'w-[25%]')}>
                     Due
                   </th>
-                  <th scope="col" className={cellClass}>
+                  <th scope="col" className={clsx(cellClass, 'w-[25%]')}>
                     Assignee
                   </th>
                 </tr>
@@ -252,10 +260,10 @@ export function OverdueListPage() {
                     <td className={cellClass}>
                       <Link
                         to={`/tasks/${task.id}`}
-                        className="inline-flex items-baseline gap-[var(--space-2)] text-text no-underline hover:underline"
+                        className="flex min-w-0 items-baseline gap-[var(--space-2)] text-text no-underline hover:underline"
                       >
-                        <span className="font-mono text-[length:var(--font-size-xs)] text-text-muted">#{task.id}</span>
-                        <span className="font-medium">{task.title}</span>
+                        <span className="shrink-0 font-mono text-[length:var(--font-size-xs)] text-text-muted">#{task.id}</span>
+                        <span className="min-w-0 break-words font-medium">{task.title}</span>
                       </Link>
                     </td>
                     <td className={cellClass}>Due today, {task.dueDate !== null ? formatDueDate(task.dueDate) : ''}</td>
