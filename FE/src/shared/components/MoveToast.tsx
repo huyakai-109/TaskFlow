@@ -18,7 +18,10 @@ export function MoveToast({ message, onDismiss }: MoveToastProps) {
 
   return (
     <div
-      className="fixed bottom-[var(--space-5)] left-1/2 z-[100] flex max-w-[420px] -translate-x-1/2 items-center gap-[var(--space-3)] rounded-pill bg-text px-[var(--space-4)] py-[var(--space-3)] text-text-inverse shadow-raised"
+      // Bottom-right (layout fix, 2026-11-12 again), not bottom-centre — a
+      // centred toast could sit on top of whichever card/button the user
+      // had just acted on, on a narrower board.
+      className="fixed right-[var(--space-5)] bottom-[var(--space-5)] z-[100] flex max-w-[420px] items-center gap-[var(--space-3)] rounded-pill bg-text px-[var(--space-4)] py-[var(--space-3)] text-text-inverse shadow-raised"
       role="alert"
     >
       <span>{message}</span>

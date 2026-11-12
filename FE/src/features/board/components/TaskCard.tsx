@@ -8,7 +8,8 @@ import { chipBase, DueChip, OverdueChip } from '../../../shared/components/DueDa
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
 import { dueDateFormatter } from '../../../shared/lib/dueDate'
-import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
+
+import { CardMoveAction } from './CardMoveAction'
 
 function LockIcon() {
   return (
@@ -63,16 +64,27 @@ export function TaskCard({ task, onMove }: TaskCardProps) {
       ref={setNodeRef}
       style={style}
       className={clsx(
-        'group relative flex min-w-0 flex-col gap-[var(--space-2)] overflow-hidden rounded-md border border-border bg-surface p-[13px] shadow-card',
+        // No `overflow-hidden` (layout fix, 2026-11-12 again) — the move
+        // action's popover menu needs to be able to extend past the card's
+        // own edge when it opens; `min-w-0`/`break-words`/chip
+        // `whitespace-nowrap` below are what actually keep content inside
+        // the card, not a clip.
+        'group flex min-w-0 flex-col gap-[var(--space-2)] rounded-md border border-border bg-surface p-[13px] shadow-card',
         task.isOverdue && 'border-overdue-border',
         isDone && 'opacity-85',
         isDragging && 'opacity-60 shadow-raised',
       )}
     >
-      <div className="flex items-center gap-[var(--space-2)]">
+      {/*
+       * `docs/design/SPEC.md` §10 point 11 (layout fix, 2026-11-12 again):
+       * the action button lives in this first row, in the gap between the
+       * key and the avatar — never an overlay on the chips/title below, so
+       * hovering a card never changes its height or covers its own content.
+       */}
+      <div className="flex min-w-0 items-center gap-[var(--space-2)]">
         <Link
           to={`/tasks/${task.id}`}
-          className="font-mono text-[length:var(--font-size-2xs)] text-text-muted no-underline hover:underline"
+          className="shrink-0 font-mono text-[length:var(--font-size-2xs)] text-text-muted no-underline hover:underline"
         >
           #{task.id}
         </Link>
@@ -84,11 +96,13 @@ export function TaskCard({ task, onMove }: TaskCardProps) {
             aria-hidden="true"
             tabIndex={-1}
             title="Drag to move"
-            className="mr-auto inline-flex cursor-grab touch-none items-center justify-center text-text-muted opacity-0 [transition:opacity_var(--transition-fast)] group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11"
+            className="inline-flex shrink-0 cursor-grab touch-none items-center justify-center text-text-muted opacity-0 [transition:opacity_var(--transition-fast)] group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11"
           >
             <GripIcon />
           </span>
         )}
+        <span className="min-w-0 flex-1" />
+        <CardMoveAction taskId={task.id} taskTitle={task.title} taskStatus={task.status} moves={moves} onMove={(status) => onMove(task.id, status, task.version)} />
         {task.assignee !== null && (
           <span
             className="inline-flex size-4 shrink-0 items-center justify-center rounded-pill text-[9px] leading-none font-semibold @min-[170px]:size-5"
@@ -145,31 +159,6 @@ export function TaskCard({ task, onMove }: TaskCardProps) {
           Locked
           {task.completedAt !== null && ` · ${dueDateFormatter.format(new Date(task.completedAt))}`}
         </p>
-      )}
-      {moves.length > 0 && (
-        // Floats over the card's own bottom edge instead of reserving space
-        // in the card's normal flow — the design (`Board-light.png`) never
-        // shows this bar at all, so a hidden-but-still-laid-out row left a
-        // visible gap at the bottom of every card. `absolute` on
-        // pointer/mouse devices; back to a plain static row on touch, where
-        // it is always shown (`@media (hover: none)`) and an overlay would
-        // permanently cover the chips underneath it instead.
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 flex translate-y-1 flex-wrap justify-end gap-[var(--space-1)] rounded-b-md border-t border-border bg-surface p-[var(--space-2)] opacity-0 [transition:opacity_var(--transition-fast),transform_var(--transition-fast)] group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100 [@media(hover:none)]:static [@media(hover:none)]:translate-y-0 [@media(hover:none)]:justify-start [@media(hover:none)]:border-t-0 [@media(hover:none)]:bg-transparent [@media(hover:none)]:p-0 [@media(hover:none)]:opacity-100 [@media(hover:none)]:pointer-events-auto"
-          role="group"
-          aria-label={`Move "${task.title}" to`}
-        >
-          {moves.map((move) => (
-            <button
-              key={move.status}
-              type="button"
-              className="min-h-[28px] max-w-full cursor-pointer rounded-sm border border-border bg-surface px-[var(--space-2)] py-[2px] text-[length:var(--font-size-xs)] font-medium text-text hover:border-accent hover:bg-accent-soft hover:text-accent-ink [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:px-[var(--space-3)] [@media(pointer:coarse)]:py-0"
-              onClick={() => onMove(task.id, move.status, task.version)}
-            >
-              Move to {STATUS_LABELS[move.status]}
-            </button>
-          ))}
-        </div>
       )}
     </article>
   )

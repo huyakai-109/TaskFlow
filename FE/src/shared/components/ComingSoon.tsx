@@ -23,7 +23,7 @@ export function ComingSoon({ message, onDismiss }: ComingSoonProps) {
   return (
     <div
       role="status"
-      className="fixed bottom-[var(--space-5)] left-1/2 z-[100] -translate-x-1/2 rounded-pill bg-text px-[var(--space-4)] py-[var(--space-3)] text-text-inverse shadow-raised"
+      className="fixed right-[var(--space-5)] bottom-[var(--space-5)] z-[100] rounded-pill bg-text px-[var(--space-4)] py-[var(--space-3)] text-text-inverse shadow-raised"
     >
       {message}
     </div>
