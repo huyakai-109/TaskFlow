@@ -4,12 +4,11 @@ import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 
 import type { TaskStatus, TaskSummary } from '../../../api/types'
+import { CardMoveAction } from '../../../shared/components/CardMoveAction'
 import { chipBase, DueChip, OverdueChip } from '../../../shared/components/DueDateChips'
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
 import { dueDateFormatter } from '../../../shared/lib/dueDate'
-
-import { CardMoveAction } from './CardMoveAction'
 
 function LockIcon() {
   return (

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
-import type { AllowedTransition, TaskStatus } from '../../../api/types'
-import { moveButtonLabel } from '../../../shared/lib/moveButtonLabel'
-import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
+import type { AllowedTransition, TaskStatus } from '../../api/types'
+import { moveButtonLabel } from '../lib/moveButtonLabel'
+import { STATUS_LABELS } from '../lib/statusLabels'
 
 function ArrowIcon() {
   return (
@@ -30,6 +30,12 @@ interface CardMoveActionProps {
  * full arrow-key/Enter/Esc keyboard support (`role="menu"`/`"menuitem"`).
  * Rendered only when `moves.length > 0` — a task with no legal move shows no
  * button at all, same as before.
+ *
+ * Moved from `features/board/components/` to `shared/components/` (second
+ * use — My tasks §5.8's "Ready for you to review" rows need the same
+ * multi-transition menu, not a second hand-rolled popover) — `shared/` may
+ * not reach into a feature, and this control carries no board-specific
+ * assumption to begin with.
  */
 export function CardMoveAction({ taskId, taskTitle, taskStatus, moves, onMove }: CardMoveActionProps) {
   const [open, setOpen] = useState(false)
