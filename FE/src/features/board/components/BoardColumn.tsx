@@ -20,6 +20,8 @@ interface BoardColumnProps {
   isDragging: boolean
   /** This column is one of the dragged card's own `allowedTransitions` (F01 D10) — the only legal drop. */
   isDropTarget: boolean
+  /** Below 640px the board shows one status at a time (`BoardPage`'s tab bar) — this column is not the one picked. */
+  isMobileHidden: boolean
   onMove: (taskId: number, toStatus: TaskStatus, version: string) => void
 }
 
@@ -39,6 +41,7 @@ export function BoardColumn({
   isLoadingMore,
   isDragging,
   isDropTarget,
+  isMobileHidden,
   onMove,
 }: BoardColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: status, disabled: !isDropTarget })
@@ -49,7 +52,16 @@ export function BoardColumn({
     <section
       ref={setNodeRef}
       className={clsx(
-        'flex flex-col gap-[var(--space-2)] rounded-lg border-2 border-transparent bg-column p-[var(--space-3)] [transition:border-color_var(--transition-fast),opacity_var(--transition-fast)]',
+        // Flexible (layout fix, revised 2026-11-12 again) — a `grid-cols-5`
+        // item (`minmax(0,1fr)` track, from the parent grid), so the column
+        // shrinks and grows with the viewport instead of forcing a
+        // horizontal scrollbar; `min-w-0` is what lets a grid item shrink
+        // below its content's natural width at all. `@container` turns the
+        // column's own rendered width into a container-query context so
+        // `TaskCard` can adapt (priority label, avatar size, title clamp) —
+        // Tailwind v4 built-in, no new dependency.
+        'flex min-w-0 @container flex-col gap-[var(--space-2)] self-stretch rounded-lg border-2 border-transparent bg-column p-[var(--space-3)] [transition:border-color_var(--transition-fast),opacity_var(--transition-fast)]',
+        isMobileHidden && 'max-[639px]:hidden',
         isDragging &&
           (isDropTarget
             ? isOver
@@ -59,7 +71,15 @@ export function BoardColumn({
       )}
       aria-label={label}
     >
-      <h3 className="m-0 flex items-center gap-[var(--space-2)] px-[var(--space-1)] pt-[var(--space-1)] pb-[var(--space-2)] text-[length:var(--font-size-sm)] font-semibold">
+      {/*
+       * Sticky to the board area's own scroll (`BoardPage`'s `overflow-y-auto`
+       * container, not `<main>` — the column itself never scrolls, and
+       * `overflow` stays `visible` here on purpose: anything else would make
+       * this column its own nearest scroll container and break the header's
+       * stickiness against the board area). `bg-column`, fully opaque, keeps
+       * cards from showing through as they scroll past underneath it.
+       */}
+      <h3 className="sticky top-0 z-[1] m-0 flex items-center gap-[var(--space-2)] bg-column px-[var(--space-1)] pt-[var(--space-1)] pb-[var(--space-2)] text-[length:var(--font-size-sm)] font-semibold">
         {icon}
         {label} <span className="font-normal text-text-muted">{totalItems}</span>
       </h3>

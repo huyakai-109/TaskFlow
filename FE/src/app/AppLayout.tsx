@@ -1,25 +1,36 @@
+import { useRef, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 
-import { NotificationBell } from '../features/notifications/components/NotificationBell'
-import { ThemeToggle } from '../shared/components/ThemeToggle'
-
 import { Sidebar } from './Sidebar'
+import { Topbar } from './Topbar'
+import { useSidebarCollapse } from './useSidebarCollapse'
 
 /**
- * `docs/design/SPEC.md` §3: sidebar (nav + views + signed-in user) beside the
- * content, a slim topbar above it. Stacks (sidebar above content) under
- * 600px, matching the board's own existing breakpoint (`BoardPage.tsx`).
+ * `docs/design/SPEC.md` §3: sidebar beside the content, a topbar pinned
+ * above it. The whole shell is exactly the viewport height (`h-dvh`) with no
+ * page-level scroll — `<main>` is the one scrollable region, and the sidebar
+ * and topbar never scroll away with it (layout fix; they used to be
+ * `position: static` and scrolled off with the page at narrow viewport
+ * heights). Below 601px the sidebar becomes a drawer instead of stacking
+ * above the page (`Sidebar.tsx`).
  */
 export function AppLayout() {
+  const [collapsed, setCollapsed] = useSidebarCollapse()
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null)
+
   return (
-    <div className="flex min-h-screen flex-col min-[601px]:flex-row">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-end gap-[var(--space-2)] border-b border-border bg-surface px-[var(--space-5)] py-[var(--space-3)] max-[600px]:px-[var(--space-4)]">
-          <ThemeToggle />
-          <NotificationBell />
-        </header>
-        <main className="flex-1 p-[var(--space-5)] max-[600px]:px-[var(--space-4)]">
+    <div className="flex h-dvh overflow-hidden">
+      <Sidebar
+        collapsed={collapsed}
+        onToggleCollapse={() => setCollapsed((value) => !value)}
+        mobileOpen={mobileOpen}
+        onCloseMobile={() => setMobileOpen(false)}
+        mobileTriggerRef={mobileMenuButtonRef}
+      />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <Topbar onOpenMobileMenu={() => setMobileOpen(true)} mobileMenuButtonRef={mobileMenuButtonRef} />
+        <main className="min-h-0 flex-1 overflow-y-auto p-[var(--space-5)] max-[600px]:px-[var(--space-4)]">
           <Outlet />
         </main>
       </div>

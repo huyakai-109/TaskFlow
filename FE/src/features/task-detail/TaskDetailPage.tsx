@@ -9,6 +9,7 @@ import { MoveToast } from '../../shared/components/MoveToast'
 import { useAssignAndMoveTaskMutation } from '../../shared/hooks/useAssignAndMoveTaskMutation'
 import { useBoardQuery } from '../../shared/hooks/useBoardQuery'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
+import { isTypingTarget } from '../../shared/lib/isTypingTarget'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 
 import { AssigneePickerDialog } from './components/AssigneePickerDialog'
@@ -29,11 +30,6 @@ const errorBoxClass =
   'flex flex-col items-start gap-[var(--space-3)] rounded-md border border-danger-border bg-danger-surface p-[var(--space-4)] text-danger'
 
 const CONFLICT_CODES = new Set(['Task.Move.Conflict', 'Task.Move.NotFound'])
-
-/** Typing `j`/`k` into a field, or `⌘↵` while a form field is focused, must never trigger a shortcut. */
-function isTypingTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
-}
 
 /** `Conflict`/`NotFound` codes across the properties-panel operations get a toast, same as a drag refusal; anything else is a field-level message. */
 function isConflictLike(code: string | null): boolean {
@@ -229,20 +225,6 @@ export function TaskDetailPage() {
 
   return (
     <section className="flex max-w-[1100px] flex-col gap-[var(--space-5)]">
-      <div className="flex flex-wrap items-center gap-[var(--space-3)]">
-        <Link
-          to="/board"
-          className="self-start text-[length:var(--font-size-sm)] text-text-muted no-underline hover:underline"
-        >
-          ‹ Board / <span className="font-mono">#{task.id}</span>
-        </Link>
-        <span className="flex items-center gap-[var(--space-1)] text-[length:var(--font-size-xs)] text-text-muted">
-          <kbd className="rounded-[5px] bg-sidebar px-[6px] py-[1px] font-mono">J</kbd>
-          <kbd className="rounded-[5px] bg-sidebar px-[6px] py-[1px] font-mono">K</kbd>
-          next / previous task
-        </span>
-      </div>
-
       <div className="flex max-w-[800px] flex-col gap-[var(--space-3)]">
         <div className="flex flex-wrap items-center gap-[var(--space-3)]">
           <h1 className="m-0 text-[length:var(--font-size-display)] font-semibold tracking-[-0.02em]">{task.title}</h1>
@@ -253,6 +235,11 @@ export function TaskDetailPage() {
           >
             Edit
           </button>
+          <span className="ml-auto flex items-center gap-[var(--space-1)] text-[length:var(--font-size-xs)] text-text-muted">
+            <kbd className="rounded-[5px] bg-sidebar px-[6px] py-[1px] font-mono">J</kbd>
+            <kbd className="rounded-[5px] bg-sidebar px-[6px] py-[1px] font-mono">K</kbd>
+            next / previous task
+          </span>
         </div>
         {task.description !== null && task.description !== '' && (
           <p className="text-[length:var(--font-size-md)] text-text-muted [line-height:24px]">{task.description}</p>

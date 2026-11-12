@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import { Link } from 'react-router-dom'
 
 import { BOARD_COLUMNS } from '../../../api/types'
@@ -38,23 +39,28 @@ export function BoardListView({ itemsByStatus, paginationByStatus, onLoadMore, i
   }
 
   return (
-    <div className="mt-[var(--space-5)] overflow-x-auto rounded-lg border border-border bg-surface">
-      <table className="w-full min-w-[720px] border-collapse text-[length:var(--font-size-sm)]">
-        <thead>
+    // No forced `min-width` and `table-fixed` (layout fix, 2026-11-12
+    // again) — a hard 720px floor forced a horizontal scrollbar on this
+    // view at every width below that, which the board area itself no
+    // longer needs at any width. Declared `%` column widths plus wrapping
+    // cell content (not truncation) keep every width horizontal-scroll-free.
+    <div className="bg-surface">
+      <table className="w-full table-fixed border-collapse text-[length:var(--font-size-sm)]">
+        <thead className="sticky top-0 z-[1] bg-surface">
           <tr className="text-left text-text-muted">
-            <th scope="col" className={cellClass}>
+            <th scope="col" className={clsx(cellClass, 'w-[34%]')}>
               Task
             </th>
-            <th scope="col" className={cellClass}>
+            <th scope="col" className={clsx(cellClass, 'w-[16%]')}>
               Status
             </th>
-            <th scope="col" className={cellClass}>
+            <th scope="col" className={clsx(cellClass, 'w-[16%]')}>
               Priority
             </th>
-            <th scope="col" className={cellClass}>
+            <th scope="col" className={clsx(cellClass, 'w-[16%]')}>
               Due
             </th>
-            <th scope="col" className={cellClass}>
+            <th scope="col" className={clsx(cellClass, 'w-[18%]')}>
               Assignee
             </th>
           </tr>
@@ -71,10 +77,10 @@ export function BoardListView({ itemsByStatus, paginationByStatus, onLoadMore, i
                 <td className={cellClass}>
                   <Link
                     to={`/tasks/${task.id}`}
-                    className="inline-flex items-baseline gap-[var(--space-2)] text-text no-underline hover:underline"
+                    className="flex min-w-0 items-baseline gap-[var(--space-2)] text-text no-underline hover:underline"
                   >
-                    <span className="font-mono text-[length:var(--font-size-xs)] text-text-muted">#{task.id}</span>
-                    <span className="font-medium">{task.title}</span>
+                    <span className="shrink-0 font-mono text-[length:var(--font-size-xs)] text-text-muted">#{task.id}</span>
+                    <span className="min-w-0 break-words font-medium">{task.title}</span>
                   </Link>
                 </td>
                 <td className={cellClass}>{STATUS_LABELS[status]}</td>
