@@ -1,0 +1,22 @@
+# 0006 — Account administration and avatar storage
+
+- **Context:** Accounts move from seed-only to Admin-managed with self-service profile ([f08-accounts-profile.md](../features/f08-accounts-profile.md)). The existing `StorageService` has unsafe defaults for this use: it keeps the uploaded filename, derives content type from the extension (including SVG), checks no size limit, and the one bucket it uses is documented as anonymous-read.
+- **Decision:**
+  - New `ManageUsers` permission, appended to the seed (the dead `Members.*` claims on Manager are kept, never used, not renumbered).
+  - Deactivation via a new `DeactivatedAt` column, distinct from soft delete and from Identity lockout.
+  - Server-generated one-time temporary passwords plus a `MustChangePassword` flag, enforced through a new anonymous, lockout-protected change-required endpoint.
+  - Avatars stored in a new **private** MinIO bucket under server-generated keys (no user-supplied filename or extension), with magic-byte content sniffing and a 2 MiB cap, served through an authenticated API endpoint with immutable, version-tagged URLs.
+- **Consequences:**
+  - First new anonymous endpoint in the API (flagged for security review, `coding-standards.md` §6).
+  - Up to 15 minutes of stale **role** state in already-issued access tokens — accepted. **Deactivation is explicitly not held to this bound** (approved 2026-11-13): a Redis deny-list (`deactivated:{userId}`), checked on `OnTokenValidated` for every authenticated request, rejects an already-issued token immediately after deactivation, and the same action proactively aborts the user's live SignalR connections via `IPresenceTracker`. This adds one Redis `EXISTS` per authenticated request — acceptable, since Redis is already in the stack for the distributed cache.
+  - Avatar bytes flow through the API process (acceptable bandwidth at this team's scale). Served with `ETag`/`If-None-Match` support, so a client holding the current version re-validates with a `304` instead of re-downloading.
+  - Orphaned MinIO objects are possible if a process crashes between the put and the commit (accepted, not cleaned up automatically in v1).
+  - Identity writes (role change, deactivation, password reset) rotate `ConcurrencyStamp`, which can produce a spurious F02 capacity `Conflict` on a racing request (ADR 0002 consequence, unchanged).
+  - **Added 2026-11-13:** this slice also closes the pre-existing anonymous `POST /example/minio/upload` (and its `/example/cache/test` sibling) rather than leaving it to a later deployment step — see [f08-accounts-profile.md](../features/f08-accounts-profile.md) "Anonymous MinIO upload endpoint".
+- **Alternatives rejected:**
+  - Presigned MinIO URLs for avatars: exposes MinIO directly to browsers and gives worse caching control than the API-fronted approach.
+  - Keeping avatars in the existing public `dataset` bucket: anyone with the URL could read another user's avatar, and the bucket is explicitly documented as public.
+  - Soft delete as the deactivation mechanism: hides the user's name from tasks/history, which the UI needs to keep rendering.
+  - Identity lockout as the deactivation mechanism: conflates deliberate deactivation with the failed-login-attempts mechanism.
+  - Removing Manager's dead `Members.*` claim rows now: would renumber positional seed ids, which is not additive.
+  - Server-side re-encoding of avatars with an image library: a new dependency; deferred until there's a concrete need.

@@ -380,3 +380,71 @@ Controllers and services: `TasksController` → `ITaskService`, `TaskHistoryCont
 | F02 will want a concurrency token on the assignee row. `User.ConcurrencyStamp` already is one, but `UserManager` rewrites it | A second token added in F02 would be redundant and conflicting | Recorded here; F02 decides |
 | **Assumption (approved 2026-10-25)** — reopening a task whose due date has already passed writes **two** entries, `Reopened` and an `OverdueMarked` whose actor is the reopening user. F05 D7 says every transition into the overdue state gets an entry; F04 AC8 constrains only the job's actor | Changes what the timeline shows after a reopen | As written; it is F05 territory touched by AC23 |
 | **Assumption** — creating a task with an assignee, priority and due date writes exactly **one** `Created` entry, not three | F04 AC1 wording | Recommended as written |
+
+---
+
+# Revision R2 (2026-11-13) — product-owner directive; supersedes the items named below
+Status: **Signed off 2026-11-13** — all open items (A1–A11) resolved, see [round-2-decisions.md](round-2-decisions.md)
+
+## Decisions
+- **D8 (now written down)** — one shared board: every authenticated user sees every task. *The former second half, "a Member may move and assign any task", is revoked by D11/D12.*
+- **D11 Holder-only progression.** `Todo→InProgress` and `InProgress→Review` may only be performed by the task's **current assignee**. No role bypasses this (Manager and Admin included). To continue someone else's task, a user first takes it over (D12), becoming the assignee.
+- **D12 Assignment rights.** `AssignTasks` (all roles) allows *taking over* (assign to self) and *releasing* one's own assignment. Assigning or clearing **another** user requires `AssignAnyone` (Manager, Admin). Assignment is **locked while `Review` or `Done`** for every role (closes the self-approval loophole: A submits, B takes over, A approves own work). **Signed off 2026-11-13, with an exception recorded:** the lock applies to the `PUT /tasks/{id}/assignee` endpoint only. **Reopen (`Done→Review`, `ReopenTasks`) is not an Assign call and does not touch `AssigneeId`** — it is a status transition, so it is unaffected by this lock. A reopened task keeps whatever assignee it already had; once it is back in `Review`, that assignee is locked exactly as any other `Review` task is, going forward from that point, not retroactively applied to the reopen itself.
+- **D13 Planning rights.** Priority and due date — on create and on edit — require `PlanTasks` (Manager, Admin). A task created without it is `Normal` with no due date. **Signed off 2026-11-13:** `PlanTasks` is held by **Manager and Admin** (not Manager alone); a Member's create request that supplies `priority` or `dueDate` is **refused** (`Task.Create.PlanningNotPermitted`), never silently dropped — this was the open half of A2, both confirmed as the recommended options.
+- D5 unchanged: leaving `Review` (either direction) must be done by someone **other than** the current assignee.
+
+## Permissions (replaces the table above)
+| Permission | Member | Manager | Admin |
+|---|:--:|:--:|:--:|
+| ViewTasks · CreateTasks · UpdateTasks (title/description) · MoveTasks · AssignTasks (self only) | ✓ | ✓ | ✓ |
+| PlanTasks (priority, due date) · AssignAnyone | — | ✓ | ✓ |
+| DeleteTasks · ReopenTasks | — | ✓ | ✓ |
+| ManageUsers (see f08) | — | — | ✓ |
+Seed (append only, migration `AddRound2Permissions`, Additive): Admin 13 PlanTasks, 14 AssignAnyone, 15 ManageUsers; Manager 1013 PlanTasks, 1014 AssignAnyone. Append to `Permissions.All` in that order. Manager's existing `Members.*` claims (1001–1004) are dead: no endpoint may ever use `Members.*`; cleanup needs explicit-id seeding and is separate work.
+
+## Transition table (replaces)
+| From | To | Requires | Actor rule | Side effects |
+|---|---|---|---|---|
+| Backlog | Todo | MoveTasks | any | — |
+| Todo | InProgress | MoveTasks, assignee, capacity | **actor = assignee** (D11) | — |
+| InProgress | Review | MoveTasks | **actor = assignee** (D11) | — |
+| Review | Done | MoveTasks | actor ≠ assignee (D5) | CompletedAt, clears IsOverdue |
+| Review | InProgress | MoveTasks, capacity | actor ≠ assignee (D5) | notification (actor recorded, F06) |
+| Done | Review | ReopenTasks, reason | — | unchanged |
+
+`TaskTransition` gains `bool ActorMustBeAssignee`. Move order: existence → version → same-status → transition → actor rule [D5 → `ActorIsAssignee`; D11: no assignee → `Task.Move.AssigneeRequired`, other assignee → `Task.Move.ActorNotAssignee`] → assignee resolvable → capacity.
+
+## Assign rules (`PUT /tasks/{id}/assignee`)
+Order: existence → version → **Locked** (status Review/Done → `Task.Assign.Locked`) → clearing while InProgress → `AssigneeRequired` → **SelfOnly** (caller lacks AssignAnyone and either target ≠ caller, or clearing an assignment that is not the caller's → `Task.Assign.SelfOnly`) → target exists and active → `AssigneeNotFound` → capacity (unchanged F02 T3). No-op reassignment in InProgress still skips capacity (F02 AC9).
+
+## Create rules (`POST /tasks`)
+`Priority` becomes optional (`[EnumDataType]`, default `Normal`). Order: caller lacks PlanTasks and supplies `priority` or `dueDate` → `Task.Create.PlanningNotPermitted`; caller lacks AssignAnyone and `assigneeId` ∉ {null, caller} → `Task.Create.AssigneeNotPermitted`; then DueDateInPast; then AssigneeNotFound (also for deactivated users once F08 lands).
+
+## Endpoint policy changes
+`PUT /tasks/{id}/priority`, `PUT /tasks/{id}/due-date`: policy `UpdateTasks` → `PlanTasks`.
+
+## Wire changes (additive)
+- `AllowedTransitionRes` + `requiresTakeover: boolean` — true only for `Todo→InProgress` on an **unassigned** task when the caller holds AssignTasks; the client runs "take it and start" (assign self, then move with the new version).
+- `TaskSummaryRes`/`TaskDetailRes` + `canTakeOver: boolean` (caller holds AssignTasks, status ∉ {Review, Done}, assignee ≠ caller) and `canAssignOthers: boolean` (caller holds AssignAnyone, status ∉ {Review, Done}). Capacity is deliberately not applied (same as D10).
+- `AllowedFor` applies D11: an `ActorMustBeAssignee` edge is offered iff assignee == caller, or (assignee == null and From == Todo and caller holds AssignTasks → `requiresTakeover`).
+
+## New error codes (all 400)
+`Task.Move.ActorNotAssignee` · `Task.Assign.SelfOnly` · `Task.Assign.Locked` · `Task.Create.PlanningNotPermitted` · `Task.Create.AssigneeNotPermitted`.
+
+## Acceptance criteria (R2)
+- **AC2 (rewritten)** Given a Todo task assigned to A, A below capacity, when **A** moves it to InProgress, then it is InProgress.
+- **AC2b** Given a Todo task assigned to A, when B moves it to InProgress, then `Task.Move.ActorNotAssignee`, status unchanged, no history.
+- **AC2c** Given an unassigned Todo task, when any caller moves it to InProgress, then `Task.Move.AssigneeRequired` (unchanged code); its `allowedTransitions` for a caller with AssignTasks shows InProgress with `requiresTakeover: true`.
+- **AC3 (rewritten)** Given an InProgress task assigned to A, when **A** moves it to Review, then it is Review.
+- **AC3b** … when B (any role, incl. Admin) moves it to Review → `ActorNotAssignee`.
+- **AC3c** Given B takes over A's InProgress task (B has room), when B moves it to Review, then it succeeds.
+- **AC32** Given an InProgress task held by A, when it is read by B, then `allowedTransitions` contains no Review and `canTakeOver` is true.
+- **AC33** Given a task in Review or Done, when anyone (incl. Admin) changes its assignee, then `Task.Assign.Locked`.
+- **AC34** Given a Member, when they assign a task to another user or clear another user's assignment, then `Task.Assign.SelfOnly`; to themselves → allowed.
+- **AC35** Given a Member, when they create a task with a priority or due date, then `Task.Create.PlanningNotPermitted` and nothing is created; without them → created as Normal, no due date.
+- **AC36** Given a Member, when they call `PUT …/priority` or `PUT …/due-date`, then 403.
+- **AC37** Given A holds 3 InProgress tasks, when A takes over a fourth InProgress task, then `Task.Assign.CapacityReached`.
+
+AC29 reads "two requests by the assignee (two tabs)". AC20 also distinguishes ActorNotAssignee.
+
+Full rationale, impact-on-older-specs table and open decisions: [round-2-impact.md](round-2-impact.md).

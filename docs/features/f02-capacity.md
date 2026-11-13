@@ -122,3 +122,20 @@ New codes in `BE/TaskFlow.Common/Constants/Messages/TaskControllerMS.cs` (the cl
 ## T5. Spec notes found while designing (not changed here)
 
 - [F01](f01-workflow.md)'s transition table lists "free capacity" only on `Todo → InProgress`; F01 T4 and `TaskTransitions.cs` also mark `Review → InProgress` as `ConsumesCapacity: true`, matching this feature's goal. This contract follows T4 and the code, not the prose table — a one-line fix to F01's table is proposed separately, not made here.
+
+---
+
+# Revision R2 (2026-11-13) — follows F01 D11–D13. Rule set D1–D7 unchanged.
+Status: **Signed off 2026-11-13** — see [round-2-decisions.md](round-2-decisions.md) A1–A2
+
+- Who starts work: only the assignee (F01 D11). Who receives a slot from someone else: send-back (`Review→InProgress`, by a non-assignee) and reassignment of an InProgress task (takeover by the taker, or by a Manager/Admin).
+- Takeover is an Assign: capacity is checked on the **taker** when the task is InProgress; the previous holder's slot frees. Takeover of Backlog/Todo is never capacity-checked (AC10). Review/Done are locked (F01 D12).
+- Accepted consequence (existing behaviour, now more visible): a reviewer cannot send back a task whose assignee is at the limit — `Task.Move.CapacityReached`; the reviewer approves, waits, or a Manager reassigns.
+- AC17: "deactivated account" is in scope once F08 lands → `Task.Assign.AssigneeNotFound` / `Task.Create.AssigneeNotFound` (supersedes T4's 2026-11-05 clarification).
+
+## AC changes
+AC1–AC5: "when A moves … to InProgress" (A is the assignee). AC6: "an Admin at 3 starting their own fourth → refused". AC7–AC10: "a Manager reassigns … or B takes over …". AC13: code is now `Task.Assign.Locked`. AC14: a Member clears only their own Backlog/Todo assignment; others → `Task.Assign.SelfOnly`; Manager/Admin clear any. AC15 (rewritten): "Given reviewer R with 3 InProgress sends back A's task with A at 2, then allowed — the limit applies to the assignee, never the requester." AC18: "A starts two tasks from two tabs, or A starts one while R sends one back to A, at the same instant → exactly one succeeds, A ≤ limit." AC22: also distinguishes ActorNotAssignee, SelfOnly, Locked.
+
+- **AC23 (new)** Given B at 3 InProgress, when B takes over A's InProgress task, then `Task.Assign.CapacityReached`, nothing changes.
+- **AC24 (new)** Given B at 2, when B takes over A's InProgress task, then B has 3 and A's count drops by one, one `AssigneeChanged` entry with actor B.
+- **AC25 (new)** Given B at 3, when B takes over a Todo task, then allowed.
