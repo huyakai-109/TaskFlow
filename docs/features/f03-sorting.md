@@ -94,3 +94,13 @@ Full design: `docs/ROADMAP.md` → *Unit 4*. Summary: **no migration, no wire-sh
 - **Frontend** — a column's further pages are fetched with a new `getTaskPage(status, start, length)` call and a `useInfiniteQuery` keyed under the existing `['board', ...]` prefix, so every current `invalidateQueries(['board'])` (move, create, priority, due date, assign, reopen) also refreshes loaded pages — no mutation hook changes. A "Show more" button (real `<button>`, keyboard/AT accessible) appears only while loaded count < `pagination.totalItems`; an optional `IntersectionObserver` sentinel may trigger it automatically on scroll. No virtualisation library, no new dependency. `length` sent to `GET /tasks` must equal the board's `pagination.pageSize`, never a literal, so page 2 continues exactly where the board's page 1 ended (AC15).
 - **Fixes folded into the slices, not separate work** — `BoardColumn.tsx` must show `pagination.totalItems`, not `items.length`; the board's drag-and-drop lookup must search pages beyond page 1 once they're loaded.
 - **ADR** — none. Offset paging was already decided in F01 T5; no index, column or dependency is added; the `Done` total choice is a one-line, cheap-to-reverse call.
+
+---
+
+# Revision R2 (2026-11-13)
+Status: **Signed off 2026-11-13** — see [round-2-decisions.md](round-2-decisions.md) B6
+
+- **D1 overridden in part:** the board and list accept a server-defined `sort` enum (`priority` default · `dueDate` · `newest`). Arbitrary columns stay out of scope; `QueryHelper.ApplySorting` stays unused. Full contract: [f10-read-models-and-sort.md](f10-read-models-and-sort.md) §1.
+- D4 unchanged: `Done` ignores `sort` (CompletedAt desc, Id desc, 20 rows).
+- AC1–AC15 are stated for `sort=priority`, the default; behaviour unchanged when `sort` is absent.
+- Consequence of F01 D13: tasks created by Members are Normal/undated and rank last in their column until a Manager plans them.

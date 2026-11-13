@@ -1,9 +1,39 @@
+import clsx from 'clsx'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { describeError } from '../../../api/errorMessages'
+import { MoveToast } from '../../../shared/components/MoveToast'
+import { useMarkAllNotificationsReadMutation } from '../hooks/useMarkAllNotificationsReadMutation'
 import { useMarkNotificationReadMutation } from '../hooks/useMarkNotificationReadMutation'
 import { useNotificationsQuery } from '../hooks/useNotificationsQuery'
+
+const relativeTimeFormatter = new Intl.RelativeTimeFormat('en', { numeric: 'always' })
+const RELATIVE_TIME_UNITS: ReadonlyArray<{ unit: Intl.RelativeTimeFormatUnit; ms: number }> = [
+  { unit: 'year', ms: 365 * 24 * 60 * 60 * 1000 },
+  { unit: 'month', ms: 30 * 24 * 60 * 60 * 1000 },
+  { unit: 'week', ms: 7 * 24 * 60 * 60 * 1000 },
+  { unit: 'day', ms: 24 * 60 * 60 * 1000 },
+  { unit: 'hour', ms: 60 * 60 * 1000 },
+  { unit: 'minute', ms: 60 * 1000 },
+]
+
+/** "5 hours ago" instead of an absolute date/time — a gap, not a clock reading. */
+function formatRelativeTime(iso: string): string {
+  const diffMs = new Date(iso).getTime() - Date.now()
+
+  if (Math.abs(diffMs) < 60_000) {
+    return 'Just now'
+  }
+
+  for (const { unit, ms } of RELATIVE_TIME_UNITS) {
+    if (Math.abs(diffMs) >= ms) {
+      return relativeTimeFormatter.format(Math.round(diffMs / ms), unit)
+    }
+  }
+
+  return relativeTimeFormatter.format(Math.round(diffMs / 60_000), 'minute')
+}
 
 function BellIcon() {
   return (
@@ -20,12 +50,25 @@ function BellIcon() {
  * this is a minimal bell + unread badge + dropdown list, following the app's
  * existing popover visual language (raised surface, `--radius-xl`,
  * `--shadow-raised`) rather than inventing a new one.
+ *
+ * Shows both read and unread rows (`useNotificationsQuery`, fixed this task
+ * — a read notification used to disappear from the list entirely, a
+ * client-side filter bug, not an API limitation; see that hook's own doc
+ * comment). The badge counts unread only, never the total.
  */
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const notificationsQuery = useNotificationsQuery()
-  const markReadMutation = useMarkNotificationReadMutation()
+  const markReadMutation = useMarkNotificationReadMutation({
+    onRefused: (error) => setToastMessage(describeError(error)),
+  })
+  const markAllReadMutation = useMarkAllNotificationsReadMutation({
+    onRefused: (error) => setToastMessage(describeError(error)),
+  })
   const items = notificationsQuery.data?.result ?? []
+  const unreadIds = items.filter((notification) => !notification.isRead).map((notification) => notification.id)
+  const unreadCount = unreadIds.length
   const panelRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
@@ -70,13 +113,13 @@ export function NotificationBell() {
         className="relative inline-flex size-10 cursor-pointer items-center justify-center rounded-pill border border-border bg-surface text-text hover:bg-column"
         aria-haspopup="true"
         aria-expanded={open}
-        aria-label={items.length > 0 ? `Notifications, ${items.length} unread` : 'Notifications'}
+        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
         onClick={() => setOpen((value) => !value)}
       >
         <BellIcon />
-        {items.length > 0 && (
+        {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-pill bg-danger px-[3px] text-[10px] font-bold text-text-inverse">
-            {items.length}
+            {unreadCount}
           </span>
         )}
       </button>
@@ -86,8 +129,20 @@ export function NotificationBell() {
           ref={panelRef}
           role="menu"
           aria-label="Notifications"
-          className="absolute top-[calc(100%+var(--space-2))] right-0 z-50 w-[320px] max-w-[90vw] rounded-xl bg-surface-raised p-[var(--space-2)] shadow-raised"
+          className="absolute top-[calc(100%+var(--space-2))] right-0 z-50 flex w-[320px] max-w-[90vw] flex-col gap-[var(--space-2)] rounded-xl bg-surface-raised p-[var(--space-2)] shadow-raised"
         >
+          <div className="flex items-center justify-between gap-[var(--space-2)] px-[var(--space-1)]">
+            <span className="text-[length:var(--font-size-sm)] font-semibold text-text">Notifications</span>
+            <button
+              type="button"
+              className="cursor-pointer border-0 bg-transparent p-0 text-[length:var(--font-size-xs)] font-medium text-accent-ink underline disabled:cursor-not-allowed disabled:text-text-muted disabled:no-underline"
+              disabled={unreadCount === 0 || markAllReadMutation.isPending}
+              onClick={() => markAllReadMutation.mutate(unreadIds)}
+            >
+              Mark all as read
+            </button>
+          </div>
+
           {notificationsQuery.isPending && (
             <p className="p-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted">Loading…</p>
           )}
@@ -100,32 +155,71 @@ export function NotificationBell() {
             <p className="p-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted">You&rsquo;re all caught up.</p>
           )}
           {notificationsQuery.isSuccess && items.length > 0 && (
-            <ul className="m-0 flex list-none flex-col gap-[2px] p-0">
+            <ul className="m-0 flex max-h-[360px] list-none flex-col gap-[2px] overflow-y-auto p-0">
               {items.map((notification) => (
                 <li
                   key={notification.id}
-                  className="flex items-center gap-[var(--space-2)] rounded-md px-[var(--space-3)] py-[var(--space-2)] hover:bg-column"
+                  className="flex items-start gap-[var(--space-2)] rounded-md px-[var(--space-3)] py-[var(--space-2)] hover:bg-column"
                 >
-                  <Link
-                    to={`/tasks/${notification.taskId}`}
-                    className="grow text-[length:var(--font-size-sm)] text-text no-underline hover:underline"
-                    onClick={() => setOpen(false)}
-                  >
-                    Task #{notification.taskId} was sent back for rework
-                  </Link>
-                  <button
-                    type="button"
-                    className="shrink-0 cursor-pointer rounded-sm border border-border bg-surface px-[var(--space-2)] py-[4px] text-[length:var(--font-size-xs)] text-text-muted hover:bg-accent-soft hover:text-accent-ink"
-                    onClick={() => markReadMutation.mutate(notification.id)}
-                  >
-                    Mark read
-                  </button>
+                  <span
+                    aria-hidden="true"
+                    className={clsx(
+                      'mt-[6px] size-2 shrink-0 rounded-pill',
+                      notification.isRead ? 'bg-transparent' : 'bg-accent',
+                    )}
+                  />
+                  {/*
+                   * Title and time stacked, not side by side (feedback this
+                   * task): inline, a long title wrapping to a second line
+                   * pushed the time out of line with every single-line row's
+                   * time. Stacked, the time's position is the same relative
+                   * to its own title regardless of how many lines that title
+                   * takes.
+                   */}
+                  <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
+                    <Link
+                      to={`/tasks/${notification.taskId}`}
+                      className={clsx(
+                        'text-[length:var(--font-size-sm)] no-underline hover:underline',
+                        notification.isRead ? 'font-normal text-text-muted' : 'font-semibold text-text',
+                      )}
+                      onClick={() => {
+                        // Mouse click and keyboard Enter on a focused `<a>`
+                        // both fire this same `click` event — no separate
+                        // keydown handler needed. Fires the mark-read request
+                        // (cache updates immediately, see the mutation's own
+                        // doc comment) and lets navigation proceed right
+                        // after; never re-sent for an already-read row.
+                        if (!notification.isRead) {
+                          markReadMutation.mutate(notification.id)
+                        }
+
+                        setOpen(false)
+                      }}
+                    >
+                      Task #{notification.taskId} was sent back for rework
+                    </Link>
+                    <time dateTime={notification.createdAt} className="text-[length:var(--font-size-2xs)] text-text-muted">
+                      {formatRelativeTime(notification.createdAt)}
+                    </time>
+                  </div>
+                  {!notification.isRead && (
+                    <button
+                      type="button"
+                      className="shrink-0 cursor-pointer rounded-sm border border-border bg-surface px-[var(--space-2)] py-[4px] text-[length:var(--font-size-xs)] text-text-muted hover:bg-accent-soft hover:text-accent-ink"
+                      onClick={() => markReadMutation.mutate(notification.id)}
+                    >
+                      Mark read
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
           )}
         </div>
       )}
+
+      {toastMessage !== null && <MoveToast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
     </div>
   )
 }

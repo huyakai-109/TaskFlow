@@ -166,3 +166,13 @@ Every entry is written in the **same `SaveChanges()`** as the change it records 
 | F05 overdue job | `OverdueMarked`, actor `null` | F05 |
 
 **Assumption (approved 2026-10-25)** — reopening a task whose due date has already passed writes **two** entries, `Reopened` plus an `OverdueMarked` whose actor is the reopening user rather than `System`. F05 D7 says every transition into the overdue state is recorded; AC8 constrains only the job's actor. The alternative is a single `Reopened` entry with the `IsOverdue` flag changing unrecorded. As written; it is F05 territory reached through F01 AC23.
+
+---
+
+# Revision R2 (2026-11-13)
+Status: **Signed off 2026-11-13** — see [round-2-decisions.md](round-2-decisions.md) A10
+
+- **Out of scope amended:** "a cross-task activity feed" is lifted — **superseded by [f04-activity-feed.md](f04-activity-feed.md)** (user decision 2026-11-13; spec owner: user; technical contract: architect). Exporting, retention and title/description edits remain out of scope.
+- D5 extends to the feed: any `ViewTasks` holder reads every entry, no filtering.
+- T1 indexes: + `IX_TaskHistories_CreatedAt_Id`, + `IX_TaskHistories_ActorUserId_CreatedAt_Id` (migration `AddTaskHistoriesFeedIndexes`, **Additive**). The EF-generated `IX_TaskHistories_ActorUserId` becomes redundant; it is left in place (dropping it is not additive).
+- No new `TaskHistoryEvent`. A takeover is an `AssigneeChanged` whose actor equals ToValue.

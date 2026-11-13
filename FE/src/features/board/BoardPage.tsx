@@ -14,12 +14,12 @@ import { useAssignAndMoveTaskMutation } from '../../shared/hooks/useAssignAndMov
 import { useBoardQuery } from '../../shared/hooks/useBoardQuery'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
 import { useOverdueTasksQuery } from '../../shared/hooks/useOverdueTasksQuery'
-import { useTeamCapacity } from '../../shared/hooks/useTeamCapacity'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 
-import { AvatarStack } from './components/AvatarStack'
 import { BoardColumn } from './components/BoardColumn'
 import { BoardListView } from './components/BoardListView'
+import { SortMenu } from './components/SortMenu'
+import { ViewingNowPlaceholder } from './components/ViewingNowPlaceholder'
 import { useColumnPagesQuery } from './hooks/useColumnPagesQuery'
 import { mergeColumnItems } from './utils/mergeColumnItems'
 
@@ -226,21 +226,22 @@ export function BoardPage() {
   )
 
   const overdueCount = overdueTasksQuery.data?.pages.at(-1)?.pagination?.totalItems ?? 0
-  const teamCapacity = useTeamCapacity()
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-[var(--space-3)]">
       {/*
-       * `docs/design/SPEC.md` §5.1 toolbar. List segment, search, "N at
-       * capacity" pill and the avatar stack/Team popover were reopened and
-       * built 2026-11-11 (SPEC.md §10 point 5 superseded, `docs/design/COMING-SOON.md`
-       * A3/A9) — per-user capacity counts turned out derivable from the
-       * board's already-loaded data, not new backend work. Search and "New
-       * task" moved to the shared `Topbar` (layout fix) so they work from
-       * every page, not only here. `shrink-0`: this row stays put above the
-       * scrolling board/list area below it (Jira-style layout fix,
-       * 2026-11-12) — `<main>` itself never scrolls on this page, only the
-       * area under this toolbar does.
+       * `docs/design/SPEC.md` §5.1 toolbar. List segment and search were
+       * reopened and built 2026-11-11 (SPEC.md §10 point 5 superseded,
+       * `docs/design/COMING-SOON.md` A3) — search moved to the shared
+       * `Topbar` (layout fix) so it works from every page, not only here.
+       * The "N at capacity" pill and the avatar stack/Team popover built the
+       * same day were removed 2026-11-13 — capacity already has its own
+       * page (Team capacity), so showing it a second time here was
+       * redundant; `ViewingNowPlaceholder` takes that slot now, see its own
+       * doc comment. `shrink-0`: this row stays put above the scrolling
+       * board/list area below it (Jira-style layout fix, 2026-11-12) —
+       * `<main>` itself never scrolls on this page, only the area under this
+       * toolbar does.
        */}
       <div className="flex shrink-0 flex-wrap items-center gap-[var(--space-3)]">
         <h1 className="sr-only">Board</h1>
@@ -274,15 +275,7 @@ export function BoardPage() {
             List
           </button>
         </div>
-        <span
-          className="inline-flex min-h-9 items-center gap-[var(--space-1)] rounded-control-lg border border-border px-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted"
-          title="Urgent → High → Normal, then earliest due date. Tasks with no date go last."
-        >
-          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M7 4v16M7 4 4 7M7 4l3 3M17 20V4M17 20l-3-3M17 20l3-3" />
-          </svg>
-          Sort: <strong className="ml-[var(--space-1)] font-semibold text-text">Priority</strong>
-        </span>
+        <SortMenu />
         <div className="ml-auto flex items-center gap-[var(--space-3)] max-[600px]:ml-0 max-[600px]:w-full max-[600px]:flex-wrap">
           {overdueCount > 0 && (
             <Link
@@ -296,17 +289,8 @@ export function BoardPage() {
               {overdueCount} overdue
             </Link>
           )}
-          {!teamCapacity.isPending && !teamCapacity.isError && teamCapacity.fullCount > 0 && (
-            <Link
-              to="/team-capacity"
-              className="inline-flex min-h-9 items-center gap-[var(--space-1)] rounded-pill border border-danger-border px-[var(--space-3)] text-[length:var(--font-size-sm)] font-semibold text-danger no-underline hover:underline"
-            >
-              <span aria-hidden="true" className="size-2 shrink-0 rounded-pill bg-danger" />
-              {teamCapacity.fullCount} at capacity
-            </Link>
-          )}
           <span aria-hidden="true" className="h-6 w-px bg-border" />
-          <AvatarStack />
+          <ViewingNowPlaceholder />
         </div>
       </div>
 
