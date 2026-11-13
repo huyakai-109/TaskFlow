@@ -3,7 +3,6 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppLayout } from './AppLayout'
 import { RequireAuth } from './RequireAuth'
 import { BoardPage } from '../features/board/BoardPage'
-import { InboxPage } from '../features/inbox/InboxPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { MyTasksPage } from '../features/my-tasks/MyTasksPage'
 import { OverdueListPage } from '../features/overdue/OverdueListPage'
@@ -28,7 +27,6 @@ export const router = createBrowserRouter([
           { path: 'board', element: <BoardPage /> },
           { path: 'my-tasks', element: <MyTasksPage /> },
           { path: 'overdue', element: <OverdueListPage /> },
-          { path: 'inbox', element: <InboxPage /> },
           { path: 'team-capacity', element: <TeamCapacityPage /> },
           { path: 'tasks/:id', element: <TaskDetailPage /> },
         ],

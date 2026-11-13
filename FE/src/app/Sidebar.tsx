@@ -3,7 +3,6 @@ import { useRef } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import { NavLink } from 'react-router-dom'
 
-import { useNotificationsQuery } from '../features/notifications/hooks/useNotificationsQuery'
 import { useAuthSession } from '../shared/hooks/useAuthSession'
 import { useDialogA11y } from '../shared/hooks/useDialogA11y'
 import { useOverdueTasksQuery } from '../shared/hooks/useOverdueTasksQuery'
@@ -25,15 +24,6 @@ function MyTasksIcon() {
     <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="8" cy="5" r="2.5" />
       <path d="M2.5 14c0-3.3 2.5-5 5.5-5s5.5 1.7 5.5 5" />
-    </svg>
-  )
-}
-
-function InboxIcon() {
-  return (
-    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 6.5 4 2h8l2 4.5" />
-      <path d="M2 6.5h3.2l.9 2h3.8l.9-2H14V13a.9.9 0 0 1-.9.9H2.9A.9.9 0 0 1 2 13z" />
     </svg>
   )
 }
@@ -143,21 +133,13 @@ function SidebarNav({ collapsed, onNavigate }: SidebarNavProps) {
   const { userId } = useAuthSession()
   const overdueTasksQuery = useOverdueTasksQuery()
   const usersQuery = useUsersQuery()
-  const notificationsQuery = useNotificationsQuery()
 
   const overdueCount = overdueTasksQuery.data?.pages.at(-1)?.pagination?.totalItems ?? 0
-  const unreadCount = notificationsQuery.data?.result?.length ?? 0
   const currentUser = usersQuery.data?.find((user) => user.id === userId) ?? null
 
   return (
     <>
       <nav aria-label="Primary" className="flex flex-col gap-[2px]">
-        <NavLink to="/inbox" className={navLinkClass(collapsed)} onClick={onNavigate}>
-          <InboxIcon />
-          {!collapsed && 'Inbox'}
-          <Counter count={unreadCount} collapsed={collapsed} />
-          {collapsed && <CollapsedTooltip>Inbox{unreadCount > 0 && ` (${unreadCount})`}</CollapsedTooltip>}
-        </NavLink>
         <NavLink to="/my-tasks" className={navLinkClass(collapsed)} onClick={onNavigate}>
           <MyTasksIcon />
           {!collapsed && 'My tasks'}
@@ -304,9 +286,11 @@ interface SidebarProps {
 /**
  * `docs/design/SPEC.md` §3. Scoped down per Gate A (approved 2026-11-08,
  * SPEC.md §10): no "Team Alpha" workspace label (CLAUDE.md — no team entity),
- * no "Due this week" (not in scope at all). Inbox and Team capacity were
- * reopened and built 2026-11-11 (SPEC.md §10 point 5) — both read data an
- * existing endpoint already returns, not a new backend addition.
+ * no "Due this week" (not in scope at all). Team capacity was reopened and
+ * built 2026-11-11 (SPEC.md §10 point 5) — it reads data an existing endpoint
+ * already returns, not a new backend addition. Inbox was built the same day,
+ * then removed 2026-11-13 (SPEC.md §3/§10 point 5) — its nav slot is empty,
+ * replacement undecided (`docs/design/sidebar-inbox-replacement.md`).
  *
  * Desktop (>=601px): a collapsible rail (240px expanded, 64px collapsed —
  * `useSidebarCollapse`, persisted). Below 601px: hidden entirely (`hidden
