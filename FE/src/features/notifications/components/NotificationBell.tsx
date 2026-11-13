@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { describeError } from '../../../api/errorMessages'
+import { MoveToast } from '../../../shared/components/MoveToast'
 import { useMarkAllNotificationsReadMutation } from '../hooks/useMarkAllNotificationsReadMutation'
 import { useMarkNotificationReadMutation } from '../hooks/useMarkNotificationReadMutation'
 import { useNotificationsQuery } from '../hooks/useNotificationsQuery'
@@ -57,9 +58,14 @@ function BellIcon() {
  */
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const notificationsQuery = useNotificationsQuery()
-  const markReadMutation = useMarkNotificationReadMutation()
-  const markAllReadMutation = useMarkAllNotificationsReadMutation()
+  const markReadMutation = useMarkNotificationReadMutation({
+    onRefused: (error) => setToastMessage(describeError(error)),
+  })
+  const markAllReadMutation = useMarkAllNotificationsReadMutation({
+    onRefused: (error) => setToastMessage(describeError(error)),
+  })
   const items = notificationsQuery.data?.result ?? []
   const unreadIds = items.filter((notification) => !notification.isRead).map((notification) => notification.id)
   const unreadCount = unreadIds.length
@@ -177,7 +183,19 @@ export function NotificationBell() {
                         'text-[length:var(--font-size-sm)] no-underline hover:underline',
                         notification.isRead ? 'font-normal text-text-muted' : 'font-semibold text-text',
                       )}
-                      onClick={() => setOpen(false)}
+                      onClick={() => {
+                        // Mouse click and keyboard Enter on a focused `<a>`
+                        // both fire this same `click` event — no separate
+                        // keydown handler needed. Fires the mark-read request
+                        // (cache updates immediately, see the mutation's own
+                        // doc comment) and lets navigation proceed right
+                        // after; never re-sent for an already-read row.
+                        if (!notification.isRead) {
+                          markReadMutation.mutate(notification.id)
+                        }
+
+                        setOpen(false)
+                      }}
                     >
                       Task #{notification.taskId} was sent back for rework
                     </Link>
@@ -200,6 +218,8 @@ export function NotificationBell() {
           )}
         </div>
       )}
+
+      {toastMessage !== null && <MoveToast message={toastMessage} onDismiss={() => setToastMessage(null)} />}
     </div>
   )
 }
