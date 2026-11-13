@@ -7,7 +7,32 @@ import { useMarkAllNotificationsReadMutation } from '../hooks/useMarkAllNotifica
 import { useMarkNotificationReadMutation } from '../hooks/useMarkNotificationReadMutation'
 import { useNotificationsQuery } from '../hooks/useNotificationsQuery'
 
-const timestampFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+const relativeTimeFormatter = new Intl.RelativeTimeFormat('en', { numeric: 'always' })
+const RELATIVE_TIME_UNITS: ReadonlyArray<{ unit: Intl.RelativeTimeFormatUnit; ms: number }> = [
+  { unit: 'year', ms: 365 * 24 * 60 * 60 * 1000 },
+  { unit: 'month', ms: 30 * 24 * 60 * 60 * 1000 },
+  { unit: 'week', ms: 7 * 24 * 60 * 60 * 1000 },
+  { unit: 'day', ms: 24 * 60 * 60 * 1000 },
+  { unit: 'hour', ms: 60 * 60 * 1000 },
+  { unit: 'minute', ms: 60 * 1000 },
+]
+
+/** "5 hours ago" instead of an absolute date/time — a gap, not a clock reading. */
+function formatRelativeTime(iso: string): string {
+  const diffMs = new Date(iso).getTime() - Date.now()
+
+  if (Math.abs(diffMs) < 60_000) {
+    return 'Just now'
+  }
+
+  for (const { unit, ms } of RELATIVE_TIME_UNITS) {
+    if (Math.abs(diffMs) >= ms) {
+      return relativeTimeFormatter.format(Math.round(diffMs / ms), unit)
+    }
+  }
+
+  return relativeTimeFormatter.format(Math.round(diffMs / 60_000), 'minute')
+}
 
 function BellIcon() {
   return (
@@ -144,8 +169,8 @@ export function NotificationBell() {
                   >
                     Task #{notification.taskId} was sent back for rework
                   </Link>
-                  <time className="shrink-0 text-[length:var(--font-size-2xs)] text-text-muted">
-                    {timestampFormatter.format(new Date(notification.createdAt))}
+                  <time dateTime={notification.createdAt} className="shrink-0 text-[length:var(--font-size-2xs)] text-text-muted">
+                    {formatRelativeTime(notification.createdAt)}
                   </time>
                   {!notification.isRead && (
                     <button
