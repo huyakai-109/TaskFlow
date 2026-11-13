@@ -153,25 +153,38 @@ export function NotificationBell() {
               {items.map((notification) => (
                 <li
                   key={notification.id}
-                  className="flex items-center gap-[var(--space-2)] rounded-md px-[var(--space-3)] py-[var(--space-2)] hover:bg-column"
+                  className="flex items-start gap-[var(--space-2)] rounded-md px-[var(--space-3)] py-[var(--space-2)] hover:bg-column"
                 >
                   <span
                     aria-hidden="true"
-                    className={clsx('size-2 shrink-0 rounded-pill', notification.isRead ? 'bg-transparent' : 'bg-accent')}
-                  />
-                  <Link
-                    to={`/tasks/${notification.taskId}`}
                     className={clsx(
-                      'grow text-[length:var(--font-size-sm)] no-underline hover:underline',
-                      notification.isRead ? 'font-normal text-text-muted' : 'font-semibold text-text',
+                      'mt-[6px] size-2 shrink-0 rounded-pill',
+                      notification.isRead ? 'bg-transparent' : 'bg-accent',
                     )}
-                    onClick={() => setOpen(false)}
-                  >
-                    Task #{notification.taskId} was sent back for rework
-                  </Link>
-                  <time dateTime={notification.createdAt} className="shrink-0 text-[length:var(--font-size-2xs)] text-text-muted">
-                    {formatRelativeTime(notification.createdAt)}
-                  </time>
+                  />
+                  {/*
+                   * Title and time stacked, not side by side (feedback this
+                   * task): inline, a long title wrapping to a second line
+                   * pushed the time out of line with every single-line row's
+                   * time. Stacked, the time's position is the same relative
+                   * to its own title regardless of how many lines that title
+                   * takes.
+                   */}
+                  <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
+                    <Link
+                      to={`/tasks/${notification.taskId}`}
+                      className={clsx(
+                        'text-[length:var(--font-size-sm)] no-underline hover:underline',
+                        notification.isRead ? 'font-normal text-text-muted' : 'font-semibold text-text',
+                      )}
+                      onClick={() => setOpen(false)}
+                    >
+                      Task #{notification.taskId} was sent back for rework
+                    </Link>
+                    <time dateTime={notification.createdAt} className="text-[length:var(--font-size-2xs)] text-text-muted">
+                      {formatRelativeTime(notification.createdAt)}
+                    </time>
+                  </div>
                   {!notification.isRead && (
                     <button
                       type="button"
