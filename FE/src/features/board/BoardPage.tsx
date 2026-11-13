@@ -18,6 +18,7 @@ import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 
 import { BoardColumn } from './components/BoardColumn'
 import { BoardListView } from './components/BoardListView'
+import { SortMenu } from './components/SortMenu'
 import { ViewingNowPlaceholder } from './components/ViewingNowPlaceholder'
 import { useColumnPagesQuery } from './hooks/useColumnPagesQuery'
 import { mergeColumnItems } from './utils/mergeColumnItems'
@@ -274,15 +275,7 @@ export function BoardPage() {
             List
           </button>
         </div>
-        <span
-          className="inline-flex min-h-9 items-center gap-[var(--space-1)] rounded-control-lg border border-border px-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted"
-          title="Urgent → High → Normal, then earliest due date. Tasks with no date go last."
-        >
-          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M7 4v16M7 4 4 7M7 4l3 3M17 20V4M17 20l-3-3M17 20l3-3" />
-          </svg>
-          Sort: <strong className="ml-[var(--space-1)] font-semibold text-text">Priority</strong>
-        </span>
+        <SortMenu />
         <div className="ml-auto flex items-center gap-[var(--space-3)] max-[600px]:ml-0 max-[600px]:w-full max-[600px]:flex-wrap">
           {overdueCount > 0 && (
             <Link
