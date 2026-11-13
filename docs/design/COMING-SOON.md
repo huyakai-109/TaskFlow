@@ -96,3 +96,22 @@ fix, not "revert + also add a disabled button nobody asked for."
   removed the same day, see A9's own row above, not added here as it needs no backend addition.
 - **C: 2** items, not built because they contradict a signed-off contract (F01 D5, F02 AC22) —
   never build these without a new decision overriding the one named.
+
+## Re-audit R2 (2026-11-13)
+
+Following the product owner's round-2 decisions (holder-only progression, planning rights, accounts/profile, presence, the activity feed) — full rationale in [round-2-impact.md](../features/round-2-impact.md).
+
+| Item | New status | Resolution |
+|---|---|---|
+| A1 Inbox | **Removed** | Replaced by [f06](../features/f06-notification-history.md) bell history + [f04-activity-feed.md](../features/f04-activity-feed.md); Inbox page and route deleted, no redirect |
+| A2/A8/A9 "may be incomplete" caveats | **Resolvable** | `GET /users/workload` ([f10](../features/f10-read-models-and-sort.md) §5) |
+| A9 board AvatarStack + Team popover | **Replaced** | [f07](../features/f07-presence.md) presence stack; the "N at capacity" pill is kept (open decision 19) |
+| A10 Due today | Improved | `today` from `GET /workflow` ([f10](../features/f10-read-models-and-sort.md) §4) |
+| B1 Flag cleared this week | **Withdrawn** | Product-owner directive, 2026-11-13; the stub in `OverdueListPage.tsx` is removed, not replaced |
+| B2 finished this week | → [f10](../features/f10-read-models-and-sort.md) §6 | `GET /me/summary` |
+| B3 last check | → [f10](../features/f10-read-models-and-sort.md) §4 | `GET /workflow.overdueScan.lastFiredAt` |
+| B4 limit display | → [f10](../features/f10-read-models-and-sort.md) §4 | `GET /workflow.maxInProgressPerAssignee` |
+| B5 sent back by | → [f10](../features/f10-read-models-and-sort.md) §3 (+ [f06](../features/f06-notification-history.md) actor) | `lastTransition` |
+| B6 approved by | → [f10](../features/f10-read-models-and-sort.md) §3 | `lastTransition` |
+| C1 reviewer field | **Unchanged** (F01 D5 stands) | |
+| C2 capacity picker | **Unchanged**, reinforced by F01 D11 (holder-only — you cannot start a task for someone else either) | |
