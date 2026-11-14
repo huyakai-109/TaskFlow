@@ -9,6 +9,14 @@ import { STATUS_LABELS } from './statusLabels'
  * copy (second use, pulled out of `WorkflowStrip.tsx`).
  */
 export function moveButtonLabel(status: TaskStatus, move: AllowedTransition): string {
+  // Revision R2 (D11 "requiresTakeover"): an unassigned Todo task offers
+  // `InProgress` to anyone with `AssignTasks`, but clicking it must read as
+  // "take it and start", not a bare "Start" — this caller is not yet the
+  // assignee and the move will chain an assign first (`useAssignAndMoveTaskMutation`).
+  if (move.requiresTakeover) {
+    return 'Take it and start'
+  }
+
   if (status === 'InProgress' && move.status === 'Review') {
     return 'Submit for review'
   }

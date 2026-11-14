@@ -10,6 +10,19 @@ import { ApiError } from './client'
  * 401/403 carry no `errorCode` (`f01-workflow.md` T3) and are mapped from the
  * HTTP status instead.
  */
+/**
+ * Client-assigned sentinel, never a server `errorCode` — a 403 from
+ * `PlanTasks`'s policy carries no code at all (`f01-workflow.md` T3: "permission
+ * → 403 from `[Authorize(Policy)]`"). `useUpdatePriorityMutation`/
+ * `useUpdateDueDateMutation` map a 403 to this constant so the one
+ * error-code → copy table still owns the message, instead of a second
+ * ad hoc string living in the mutation. Session permissions can lag the
+ * server by up to ~15 minutes after a role change (`round-2-decisions.md`
+ * "Deploy note for R2-1"); the mutations also trigger a session refresh
+ * when this fires, once, not a retry loop.
+ */
+export const FORBIDDEN_SENTINEL = 'Client.PlanTasksForbidden'
+
 const ERROR_MESSAGES: Record<string, string> = {
   'Task.GetBoard.Exception': 'The board could not be loaded. Try again in a moment.',
   'Task.Get.NotFound': 'This task no longer exists.',
@@ -43,6 +56,12 @@ const ERROR_MESSAGES: Record<string, string> = {
   'Task.Assign.Exception': 'The assignment could not be saved. Try again in a moment.',
   'Task.Move.AssigneeRequired': 'This task needs an assignee before it can move to In Progress. Pick someone to start it.',
   'Task.Assign.AssigneeRequired': 'The assignee can’t be cleared while this task is active.',
+  // Revision R2 (holder-only progression, planning rights, assignment lock).
+  'Task.Move.ActorNotAssignee': 'Only the current assignee can do this. Take over the task first, then try again.',
+  'Task.Assign.SelfOnly': 'You can only assign this task to yourself.',
+  'Task.Assign.Locked': 'The assignee is locked while this task is in Review or Done.',
+  'Task.Create.PlanningNotPermitted': 'Only a Manager or Admin can set priority or due date. Remove them to create this task as Normal priority with no due date.',
+  'Task.Create.AssigneeNotPermitted': 'You can only assign a new task to yourself.',
   // *.CapacityReached: the server's own `error` string already names the person and
   // the limit (`docs/features/f02-capacity.md` T4 sign-off) — `describeErrorCode`
   // below prefers that raw message over this fallback, which only shows if it is
@@ -55,6 +74,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   'Notification.GetList.Exception': 'Notifications could not be loaded. Try again in a moment.',
   'Notification.MarkRead.NotFound': 'This notification no longer exists.',
   'Notification.MarkRead.Exception': 'Could not mark this notification as read.',
+  [FORBIDDEN_SENTINEL]: "You don't have permission to change this. Your session is refreshing — try again in a moment.",
 }
 
 const GENERIC_FALLBACK = 'Something went wrong. Try again.'

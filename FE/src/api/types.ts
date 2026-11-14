@@ -67,15 +67,23 @@ export interface UserListItem {
 
 /**
  * `AllowedTransitionRes` — one legal next move for *this* caller, with the
- * transition table, permissions and the "someone else moves it out of Review"
- * rule already applied server-side (F01 D10). `operation` distinguishes an
- * ordinary move from the reopen operation, which `requiresReason`. Never
- * re-derive the transition table on the client — only read this list.
+ * transition table, permissions, holder-only (D11) and the "someone else
+ * moves it out of Review" rule (D5) already applied server-side. `operation`
+ * distinguishes an ordinary move from the reopen operation, which
+ * `requiresReason`. Never re-derive the transition table on the client —
+ * only read this list.
  */
 export interface AllowedTransition {
   status: TaskStatus
   operation: 'Move' | 'Reopen'
   requiresReason: boolean
+  /**
+   * `Todo→InProgress` on an unassigned task, offered to a caller who holds
+   * `AssignTasks` (Revision R2 "Wire changes") — the client runs "take it
+   * and start" (assign self, then move with the returned version) instead
+   * of a bare move, which would fail `Task.Move.AssigneeRequired` anyway.
+   */
+  requiresTakeover: boolean
 }
 
 /** `TaskSummaryRes` — board card, per `docs/features/f01-workflow.md` T5. */
@@ -93,6 +101,16 @@ export interface TaskSummary {
   /** Concurrency token; sent back on every write (not used until slice 1.6). */
   version: string
   allowedTransitions: AllowedTransition[]
+  /**
+   * Revision R2 wire changes: caller holds `AssignTasks`, status is not
+   * `Review`/`Done`, and the caller is not already the assignee — "Take
+   * over" renders strictly from this flag, never inferred from role/status
+   * client-side (the client's own status check is a defensive mirror of the
+   * same rule, not the source of truth).
+   */
+  canTakeOver: boolean
+  /** Caller holds `AssignAnyone` and status is not `Review`/`Done`. */
+  canAssignOthers: boolean
 }
 
 /** `BoardColumnRes` — always present for all five statuses, even when empty. */
