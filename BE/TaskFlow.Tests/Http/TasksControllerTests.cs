@@ -259,6 +259,19 @@ namespace TaskFlow.Tests.Http
         }
 
         [Fact]
+        public async Task Create_Refuses_WhenCallerIsUnauthenticated()
+        {
+            // Arrange
+            var client = _factory.CreateClient();
+
+            // Act
+            var response = await client.PostAsJsonAsync("api/v1/tasks", new { title = "Should be unauthorised" });
+
+            // Assert (AC26-equivalent for Create)
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Fact]
         public async Task Get_ReturnsTaskDetail_WithAllowedTransitions()
         {
             // Arrange

@@ -213,6 +213,30 @@ namespace TaskFlow.Tests.Http
             Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         }
 
+        [Fact]
+        public async Task UpdatePriority_Refuses_WhenCallerIsUnauthenticated()
+        {
+            var manager = await CreateAuthenticatedClientAsync("Manager");
+            var task = await CreateTaskAsync(manager.Client);
+            var client = _factory.CreateClient();
+
+            var response = await client.PutAsJsonAsync($"api/v1/tasks/{task.Id}/priority", new { priority = "Urgent", version = task.Version });
+
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task UpdateDueDate_Refuses_WhenCallerIsUnauthenticated()
+        {
+            var manager = await CreateAuthenticatedClientAsync("Manager");
+            var task = await CreateTaskAsync(manager.Client);
+            var client = _factory.CreateClient();
+
+            var response = await client.PutAsJsonAsync($"api/v1/tasks/{task.Id}/due-date", new { dueDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(5)), version = task.Version });
+
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
         // ---- PUT /tasks/{id}/assignee (F04 AC3: names both old and new) ----
 
         [Fact]
@@ -250,6 +274,18 @@ namespace TaskFlow.Tests.Http
 
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
             Assert.Equal(TaskControllerMS.Assign.AssigneeNotFound, body!.ErrorCode);
+        }
+
+        [Fact]
+        public async Task Assign_Refuses_WhenCallerIsUnauthenticated()
+        {
+            var mover = await CreateAuthenticatedClientAsync("Manager");
+            var task = await CreateTaskAsync(mover.Client);
+            var client = _factory.CreateClient();
+
+            var response = await client.PutAsJsonAsync($"api/v1/tasks/{task.Id}/assignee", new { assigneeId = (long?)null, version = task.Version });
+
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         }
 
         // ---- DELETE /tasks/{id} (F04 AC9: trail survives, every earlier entry unchanged) ----
