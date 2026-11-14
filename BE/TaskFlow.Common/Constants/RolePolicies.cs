@@ -24,6 +24,8 @@
                 Permissions.Tasks.AssignTasks,
                 Permissions.Tasks.DeleteTasks,
                 Permissions.Tasks.ReopenTasks,
+                Permissions.Tasks.PlanTasks,
+                Permissions.Tasks.AssignAnyone,
             ];
         }
 
@@ -47,6 +49,8 @@
                 Permissions.Tasks.AssignTasks,
                 Permissions.Tasks.DeleteTasks,
                 Permissions.Tasks.ReopenTasks,
+                Permissions.Tasks.PlanTasks,
+                Permissions.Tasks.AssignAnyone,
             ];
         }
 
