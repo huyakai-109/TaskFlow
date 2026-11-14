@@ -319,13 +319,17 @@ namespace TaskFlow.Tests.Http
         {
             for (var round = 0; round < 10; round++)
             {
-                var mover = await CreateAuthenticatedClientAsync("Member");
+                // D12: mover is a Manager (AssignAnyone) because it creates
+                // the task assigned to a third party.
+                var mover = await CreateAuthenticatedClientAsync("Manager");
                 var assignee = await CreateAuthenticatedClientAsync("Member");
                 var created = await CreateTaskAsync(mover.Client, assignee.UserId);
                 var atTodo = await MoveAsync(mover.Client, created.Id, TaskWorkflowStatus.Todo, created.Version);
-                var atInProgress = await MoveAsync(mover.Client, created.Id, TaskWorkflowStatus.InProgress, atTodo.Version);
+
+                // D11: holder-only - InProgress/Review moves are the assignee's.
+                var atInProgress = await MoveAsync(assignee.Client, created.Id, TaskWorkflowStatus.InProgress, atTodo.Version);
                 var closer = await CreateAuthenticatedClientAsync("Manager");
-                var atReview = await MoveAsync(mover.Client, created.Id, TaskWorkflowStatus.Review, atInProgress.Version);
+                var atReview = await MoveAsync(assignee.Client, created.Id, TaskWorkflowStatus.Review, atInProgress.Version);
 
                 // Backdate the due date directly (Move/Create validate against
                 // today; the race needs a task that is already past due).
@@ -373,7 +377,7 @@ namespace TaskFlow.Tests.Http
             await RunScanAsync(FixedToday);
             await AssertFlaggedAsync(task);
 
-            var member = await CreateAuthenticatedClientAsync("Member");
+            var member = await CreateAuthenticatedClientAsync("Manager");
             Guid currentVersion;
             await using (var context = _dbFixture.CreateContext())
             {
@@ -470,7 +474,7 @@ namespace TaskFlow.Tests.Http
         {
             // AC7
             var task = await SeedTaskAsync(TaskWorkflowStatus.InProgress, FixedToday.AddDays(-5), isOverdue: true);
-            var member = await CreateAuthenticatedClientAsync("Member");
+            var member = await CreateAuthenticatedClientAsync("Manager");
 
             var updated = await UpdateDueDateAsync(member.Client, task.Id, FixedToday.AddDays(5), task.Version);
 
@@ -481,13 +485,13 @@ namespace TaskFlow.Tests.Http
         public async Task Regression_ApprovingIntoDone_ClearsOverdue_RegardlessOfHowLate()
         {
             // AC8
-            var mover = await CreateAuthenticatedClientAsync("Member");
+            var mover = await CreateAuthenticatedClientAsync("Manager");
             var assignee = await CreateAuthenticatedClientAsync("Member");
             var closer = await CreateAuthenticatedClientAsync("Manager");
             var created = await CreateTaskAsync(mover.Client, assignee.UserId);
             var atTodo = await MoveAsync(mover.Client, created.Id, TaskWorkflowStatus.Todo, created.Version);
-            var atInProgress = await MoveAsync(mover.Client, created.Id, TaskWorkflowStatus.InProgress, atTodo.Version);
-            var atReview = await MoveAsync(mover.Client, created.Id, TaskWorkflowStatus.Review, atInProgress.Version);
+            var atInProgress = await MoveAsync(assignee.Client, created.Id, TaskWorkflowStatus.InProgress, atTodo.Version);
+            var atReview = await MoveAsync(assignee.Client, created.Id, TaskWorkflowStatus.Review, atInProgress.Version);
 
             await using (var context = _dbFixture.CreateContext())
             {
@@ -508,7 +512,7 @@ namespace TaskFlow.Tests.Http
         {
             // AC9
             var task = await SeedTaskAsync(TaskWorkflowStatus.InProgress, FixedToday.AddDays(-5), isOverdue: true);
-            var member = await CreateAuthenticatedClientAsync("Member");
+            var member = await CreateAuthenticatedClientAsync("Manager");
 
             var updated = await UpdateDueDateAsync(member.Client, task.Id, null, task.Version);
 
@@ -519,13 +523,13 @@ namespace TaskFlow.Tests.Http
         public async Task Regression_Reopen_RecomputesOverdue_FromCurrentDueDate_RatherThanCarryingItOver()
         {
             // AC11
-            var mover = await CreateAuthenticatedClientAsync("Member");
+            var mover = await CreateAuthenticatedClientAsync("Manager");
             var assignee = await CreateAuthenticatedClientAsync("Member");
             var closer = await CreateAuthenticatedClientAsync("Manager");
             var created = await CreateTaskAsync(mover.Client, assignee.UserId);
             var atTodo = await MoveAsync(mover.Client, created.Id, TaskWorkflowStatus.Todo, created.Version);
-            var atInProgress = await MoveAsync(mover.Client, created.Id, TaskWorkflowStatus.InProgress, atTodo.Version);
-            var atReview = await MoveAsync(mover.Client, created.Id, TaskWorkflowStatus.Review, atInProgress.Version);
+            var atInProgress = await MoveAsync(assignee.Client, created.Id, TaskWorkflowStatus.InProgress, atTodo.Version);
+            var atReview = await MoveAsync(assignee.Client, created.Id, TaskWorkflowStatus.Review, atInProgress.Version);
             var done = await MoveAsync(closer.Client, created.Id, TaskWorkflowStatus.Done, atReview.Version);
 
             await using (var context = _dbFixture.CreateContext())
@@ -547,7 +551,7 @@ namespace TaskFlow.Tests.Http
         public async Task Regression_SettingDueDateToToday_IsAccepted_AndNotOverdue()
         {
             // AC13
-            var member = await CreateAuthenticatedClientAsync("Member");
+            var member = await CreateAuthenticatedClientAsync("Manager");
             var task = await CreateTaskAsync(member.Client);
 
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -579,7 +583,7 @@ namespace TaskFlow.Tests.Http
         public async Task UpdateDueDate_AllowsSameValuePastDate_BecauseItHasNotChanged()
         {
             var task = await SeedTaskAsync(TaskWorkflowStatus.InProgress, FixedToday.AddDays(-10));
-            var member = await CreateAuthenticatedClientAsync("Member");
+            var member = await CreateAuthenticatedClientAsync("Manager");
 
             // Same (already-past) value, re-sent verbatim - D8 says this is not
             // a change, so the past-date guard must not fire.
@@ -664,12 +668,17 @@ namespace TaskFlow.Tests.Http
 
         private async Task<TaskDetailRes> CreateTaskAsync(HttpClient client, long? assigneeId = null)
         {
-            var response = await client.PostAsJsonAsync("api/v1/tasks", new
+            // f01-workflow.md Revision R2, D13: priority is sent only when
+            // actually requested - a Member sending it, even the default
+            // value, is refused (AC35). None of this file's callers need a
+            // specific priority, so it is simply never sent.
+            var payload = new Dictionary<string, object?> { ["title"] = $"Scan http test {Guid.NewGuid():N}" };
+            if (assigneeId.HasValue)
             {
-                title = $"Scan http test {Guid.NewGuid():N}",
-                priority = "Normal",
-                assigneeId,
-            });
+                payload["assigneeId"] = assigneeId.Value;
+            }
+
+            var response = await client.PostAsJsonAsync("api/v1/tasks", payload);
             var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
             Assert.True(body!.Success, body.Error);
             return body.Result!;
