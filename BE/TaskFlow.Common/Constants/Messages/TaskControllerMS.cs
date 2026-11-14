@@ -7,6 +7,14 @@ namespace TaskFlow.Common.Constants.Messages
         {
             public const string DueDateInPast = "Task.Create.DueDateInPast";
             public const string AssigneeNotFound = "Task.Create.AssigneeNotFound";
+
+            // f01-workflow.md Revision R2, D13/A2: a Member supplying
+            // priority or due date is refused, never silently dropped.
+            public const string PlanningNotPermitted = "Task.Create.PlanningNotPermitted";
+
+            // Revision R2, D12: AssignTasks (all roles) covers self-assign
+            // only; assigning someone else on create needs AssignAnyone.
+            public const string AssigneeNotPermitted = "Task.Create.AssigneeNotPermitted";
             public const string Exception = "Task.Create.Exception";
         }
 
@@ -25,6 +33,12 @@ namespace TaskFlow.Common.Constants.Messages
             public const string InvalidTransition = "Task.Move.InvalidTransition";
             public const string SameStatus = "Task.Move.SameStatus";
             public const string ActorIsAssignee = "Task.Move.ActorIsAssignee";
+
+            // f01-workflow.md Revision R2, D11: holder-only progression -
+            // Todo->InProgress and InProgress->Review may only be done by
+            // the task's current assignee. Distinct from ActorIsAssignee
+            // (D5, leaving Review), per AC20.
+            public const string ActorNotAssignee = "Task.Move.ActorNotAssignee";
             public const string AssigneeRequired = "Task.Move.AssigneeRequired";
             public const string CapacityReached = "Task.Move.CapacityReached";
             public const string Exception = "Task.Move.Exception";
@@ -81,6 +95,18 @@ namespace TaskFlow.Common.Constants.Messages
             public const string Conflict = "Task.Assign.Conflict";
             public const string AssigneeNotFound = "Task.Assign.AssigneeNotFound";
             public const string AssigneeRequired = "Task.Assign.AssigneeRequired";
+
+            // f01-workflow.md Revision R2, D12/A3: assignment is locked
+            // while the task is Review or Done, for every role including
+            // Admin - closes the self-approval loophole. Reopen (Done ->
+            // Review) is a status transition, not an Assign call, and is
+            // unaffected (A3 exception).
+            public const string Locked = "Task.Assign.Locked";
+
+            // D12: AssignTasks (all roles) covers taking over (assign to
+            // self) and releasing one's own assignment only; assigning or
+            // clearing another user's assignment needs AssignAnyone.
+            public const string SelfOnly = "Task.Assign.SelfOnly";
             public const string CapacityReached = "Task.Assign.CapacityReached";
             public const string Exception = "Task.Assign.Exception";
         }

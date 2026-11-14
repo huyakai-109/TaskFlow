@@ -28,6 +28,10 @@ namespace TaskFlow.BusinessLogic.Dtos.Tasks
 
         public List<AllowedTransitionResDto> AllowedTransitions { get; set; } = [];
 
+        public bool CanTakeOver { get; set; }
+
+        public bool CanAssignOthers { get; set; }
+
         public DateTimeOffset CreatedAt { get; set; }
 
         public long CreatedBy { get; set; }

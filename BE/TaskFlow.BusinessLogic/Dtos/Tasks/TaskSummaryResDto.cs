@@ -26,5 +26,13 @@ namespace TaskFlow.BusinessLogic.Dtos.Tasks
         public Guid Version { get; set; }
 
         public List<AllowedTransitionResDto> AllowedTransitions { get; set; } = [];
+
+        // f01-workflow.md Revision R2: canTakeOver (caller holds AssignTasks,
+        // status not in {Review, Done}, assignee != caller) and
+        // canAssignOthers (caller holds AssignAnyone, status not in
+        // {Review, Done}). Capacity is deliberately not applied, same as D10.
+        public bool CanTakeOver { get; set; }
+
+        public bool CanAssignOthers { get; set; }
     }
 }
