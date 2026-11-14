@@ -3,20 +3,26 @@ import { describe, expect, it } from 'vitest'
 import { describeErrorCode, FORBIDDEN_SENTINEL } from './errorMessages'
 
 describe('describeErrorCode', () => {
-  it('maps each of the 5 Revision R2 error codes to a specific message, never the generic fallback', () => {
-    const codes = [
-      'Task.Move.ActorNotAssignee',
-      'Task.Assign.SelfOnly',
-      'Task.Assign.Locked',
-      'Task.Create.PlanningNotPermitted',
-      'Task.Create.AssigneeNotPermitted',
-    ]
+  it('maps each of the 5 Revision R2 error codes to its own distinct, semantically-correct message', () => {
+    // `/i` keyword per code, loose enough to survive copy-editing — never the full sentence.
+    const codes: Record<string, RegExp> = {
+      'Task.Move.ActorNotAssignee': /assignee/i,
+      'Task.Assign.SelfOnly': /only assign .* to yourself/i,
+      'Task.Assign.Locked': /review or done/i,
+      'Task.Create.PlanningNotPermitted': /priority or due date/i,
+      'Task.Create.AssigneeNotPermitted': /assign .* to yourself/i,
+    }
 
-    for (const code of codes) {
+    const messages = Object.entries(codes).map(([code, keyword]) => {
       const message = describeErrorCode(code)
       expect(message).not.toBe('Something went wrong. Try again.')
       expect(message.length).toBeGreaterThan(0)
-    }
+      expect(message).toMatch(keyword)
+      return message
+    })
+
+    // (a) no two of the 5 codes silently share the same message.
+    expect(new Set(messages).size).toBe(messages.length)
   })
 
   it('maps the client-assigned FORBIDDEN_SENTINEL (stale-permission 403) to a specific message', () => {
