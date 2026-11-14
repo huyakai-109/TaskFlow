@@ -24,6 +24,7 @@ export const MOVE_REFUSAL_TITLES: Record<string, string> = {
   'Task.Move.InvalidTransition': 'Move it one step at a time',
   'Task.Move.SameStatus': 'Already there',
   'Task.Move.ActorIsAssignee': "You're the assignee",
+  'Task.Move.ActorNotAssignee': 'Only the assignee can do this',
   'Task.Move.CapacityReached': 'At capacity',
 }
 

@@ -1,10 +1,9 @@
-import clsx from 'clsx'
 import { useRef } from 'react'
 
 import { describeErrorCode } from '../../api/errorMessages'
+import { useAuthSession } from '../hooks/useAuthSession'
 import { useDialogA11y } from '../hooks/useDialogA11y'
 import { IN_PROGRESS_LIMIT, useTeamCapacity } from '../hooks/useTeamCapacity'
-import { avatarPaletteIndex, initialsOf } from '../lib/avatar'
 
 function PersonIcon() {
   return (
@@ -24,27 +23,23 @@ interface AssignAndMoveDialogProps {
   /** The server's raw `error` string — shown verbatim for `CapacityReached`. */
   errorMessage: string | null
   onClose: () => void
-  onSelect: (assigneeId: number) => void
+  onConfirm: () => void
 }
 
-const optionClass =
-  'flex min-h-11 w-full cursor-pointer items-center rounded-sm border-0 bg-transparent px-[var(--space-3)] text-left text-text [font:inherit] [&:hover:not(:disabled)]:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-60'
-
 /**
- * `Task.Move.AssigneeRequired`'s way out: `docs/design/SPEC.md` §5.6, "the client
- * may chain both calls behind one button" — picking a name here does both
- * `PUT …/assignee` and `PUT …/status` (`useAssignAndMoveTaskMutation`). No
- * "Unassigned" option, unlike `AssigneePickerDialog`: an assignee is exactly
- * what this task is missing (F02 D5).
+ * `Task.Move.AssigneeRequired`'s way out: "Take it and start"
+ * (`docs/design/SPEC.md` §10 point 17, Revision R2 of F01 D11/D12) — this
+ * **always** assigns the task to the signed-in caller, then moves it; no
+ * one, not even a Manager or Admin, can start a task on someone else's
+ * behalf (no bypass, A1). This replaces the earlier roster-picking version
+ * of this dialog (every user, "HAS ROOM"/"AT CAPACITY" grouping): holder-
+ * only progression means there is only ever one legal choice here — the
+ * caller themselves — so there is nothing left to pick from.
  *
- * "HAS ROOM · MOST FIRST" / "AT CAPACITY" grouping (`docs/design/SPEC.md`
- * §5.5 and `docs/design/png/AssignPicker.png`, reopened 2026-11-11, SPEC §10
- * point 2; `docs/design/COMING-SOON.md` A8) — unlike `AssigneePickerDialog`,
- * this dialog is always about to send the task into `InProgress`, so
- * disabling someone already full is never wrong here the way it could be for
- * a general reassignment of a Backlog/Todo task (F01 D1 — assigning those has
- * no limit). Counts: `useTeamCapacity`, same source and completeness caveat
- * as Team capacity (A2).
+ * `CapacityReached` is a rejection, not a silent failure (per the brief):
+ * the error box below shows the server's own message verbatim
+ * (`describeErrorCode`'s `CapacityReached` handling), same as every other
+ * refusal path in the app.
  */
 export function AssignAndMoveDialog({
   taskTitle,
@@ -53,16 +48,12 @@ export function AssignAndMoveDialog({
   errorCode,
   errorMessage,
   onClose,
-  onSelect,
+  onConfirm,
 }: AssignAndMoveDialogProps) {
+  const { userId } = useAuthSession()
   const capacity = useTeamCapacity()
+  const ownEntry = capacity.entries.find((entry) => entry.user.id === userId)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
-
-  // "HAS ROOM · MOST FIRST" sorts by most room (fewest in-progress) first —
-  // the opposite of `useTeamCapacity`'s own full-first order (built for the
-  // Team capacity page/popover) — so each group is re-sorted locally.
-  const hasRoom = capacity.entries.filter((e) => !e.isFull).sort((a, b) => a.inProgressCount - b.inProgressCount || a.user.userName.localeCompare(b.user.userName))
-  const atCapacity = capacity.entries.filter((e) => e.isFull).sort((a, b) => a.user.userName.localeCompare(b.user.userName))
 
   useDialogA11y(closeButtonRef, onClose, isPending)
 
@@ -87,7 +78,7 @@ export function AssignAndMoveDialog({
         </span>
         <div className="flex items-center gap-[var(--space-2)]">
           <h2 id="am-title" className="m-0 text-[length:var(--font-size-dialog-title)] font-semibold">
-            Pick someone to start it
+            Take it and start
           </h2>
           <button
             type="button"
@@ -102,8 +93,14 @@ export function AssignAndMoveDialog({
         </div>
 
         <p id="am-description" className="m-0 text-text-muted [line-height:var(--line-height)]">
-          “{taskTitle}” needs an assignee before it can move to {toStatusLabel}.
+          “{taskTitle}” needs an assignee before it can move to {toStatusLabel}. Assign it to yourself and start it?
         </p>
+
+        {ownEntry !== undefined && (
+          <p className="m-0 text-[length:var(--font-size-sm)] text-text-muted">
+            You have {ownEntry.inProgressCount}/{IN_PROGRESS_LIMIT} in progress.
+          </p>
+        )}
 
         {errorCode !== null && (
           <p
@@ -114,88 +111,24 @@ export function AssignAndMoveDialog({
           </p>
         )}
 
-        {capacity.isPending && (
-          <p role="status" className="m-0 text-[length:var(--font-size-sm)] text-text-muted">
-            Loading people…
-          </p>
-        )}
-
-        {capacity.isError && (
-          <p role="alert" className="m-0 text-[length:var(--font-size-sm)] text-danger">
-            The list of people could not be loaded. Try closing and reopening this dialog.
-          </p>
-        )}
-
-        {!capacity.isPending && !capacity.isError && capacity.entries.length === 0 && (
-          <p className="m-0 text-[length:var(--font-size-sm)] text-text-muted">
-            No one is in the directory yet, so there is no one to assign this to.
-          </p>
-        )}
-
-        {!capacity.isPending && !capacity.isError && capacity.entries.length > 0 && (
-          <>
-            {hasRoom.length > 0 && (
-              <p className="m-0 text-[length:var(--font-size-2xs)] font-semibold tracking-[0.44px] text-text-muted uppercase">
-                Has room · most first
-              </p>
-            )}
-            <ul role="listbox" aria-label="Assign to and start" className="m-0 flex list-none flex-col p-0">
-              {hasRoom.map(({ user, inProgressCount }) => (
-                <li key={user.id} role="option" aria-selected="false">
-                  <button
-                    type="button"
-                    className={clsx(optionClass, 'gap-[var(--space-2)]')}
-                    disabled={isPending}
-                    onClick={() => onSelect(user.id)}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold"
-                      style={{
-                        backgroundColor: `var(--avatar-${avatarPaletteIndex(user.id)}-bg)`,
-                        color: `var(--avatar-${avatarPaletteIndex(user.id)}-ink)`,
-                      }}
-                    >
-                      {initialsOf(user.userName)}
-                    </span>
-                    Assign to {user.userName} and start
-                    <span className="ml-auto text-[length:var(--font-size-xs)] text-text-muted">
-                      {inProgressCount}/{IN_PROGRESS_LIMIT}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-
-            {atCapacity.length > 0 && (
-              <>
-                <p className="m-0 text-[length:var(--font-size-2xs)] font-semibold tracking-[0.44px] text-text-muted uppercase">
-                  At capacity
-                </p>
-                <ul role="listbox" aria-label="At capacity" className="m-0 flex list-none flex-col p-0">
-                  {atCapacity.map(({ user }) => (
-                    <li key={user.id} role="option" aria-selected="false" aria-disabled="true">
-                      <button type="button" className={clsx(optionClass, 'gap-[var(--space-2)] opacity-60')} disabled>
-                        <span
-                          aria-hidden="true"
-                          className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold opacity-60"
-                          style={{
-                            backgroundColor: `var(--avatar-${avatarPaletteIndex(user.id)}-bg)`,
-                            color: `var(--avatar-${avatarPaletteIndex(user.id)}-ink)`,
-                          }}
-                        >
-                          {initialsOf(user.userName)}
-                        </span>
-                        {user.userName} · can&rsquo;t take more active work
-                        <span className="ml-auto text-[length:var(--font-size-xs)] font-semibold text-danger">Full</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </>
-        )}
+        <div className="flex items-center justify-end gap-[var(--space-3)]">
+          <button
+            type="button"
+            className="min-h-11 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-4)] font-medium text-text disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={onClose}
+            disabled={isPending}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="min-h-11 cursor-pointer rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isPending}
+            onClick={onConfirm}
+          >
+            {isPending ? 'Starting…' : 'Take it and start'}
+          </button>
+        </div>
       </div>
     </div>
   )

@@ -10,14 +10,23 @@ import type {
   TaskSummary,
 } from './types'
 
-/** Body of `POST /tasks` (`TaskCreateReq`). */
+/**
+ * Body of `POST /tasks` (`TaskCreateReq`). `priority`, `dueDate` and
+ * `assigneeId` are optional (Revision R2 "Create rules") — a caller without
+ * `PlanTasks` must **omit** `priority`/`dueDate` entirely (the server
+ * refuses with `Task.Create.PlanningNotPermitted` if either is present, it
+ * never silently drops them), and a caller without `AssignAnyone` must omit
+ * `assigneeId` or send their own id. `JSON.stringify` drops an `undefined`
+ * property, so the client's own omission is what keeps the request shaped
+ * correctly — never send `priority: 'Normal'`/`dueDate: null` "to be safe".
+ */
 export interface CreateTaskInput {
   title: string
   description: string | null
-  priority: TaskPriority
-  /** `yyyy-MM-dd`, or null for no due date. */
-  dueDate: string | null
-  assigneeId: number | null
+  priority?: TaskPriority
+  /** `yyyy-MM-dd`, or null for no due date; omit the key to leave it out entirely. */
+  dueDate?: string | null
+  assigneeId?: number | null
 }
 
 /**

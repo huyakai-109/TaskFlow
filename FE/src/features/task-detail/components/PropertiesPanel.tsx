@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 
 import type { TaskDetail, TaskPriority } from '../../../api/types'
+import { PriorityIcon } from '../../../shared/components/PriorityIcon'
+import { useHasPermission } from '../../../shared/hooks/useHasPermission'
 import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
@@ -80,6 +82,11 @@ export function PropertiesPanel({
 }: PropertiesPanelProps) {
   const usersQuery = useUsersQuery()
   const createdByName = usersQuery.data?.find((user) => user.id === task.createdBy)?.userName ?? null
+  const canPlan = useHasPermission('PlanTasks')
+  // Revision R2 (D12, A3): the assignee is locked while Review/Done for
+  // every role — the picker is never opened for those statuses rather than
+  // opened and then refused (`docs/design/SPEC.md` §10 point 17).
+  const assignmentLocked = task.status === 'Review' || task.status === 'Done'
 
   return (
     <aside
@@ -88,20 +95,27 @@ export function PropertiesPanel({
     >
       <PropertyRow label="Status">{STATUS_LABELS[task.status]}</PropertyRow>
 
-      <PropertyRow label="Priority" htmlFor="pp-priority">
-        <select
-          id="pp-priority"
-          className={selectOrDateInputClass}
-          value={task.priority}
-          disabled={isPriorityPending}
-          onChange={(event) => onEditPriority(event.target.value as TaskPriority)}
-        >
-          {PRIORITIES.map((priority) => (
-            <option key={priority} value={priority}>
-              {priority}
-            </option>
-          ))}
-        </select>
+      <PropertyRow label="Priority" htmlFor={canPlan ? 'pp-priority' : undefined}>
+        {canPlan ? (
+          <select
+            id="pp-priority"
+            className={selectOrDateInputClass}
+            value={task.priority}
+            disabled={isPriorityPending}
+            onChange={(event) => onEditPriority(event.target.value as TaskPriority)}
+          >
+            {PRIORITIES.map((priority) => (
+              <option key={priority} value={priority}>
+                {priority}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="inline-flex items-center gap-[var(--space-2)]">
+            <PriorityIcon priority={task.priority} />
+            {task.priority}
+          </span>
+        )}
         {isPriorityPending && (
           <span role="status" className={pendingClass}>
             Saving…
@@ -115,9 +129,15 @@ export function PropertiesPanel({
       )}
 
       <PropertyRow label="Assignee">
-        <button type="button" className={linkButtonClass} disabled={isAssigneePending} onClick={onOpenAssigneePicker}>
-          {task.assignee !== null ? task.assignee.userName : 'Unassigned'}
-        </button>
+        {assignmentLocked ? (
+          <span className={pendingClass}>
+            {task.assignee !== null ? task.assignee.userName : 'Unassigned'} — locked while {STATUS_LABELS[task.status]}
+          </span>
+        ) : (
+          <button type="button" className={linkButtonClass} disabled={isAssigneePending} onClick={onOpenAssigneePicker}>
+            {task.assignee !== null ? task.assignee.userName : 'Unassigned'}
+          </button>
+        )}
         {isAssigneePending && (
           <span role="status" className={pendingClass}>
             Saving…
@@ -125,16 +145,20 @@ export function PropertiesPanel({
         )}
       </PropertyRow>
 
-      <PropertyRow label="Due date" htmlFor="pp-due-date">
-        <input
-          id="pp-due-date"
-          type="date"
-          className={selectOrDateInputClass}
-          value={task.dueDate ?? ''}
-          disabled={isDueDatePending}
-          onChange={(event) => onEditDueDate(event.target.value.length > 0 ? event.target.value : null)}
-        />
-        {task.dueDate !== null && (
+      <PropertyRow label="Due date" htmlFor={canPlan ? 'pp-due-date' : undefined}>
+        {canPlan ? (
+          <input
+            id="pp-due-date"
+            type="date"
+            className={selectOrDateInputClass}
+            value={task.dueDate ?? ''}
+            disabled={isDueDatePending}
+            onChange={(event) => onEditDueDate(event.target.value.length > 0 ? event.target.value : null)}
+          />
+        ) : (
+          <span>{task.dueDate ?? 'No due date'}</span>
+        )}
+        {canPlan && task.dueDate !== null && (
           <button type="button" className={linkButtonClass} disabled={isDueDatePending} onClick={() => onEditDueDate(null)}>
             Clear
           </button>
@@ -146,7 +170,7 @@ export function PropertiesPanel({
           </span>
         )}
       </PropertyRow>
-      {task.isOverdue && (
+      {task.isOverdue && canPlan && (
         <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">
           Moving the date into the future clears the overdue flag.
         </p>

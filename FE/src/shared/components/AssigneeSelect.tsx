@@ -5,6 +5,14 @@ interface AssigneeSelectProps {
   value: number | null
   disabled?: boolean
   onChange: (assigneeId: number | null) => void
+  /**
+   * Revision R2 (`Task.Create.AssigneeNotPermitted`): a caller without
+   * `AssignAnyone` may only create a task unassigned or assigned to
+   * themselves. When set, the dropdown offers only "Unassigned" and this
+   * one user id — never the full roster — so the UI never invites a choice
+   * the server will refuse.
+   */
+  restrictToUserId?: number
 }
 
 /**
@@ -15,9 +23,9 @@ interface AssigneeSelectProps {
  * screen-reader-operable with no extra listbox logic to get right for a list
  * that cannot yet be sorted or disabled meaningfully.
  */
-export function AssigneeSelect({ id, value, disabled = false, onChange }: AssigneeSelectProps) {
+export function AssigneeSelect({ id, value, disabled = false, onChange, restrictToUserId }: AssigneeSelectProps) {
   const usersQuery = useUsersQuery()
-  const users = usersQuery.data ?? []
+  const users = (usersQuery.data ?? []).filter((user) => restrictToUserId === undefined || user.id === restrictToUserId)
 
   return (
     <select

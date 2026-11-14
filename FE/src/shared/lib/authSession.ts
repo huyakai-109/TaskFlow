@@ -6,8 +6,7 @@ import { getUserIdFromToken } from './jwt'
  * `unknown` until something has decided one way or the other, `authenticated`
  * once `login`/`refresh` has run, `unauthenticated` once `RequireAuth` finds
  * no token or a refresh has failed. Permissions are stored and exposed
- * (`useAuthSession`) but have no gating consumer yet (Q2) — no
- * `useHasPermission` here.
+ * (`useAuthSession`, and `useHasPermission` on top of it — Revision R2).
  */
 export type AuthStatus = 'unknown' | 'authenticated' | 'unauthenticated'
 

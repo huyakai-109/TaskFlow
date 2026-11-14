@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { ApiError } from '../../../api/client'
+import { ApiError, refreshAccessToken } from '../../../api/client'
+import { FORBIDDEN_SENTINEL } from '../../../api/errorMessages'
 import { updateTaskDueDate } from '../../../api/tasks'
 
 interface Variables {
@@ -11,7 +12,13 @@ interface Variables {
 
 const CONFLICT_CODES = new Set(['Task.UpdateDueDate.Conflict', 'Task.UpdateDueDate.NotFound'])
 
-/** `PUT /tasks/{id}/due-date` — the properties panel's inline due-date control. An explicit `null` clears it. */
+/**
+ * `PUT /tasks/{id}/due-date` — the properties panel's inline due-date
+ * control, policy `PlanTasks` (Revision R2). An explicit `null` clears it.
+ * Same stale-permission handling as `useUpdatePriorityMutation`: a 403
+ * triggers one bounded session refresh and reports `FORBIDDEN_SENTINEL`
+ * instead of a raw 403.
+ */
 export function useUpdateDueDateMutation(options: { onRefused: (code: string | null) => void }) {
   const queryClient = useQueryClient()
 
@@ -22,6 +29,12 @@ export function useUpdateDueDateMutation(options: { onRefused: (code: string | n
       void queryClient.invalidateQueries({ queryKey: ['board'] })
     },
     onError: (error, variables) => {
+      if (error instanceof ApiError && error.status === 403) {
+        void refreshAccessToken().catch(() => {})
+        options.onRefused(FORBIDDEN_SENTINEL)
+        return
+      }
+
       const code = error instanceof ApiError ? error.errorCode : null
       options.onRefused(code)
 

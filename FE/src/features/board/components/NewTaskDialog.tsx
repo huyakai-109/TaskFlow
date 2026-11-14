@@ -8,8 +8,10 @@ import type { CreateTaskInput } from '../../../api/tasks'
 import type { TaskPriority } from '../../../api/types'
 import { AssigneeSelect } from '../../../shared/components/AssigneeSelect'
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
-import { fieldErrorMap } from '../../../shared/lib/fieldErrors'
+import { useAuthSession } from '../../../shared/hooks/useAuthSession'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
+import { useHasPermission } from '../../../shared/hooks/useHasPermission'
+import { fieldErrorMap } from '../../../shared/lib/fieldErrors'
 import { useCreateTaskMutation } from '../hooks/useCreateTaskMutation'
 
 // Mirrors TaskCreateReq's [MaxLength] attributes (coding-standards.md "limits
@@ -45,6 +47,9 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
   const titleRef = useRef<HTMLInputElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const mutation = useCreateTaskMutation()
+  const canPlan = useHasPermission('PlanTasks')
+  const canAssignOthers = useHasPermission('AssignAnyone')
+  const { userId } = useAuthSession()
 
   useDialogA11y(titleRef, onClose, mutation.isPending)
 
@@ -76,8 +81,14 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
     const input: CreateTaskInput = {
       title: trimmedTitle,
       description: description.trim().length > 0 ? description : null,
-      priority,
-      dueDate: dueDate.length > 0 ? dueDate : null,
+      // Revision R2: a caller without `PlanTasks` must omit priority/due
+      // date entirely, not send the UI's own defaults — the fields are
+      // hidden below for exactly the same reason.
+      priority: canPlan ? priority : undefined,
+      dueDate: canPlan ? (dueDate.length > 0 ? dueDate : null) : undefined,
+      // `AssigneeSelect` below is already restricted to Unassigned/self
+      // without `AssignAnyone`, so `assigneeId` is always `null` or the
+      // caller's own id in that case — both legal values.
       assigneeId,
     }
 
@@ -173,75 +184,89 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
           )}
         </div>
 
-        <fieldset className="m-0 flex flex-col gap-[var(--space-2)] border-0 p-0">
-          <legend className={labelClass}>Priority — decides where it sits on the board</legend>
-          <div className="grid grid-cols-3 gap-[var(--space-2)]">
-            {PRIORITIES.map((candidate) => (
-              <label
-                key={candidate}
-                className={clsx(
-                  'flex min-h-10 cursor-pointer items-center gap-[var(--space-2)] rounded-md border border-border px-[var(--space-3)]',
-                  priority === candidate && 'border-[1.5px] border-accent bg-accent-soft',
-                )}
-              >
-                <input
-                  type="radio"
-                  name="priority"
-                  value={candidate}
-                  checked={priority === candidate}
-                  disabled={mutation.isPending}
-                  onChange={() => setPriority(candidate)}
-                />
-                <PriorityIcon priority={candidate} />
-                {candidate}
+        {canPlan ? (
+          <>
+            <fieldset className="m-0 flex flex-col gap-[var(--space-2)] border-0 p-0">
+              <legend className={labelClass}>Priority — decides where it sits on the board</legend>
+              <div className="grid grid-cols-3 gap-[var(--space-2)]">
+                {PRIORITIES.map((candidate) => (
+                  <label
+                    key={candidate}
+                    className={clsx(
+                      'flex min-h-10 cursor-pointer items-center gap-[var(--space-2)] rounded-md border border-border px-[var(--space-3)]',
+                      priority === candidate && 'border-[1.5px] border-accent bg-accent-soft',
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="priority"
+                      value={candidate}
+                      checked={priority === candidate}
+                      disabled={mutation.isPending}
+                      onChange={() => setPriority(candidate)}
+                    />
+                    <PriorityIcon priority={candidate} />
+                    {candidate}
+                  </label>
+                ))}
+              </div>
+              {fieldErrors.priority !== undefined && (
+                <span role="alert" className={fieldErrorClass}>
+                  {fieldErrors.priority}
+                </span>
+              )}
+            </fieldset>
+
+            <div className={fieldClass}>
+              <label htmlFor="nt-due-input" className={labelClass}>
+                Due date <span className="font-normal">(optional)</span>
               </label>
-            ))}
-          </div>
-          {fieldErrors.priority !== undefined && (
+              <input
+                id="nt-due-input"
+                type="date"
+                className="min-h-10 rounded-md border border-border bg-surface px-[var(--space-3)] text-text [font:inherit]"
+                value={dueDate}
+                disabled={mutation.isPending}
+                onChange={(event) => setDueDate(event.target.value)}
+              />
+              <span className={hintClass}>No date = never overdue, listed after dated tasks.</span>
+              {fieldErrors.duedate !== undefined && (
+                <span role="alert" className={fieldErrorClass}>
+                  {fieldErrors.duedate}
+                </span>
+              )}
+            </div>
+          </>
+        ) : (
+          // Revision R2 (D13, `docs/design/SPEC.md` §10 point 17): priority and due
+          // date need `PlanTasks` — hidden, not disabled, since there's
+          // nothing for a Member to read yet (the task doesn't exist).
+          <p className={hintClass}>
+            New tasks are created as Normal priority with no due date. A Manager or Admin can set these afterwards.
+          </p>
+        )}
+
+        <div className={fieldClass}>
+          <label htmlFor="nt-assignee-input" className={labelClass}>
+            Assignee <span className="font-normal">(optional)</span>
+          </label>
+          <AssigneeSelect
+            id="nt-assignee-input"
+            value={assigneeId}
+            disabled={mutation.isPending}
+            onChange={setAssigneeId}
+            restrictToUserId={canAssignOthers ? undefined : (userId ?? undefined)}
+          />
+          <span className={hintClass}>
+            {canAssignOthers
+              ? 'Leave unassigned and set it later from the task detail page.'
+              : 'You can only assign a new task to yourself, or leave it unassigned.'}
+          </span>
+          {fieldErrors.assigneeid !== undefined && (
             <span role="alert" className={fieldErrorClass}>
-              {fieldErrors.priority}
+              {fieldErrors.assigneeid}
             </span>
           )}
-        </fieldset>
-
-        <div className="grid grid-cols-2 gap-[var(--space-3)] max-[600px]:grid-cols-1">
-          <div className={fieldClass}>
-            <label htmlFor="nt-due-input" className={labelClass}>
-              Due date <span className="font-normal">(optional)</span>
-            </label>
-            <input
-              id="nt-due-input"
-              type="date"
-              className="min-h-10 rounded-md border border-border bg-surface px-[var(--space-3)] text-text [font:inherit]"
-              value={dueDate}
-              disabled={mutation.isPending}
-              onChange={(event) => setDueDate(event.target.value)}
-            />
-            <span className={hintClass}>No date = never overdue, listed after dated tasks.</span>
-            {fieldErrors.duedate !== undefined && (
-              <span role="alert" className={fieldErrorClass}>
-                {fieldErrors.duedate}
-              </span>
-            )}
-          </div>
-
-          <div className={fieldClass}>
-            <label htmlFor="nt-assignee-input" className={labelClass}>
-              Assignee <span className="font-normal">(optional)</span>
-            </label>
-            <AssigneeSelect
-              id="nt-assignee-input"
-              value={assigneeId}
-              disabled={mutation.isPending}
-              onChange={setAssigneeId}
-            />
-            <span className={hintClass}>Leave unassigned and set it later from the task detail page.</span>
-            {fieldErrors.assigneeid !== undefined && (
-              <span role="alert" className={fieldErrorClass}>
-                {fieldErrors.assigneeid}
-              </span>
-            )}
-          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-[var(--space-3)]">

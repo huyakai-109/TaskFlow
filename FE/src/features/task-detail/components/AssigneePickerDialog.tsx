@@ -3,15 +3,25 @@ import { useRef } from 'react'
 
 import type { TaskStatus } from '../../../api/types'
 import { describeErrorCode } from '../../../api/errorMessages'
-import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
-import { IN_PROGRESS_LIMIT, useTeamCapacity } from '../../../shared/hooks/useTeamCapacity'
+import { useAuthSession } from '../../../shared/hooks/useAuthSession'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
+import { IN_PROGRESS_LIMIT, useTeamCapacity } from '../../../shared/hooks/useTeamCapacity'
+import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
 import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
 
 interface AssigneePickerDialogProps {
   currentAssigneeId: number | null
   /** F02 D2: only `InProgress` occupies a capacity slot — the "HAS ROOM"/"AT CAPACITY" grouping below only applies then (F01 D1: assigning a Backlog/Todo/Review/Done task has no limit). */
   taskStatus: TaskStatus
+  /**
+   * `task.canAssignOthers` (Revision R2 wire changes) — this dialog is only
+   * ever opened for a task that isn't locked (`PropertiesPanel` never opens
+   * it for Review/Done), so here it reduces to "the caller holds
+   * `AssignAnyone`"; read directly off the task rather than re-deriving it
+   * from the permission alone, same D10 "never re-derive server-computed
+   * flags" principle `taskActions.ts` already follows for `canTakeOver`.
+   */
+  canAssignOthers: boolean
   isPending: boolean
   errorCode: string | null
   /** The server's raw `error` string — shown verbatim for `Task.Assign.CapacityReached`. */
@@ -38,6 +48,7 @@ const optionClass =
 export function AssigneePickerDialog({
   currentAssigneeId,
   taskStatus,
+  canAssignOthers,
   isPending,
   errorCode,
   errorMessage = null,
@@ -47,13 +58,24 @@ export function AssigneePickerDialog({
   const appliesCapacityGrouping = taskStatus === 'InProgress'
   const usersQuery = useUsersQuery()
   const capacity = useTeamCapacity()
-  const assignees = usersQuery.data ?? []
+  const { userId } = useAuthSession()
+  // Revision R2 (D12): without `AssignAnyone`, a caller may only assign to
+  // themselves (or clear their own assignment) — the roster below is
+  // restricted to that one person instead of offering a choice
+  // `Task.Assign.SelfOnly` would refuse.
+  const assignees = (usersQuery.data ?? []).filter((user) => canAssignOthers || user.id === userId)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
 
   const hasRoom = appliesCapacityGrouping
-    ? capacity.entries.filter((e) => !e.isFull).sort((a, b) => a.inProgressCount - b.inProgressCount || a.user.userName.localeCompare(b.user.userName))
+    ? capacity.entries
+        .filter((e) => !e.isFull && (canAssignOthers || e.user.id === userId))
+        .sort((a, b) => a.inProgressCount - b.inProgressCount || a.user.userName.localeCompare(b.user.userName))
     : []
-  const atCapacity = appliesCapacityGrouping ? capacity.entries.filter((e) => e.isFull).sort((a, b) => a.user.userName.localeCompare(b.user.userName)) : []
+  const atCapacity = appliesCapacityGrouping
+    ? capacity.entries
+        .filter((e) => e.isFull && (canAssignOthers || e.user.id === userId))
+        .sort((a, b) => a.user.userName.localeCompare(b.user.userName))
+    : []
 
   useDialogA11y(closeButtonRef, onClose, isPending)
 
@@ -86,9 +108,11 @@ export function AssigneePickerDialog({
         </div>
 
         <p className="m-0 text-[length:var(--font-size-xs)] text-text-muted">
-          {appliesCapacityGrouping
-            ? 'People already at the in-progress limit are shown last and can’t be picked.'
-            : 'Listed alphabetically, everyone shown — the workload limit isn’t shown here.'}
+          {!canAssignOthers
+            ? 'You can only assign this task to yourself, or clear it.'
+            : appliesCapacityGrouping
+              ? 'People already at the in-progress limit are shown last and can’t be picked.'
+              : 'Listed alphabetically, everyone shown — the workload limit isn’t shown here.'}
         </p>
 
         {errorCode !== null && (
@@ -106,18 +130,21 @@ export function AssigneePickerDialog({
           </p>
         )}
 
-        <ul role="listbox" aria-label="Assign to" className="m-0 flex list-none flex-col p-0">
-          <li role="option" aria-selected={currentAssigneeId === null}>
-            <button
-              type="button"
-              className={clsx(optionClass, currentAssigneeId === null && 'bg-accent-soft font-semibold text-accent-ink')}
-              disabled={isPending}
-              onClick={() => onSelect(null)}
-            >
-              Unassigned
-            </button>
-          </li>
-        </ul>
+        {/* Clearing someone else's assignment also needs `AssignAnyone` (D12) — the Unassigned option is only offered when there is nothing-but-the-caller's-own to clear. */}
+        {(canAssignOthers || currentAssigneeId === null || currentAssigneeId === userId) && (
+          <ul role="listbox" aria-label="Assign to" className="m-0 flex list-none flex-col p-0">
+            <li role="option" aria-selected={currentAssigneeId === null}>
+              <button
+                type="button"
+                className={clsx(optionClass, currentAssigneeId === null && 'bg-accent-soft font-semibold text-accent-ink')}
+                disabled={isPending}
+                onClick={() => onSelect(null)}
+              >
+                Unassigned
+              </button>
+            </li>
+          </ul>
+        )}
 
         {appliesCapacityGrouping && hasRoom.length > 0 && (
           <p className="m-0 text-[length:var(--font-size-2xs)] font-semibold tracking-[0.44px] text-text-muted uppercase">

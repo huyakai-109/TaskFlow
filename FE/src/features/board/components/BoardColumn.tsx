@@ -23,6 +23,7 @@ interface BoardColumnProps {
   /** Below 640px the board shows one status at a time (`BoardPage`'s tab bar) — this column is not the one picked. */
   isMobileHidden: boolean
   onMove: (taskId: number, toStatus: TaskStatus, version: string) => void
+  onTakeOver: (taskId: number, version: string) => void
 }
 
 /**
@@ -43,6 +44,7 @@ export function BoardColumn({
   isDropTarget,
   isMobileHidden,
   onMove,
+  onTakeOver,
 }: BoardColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: status, disabled: !isDropTarget })
   const totalItems = pagination?.totalItems ?? items.length
@@ -86,7 +88,7 @@ export function BoardColumn({
       {items.length === 0 ? (
         <p className="mt-[var(--space-2)] text-[length:var(--font-size-sm)] text-text-muted">No tasks</p>
       ) : (
-        items.map((task) => <TaskCard key={task.id} task={task} onMove={onMove} />)
+        items.map((task) => <TaskCard key={task.id} task={task} onMove={onMove} onTakeOver={onTakeOver} />)
       )}
       {hasMore && (
         <button
