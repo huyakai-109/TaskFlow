@@ -400,7 +400,7 @@ Status: **Signed off 2026-11-13** — all open items (A1–A11) resolved, see [r
 | PlanTasks (priority, due date) · AssignAnyone | — | ✓ | ✓ |
 | DeleteTasks · ReopenTasks | — | ✓ | ✓ |
 | ManageUsers (see f08) | — | — | ✓ |
-Seed (append only, migration `AddRound2Permissions`, Additive): Admin 13 PlanTasks, 14 AssignAnyone, 15 ManageUsers; Manager 1013 PlanTasks, 1014 AssignAnyone. Append to `Permissions.All` in that order. Manager's existing `Members.*` claims (1001–1004) are dead: no endpoint may ever use `Members.*`; cleanup needs explicit-id seeding and is separate work.
+Seed (append only, migration `AddRound2Permissions`, Additive, slice R2-1): Admin 13 PlanTasks, 14 AssignAnyone; Manager 1013 PlanTasks, 1014 AssignAnyone. Append to `Permissions.All` in that order. `ManageUsers` (Admin 15) is **not** part of this migration — per the Gate A sign-off it is created and seeded by R2-3's own migration (`AddUserProfileAndAccountState`), alongside that slice's account-management work. Manager's existing `Members.*` claims (1001–1004) are dead: no endpoint may ever use `Members.*`; cleanup needs explicit-id seeding and is separate work.
 
 ## Transition table (replaces)
 | From | To | Requires | Actor rule | Side effects |

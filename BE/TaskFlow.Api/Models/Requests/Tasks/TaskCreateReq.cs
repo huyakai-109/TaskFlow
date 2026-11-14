@@ -12,9 +12,11 @@ namespace TaskFlow.Api.Models.Requests.Tasks
         [MaxLength(4000)]
         public string? Description { get; set; }
 
-        [Required]
+        // f01-workflow.md Revision R2, D13: optional, Manager/Admin
+        // (PlanTasks) only - a Member supplying this is refused
+        // (Task.Create.PlanningNotPermitted), not silently defaulted.
         [EnumDataType(typeof(TaskPriority))]
-        public TaskPriority Priority { get; set; }
+        public TaskPriority? Priority { get; set; }
 
         public DateOnly? DueDate { get; set; }
 

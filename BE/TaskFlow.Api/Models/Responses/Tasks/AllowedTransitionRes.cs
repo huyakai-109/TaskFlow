@@ -7,5 +7,7 @@ namespace TaskFlow.Api.Models.Responses.Tasks
         public string Operation { get; set; } = string.Empty;
 
         public bool RequiresReason { get; set; }
+
+        public bool RequiresTakeover { get; set; }
     }
 }

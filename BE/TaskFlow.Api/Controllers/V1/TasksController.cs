@@ -253,7 +253,7 @@ namespace TaskFlow.Api.Controllers.V1
 
         [HttpPut]
         [Route("{id:long}/priority")]
-        [Authorize(Policy = Permissions.Tasks.UpdateTasks)]
+        [Authorize(Policy = Permissions.Tasks.PlanTasks)]
         [ProducesResponseType(typeof(ResultRes<TaskDetailRes>), StatusCodes.Status200OK)]
         public async Task<IActionResult> UpdatePriority([FromRoute] long id, TaskUpdatePriorityReq request)
         {
@@ -286,7 +286,7 @@ namespace TaskFlow.Api.Controllers.V1
 
         [HttpPut]
         [Route("{id:long}/due-date")]
-        [Authorize(Policy = Permissions.Tasks.UpdateTasks)]
+        [Authorize(Policy = Permissions.Tasks.PlanTasks)]
         [ProducesResponseType(typeof(ResultRes<TaskDetailRes>), StatusCodes.Status200OK)]
         public async Task<IActionResult> UpdateDueDate([FromRoute] long id, TaskUpdateDueDateReq request)
         {

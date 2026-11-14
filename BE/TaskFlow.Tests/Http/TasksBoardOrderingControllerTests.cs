@@ -77,7 +77,8 @@ namespace TaskFlow.Tests.Http
         [Fact]
         public async Task Board_PriorityRaisedToUrgent_AppearsFirst_OnNextRead()
         {
-            var member = await CreateAuthenticatedClientAsync("Member");
+            // PlanTasks (priority) is Manager/Admin only (Revision R2, D13).
+            var member = await CreateAuthenticatedClientAsync("Manager");
             await SeedTaskAsync("Stays normal, created first", TaskPriority.Normal, dueDate: null);
             var toPromote = await SeedTaskAsync("Promoted later", TaskPriority.Normal, dueDate: null);
             await SeedTaskAsync("Stays normal, created last", TaskPriority.Normal, dueDate: null);

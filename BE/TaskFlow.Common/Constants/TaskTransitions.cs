@@ -25,7 +25,10 @@ namespace TaskFlow.Common.Constants
         bool ActorMustNotBeAssignee,
         bool RequiresAssignee,
         bool ConsumesCapacity,
-        bool RequiresReason);
+        bool RequiresReason,
+        // f01-workflow.md Revision R2, D11: holder-only progression. Only the
+        // current assignee may advance along this edge; no role bypasses it.
+        bool ActorMustBeAssignee = false);
 
     public static class TaskTransitions
     {
@@ -37,9 +40,9 @@ namespace TaskFlow.Common.Constants
             new(TaskWorkflowStatus.Backlog, TaskWorkflowStatus.Todo, Permissions.Tasks.MoveTasks, MoveOperation,
                 ActorMustNotBeAssignee: false, RequiresAssignee: false, ConsumesCapacity: false, RequiresReason: false),
             new(TaskWorkflowStatus.Todo, TaskWorkflowStatus.InProgress, Permissions.Tasks.MoveTasks, MoveOperation,
-                ActorMustNotBeAssignee: false, RequiresAssignee: true, ConsumesCapacity: true, RequiresReason: false),
+                ActorMustNotBeAssignee: false, RequiresAssignee: true, ConsumesCapacity: true, RequiresReason: false, ActorMustBeAssignee: true),
             new(TaskWorkflowStatus.InProgress, TaskWorkflowStatus.Review, Permissions.Tasks.MoveTasks, MoveOperation,
-                ActorMustNotBeAssignee: false, RequiresAssignee: false, ConsumesCapacity: false, RequiresReason: false),
+                ActorMustNotBeAssignee: false, RequiresAssignee: false, ConsumesCapacity: false, RequiresReason: false, ActorMustBeAssignee: true),
             new(TaskWorkflowStatus.Review, TaskWorkflowStatus.Done, Permissions.Tasks.MoveTasks, MoveOperation,
                 ActorMustNotBeAssignee: true, RequiresAssignee: false, ConsumesCapacity: false, RequiresReason: false),
             new(TaskWorkflowStatus.Review, TaskWorkflowStatus.InProgress, Permissions.Tasks.MoveTasks, MoveOperation,
@@ -59,11 +62,19 @@ namespace TaskFlow.Common.Constants
             Array.Find(Reopens, edge => edge.From == from && edge.To == to);
 
         // D10 / AC17 / AC18: the statuses the calling user may move this task
-        // to right now, with permissions, the table and the actor rule (D5)
-        // already applied. Deliberately not applied: RequiresAssignee and
-        // ConsumesCapacity - an unassigned Todo task still offers InProgress,
-        // because the UI's assignee-picker flow is triggered by that drop.
-        public static IEnumerable<TaskTransition> AllowedFor(
+        // to right now, with permissions, the table and the actor rules (D5,
+        // D11) already applied. Deliberately not applied: RequiresAssignee
+        // and ConsumesCapacity - an unassigned Todo task still offers
+        // InProgress (as a take-over), because the UI's assignee-picker flow
+        // is triggered by that drop.
+        //
+        // f01-workflow.md Revision R2: "AllowedFor applies D11: an
+        // ActorMustBeAssignee edge is offered iff assignee == caller, or
+        // (assignee == null and From == Todo and caller holds AssignTasks ->
+        // requiresTakeover)." RequiresTakeover is carried alongside the edge
+        // rather than on TaskTransition itself, because it depends on the
+        // caller and the task's current assignee, not on the edge alone.
+        public static IEnumerable<(TaskTransition Edge, bool RequiresTakeover)> AllowedFor(
             TaskWorkflowStatus status,
             long? assigneeId,
             long actorUserId,
@@ -86,7 +97,27 @@ namespace TaskFlow.Common.Constants
                     continue;
                 }
 
-                yield return edge;
+                var requiresTakeover = false;
+                if (edge.ActorMustBeAssignee)
+                {
+                    if (assigneeId.HasValue)
+                    {
+                        if (assigneeId.Value != actorUserId)
+                        {
+                            continue;
+                        }
+                    }
+                    else if (edge.From == TaskWorkflowStatus.Todo && permissions.Contains(Permissions.Tasks.AssignTasks))
+                    {
+                        requiresTakeover = true;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+
+                yield return (edge, requiresTakeover);
             }
         }
     }

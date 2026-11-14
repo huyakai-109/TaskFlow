@@ -29,6 +29,10 @@ namespace TaskFlow.Api.Models.Responses.Tasks
 
         public List<AllowedTransitionRes> AllowedTransitions { get; set; } = [];
 
+        public bool CanTakeOver { get; set; }
+
+        public bool CanAssignOthers { get; set; }
+
         public DateTimeOffset CreatedAt { get; set; }
 
         public long CreatedBy { get; set; }

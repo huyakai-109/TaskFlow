@@ -6,8 +6,10 @@ using TaskFlow.Tests.Fixtures;
 
 namespace TaskFlow.Tests.DataAccess
 {
-    // SeedTaskPermissions migration: Admin and Manager get all 7 Tasks
-    // permissions, Member gets 5 (no DeleteTasks, no ReopenTasks).
+    // SeedTaskPermissions + AddRound2Permissions migrations: Admin and
+    // Manager get all 9 Tasks permissions (the original 7 plus
+    // f01-workflow.md Revision R2's PlanTasks/AssignAnyone), Member gets 5
+    // (no DeleteTasks, ReopenTasks, PlanTasks or AssignAnyone).
     [Collection(DatabaseCollection.Name)]
     public class TaskPermissionSeedTests
     {
@@ -21,18 +23,18 @@ namespace TaskFlow.Tests.DataAccess
         [Theory]
         [InlineData(RolePolicies.ClaimType, "Admin")]
         [InlineData(RolePolicies.ClaimType, "Manager")]
-        public async Task RoleClaims_SeedsAllSevenTasksPermissions_ForAdminAndManager(string claimType, string roleName)
+        public async Task RoleClaims_SeedsAllNineTasksPermissions_ForAdminAndManager(string claimType, string roleName)
         {
-            await AssertTasksPermissions(claimType, roleName, expectedCount: 7, expectDeleteAndReopen: true);
+            await AssertTasksPermissions(claimType, roleName, expectedCount: 9, expectManagerOnly: true);
         }
 
         [Fact]
-        public async Task RoleClaims_SeedsFiveTasksPermissions_ForMember_ExcludingDeleteAndReopen()
+        public async Task RoleClaims_SeedsFiveTasksPermissions_ForMember_ExcludingManagerOnlyOnes()
         {
-            await AssertTasksPermissions(RolePolicies.ClaimType, "Member", expectedCount: 5, expectDeleteAndReopen: false);
+            await AssertTasksPermissions(RolePolicies.ClaimType, "Member", expectedCount: 5, expectManagerOnly: false);
         }
 
-        private async Task AssertTasksPermissions(string claimType, string roleName, int expectedCount, bool expectDeleteAndReopen)
+        private async Task AssertTasksPermissions(string claimType, string roleName, int expectedCount, bool expectManagerOnly)
         {
             await using var context = _fixture.CreateContext();
 
@@ -54,15 +56,19 @@ namespace TaskFlow.Tests.DataAccess
             Assert.Contains(Permissions.Tasks.MoveTasks, seededClaims);
             Assert.Contains(Permissions.Tasks.AssignTasks, seededClaims);
 
-            if (expectDeleteAndReopen)
+            if (expectManagerOnly)
             {
                 Assert.Contains(Permissions.Tasks.DeleteTasks, seededClaims);
                 Assert.Contains(Permissions.Tasks.ReopenTasks, seededClaims);
+                Assert.Contains(Permissions.Tasks.PlanTasks, seededClaims);
+                Assert.Contains(Permissions.Tasks.AssignAnyone, seededClaims);
             }
             else
             {
                 Assert.DoesNotContain(Permissions.Tasks.DeleteTasks, seededClaims);
                 Assert.DoesNotContain(Permissions.Tasks.ReopenTasks, seededClaims);
+                Assert.DoesNotContain(Permissions.Tasks.PlanTasks, seededClaims);
+                Assert.DoesNotContain(Permissions.Tasks.AssignAnyone, seededClaims);
             }
         }
     }

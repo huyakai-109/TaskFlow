@@ -58,11 +58,11 @@ namespace TaskFlow.Tests.Http
             // Arrange
             var (client, userId) = await CreateAuthenticatedClientAsync("Member");
 
-            // Act
+            // Act - f01-workflow.md Revision R2, D13: a Member omits
+            // priority/dueDate entirely; the task defaults to Normal.
             var response = await client.PostAsJsonAsync("api/v1/tasks", new
             {
                 title = "Fix the login redirect",
-                priority = "Normal",
             });
             var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
 
@@ -92,8 +92,8 @@ namespace TaskFlow.Tests.Http
         [Fact]
         public async Task Create_Refuses_WhenDueDateIsInThePast()
         {
-            // Arrange
-            var (client, _) = await CreateAuthenticatedClientAsync("Member");
+            // Arrange - Manager/Admin (PlanTasks) may supply a due date at all.
+            var (client, _) = await CreateAuthenticatedClientAsync("Manager");
 
             // Act
             var response = await client.PostAsJsonAsync("api/v1/tasks", new
@@ -116,8 +116,10 @@ namespace TaskFlow.Tests.Http
         [Fact]
         public async Task Create_Refuses_WhenAssigneeDoesNotExist()
         {
-            // Arrange
-            var (client, _) = await CreateAuthenticatedClientAsync("Member");
+            // Arrange - Manager (PlanTasks, AssignAnyone) so priority and a
+            // third-party assigneeId are both permitted, isolating the
+            // AssigneeNotFound check under test.
+            var (client, _) = await CreateAuthenticatedClientAsync("Manager");
 
             // Act
             var response = await client.PostAsJsonAsync("api/v1/tasks", new
@@ -156,6 +158,94 @@ namespace TaskFlow.Tests.Http
         }
 
         [Fact]
+        public async Task Create_Refuses_WhenMemberSuppliesPriority()
+        {
+            // f01-workflow.md Revision R2, D13/AC35: refused, not silently
+            // dropped, and nothing is created.
+            var (client, _) = await CreateAuthenticatedClientAsync("Member");
+
+            var response = await client.PostAsJsonAsync("api/v1/tasks", new { title = "Member sets priority", priority = "Urgent" });
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal(TaskControllerMS.Create.PlanningNotPermitted, body!.ErrorCode);
+
+            await using var context = _dbFixture.CreateContext();
+            Assert.False(await context.Set<TaskFlow.DataAccess.Entities.TaskItem>().AnyAsync(t => t.Title == "Member sets priority"));
+        }
+
+        [Fact]
+        public async Task Create_Refuses_WhenMemberSuppliesDueDate()
+        {
+            // AC35
+            var (client, _) = await CreateAuthenticatedClientAsync("Member");
+
+            var response = await client.PostAsJsonAsync("api/v1/tasks", new { title = "Member sets due date", dueDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(5)) });
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal(TaskControllerMS.Create.PlanningNotPermitted, body!.ErrorCode);
+        }
+
+        [Fact]
+        public async Task Create_Allows_WhenMemberOmitsPlanningFields_DefaultsToNormalWithNoDueDate()
+        {
+            // AC35 happy path
+            var (client, _) = await CreateAuthenticatedClientAsync("Member");
+
+            var response = await client.PostAsJsonAsync("api/v1/tasks", new { title = "Member plain create" });
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
+
+            Assert.True(response.IsSuccessStatusCode && body!.Success, body?.ErrorCode);
+            Assert.Equal(TaskPriority.Normal, body.Result!.Priority);
+            Assert.Null(body.Result.DueDate);
+        }
+
+        [Fact]
+        public async Task Create_Allows_WhenManagerSuppliesPriorityAndDueDate()
+        {
+            // Regression: Manager/Admin (PlanTasks) are unaffected.
+            var (client, _) = await CreateAuthenticatedClientAsync("Manager");
+
+            var response = await client.PostAsJsonAsync("api/v1/tasks", new
+            {
+                title = "Manager plans ahead",
+                priority = "Urgent",
+                dueDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(5)),
+            });
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
+
+            Assert.True(response.IsSuccessStatusCode && body!.Success, body?.ErrorCode);
+            Assert.Equal(TaskPriority.Urgent, body.Result!.Priority);
+        }
+
+        [Fact]
+        public async Task Create_Refuses_WhenMemberAssignsToSomeoneElse()
+        {
+            // D12: AssignTasks (every role) on create covers self/null only.
+            var (client, _) = await CreateAuthenticatedClientAsync("Member");
+            var (_, otherUserId) = await CreateAuthenticatedClientAsync("Member");
+
+            var response = await client.PostAsJsonAsync("api/v1/tasks", new { title = "Assign to someone else", assigneeId = otherUserId });
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal(TaskControllerMS.Create.AssigneeNotPermitted, body!.ErrorCode);
+        }
+
+        [Fact]
+        public async Task Create_Allows_WhenMemberAssignsToSelf()
+        {
+            var (client, userId) = await CreateAuthenticatedClientAsync("Member");
+
+            var response = await client.PostAsJsonAsync("api/v1/tasks", new { title = "Self-assigned task", assigneeId = userId });
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
+
+            Assert.True(response.IsSuccessStatusCode && body!.Success, body?.ErrorCode);
+            Assert.Equal(userId, body.Result!.Assignee!.Id);
+        }
+
+        [Fact]
         public async Task Create_Refuses_WhenCallerLacksCreateTasksPermission()
         {
             // Arrange - a user in no role has no RolePolicy claims at all.
@@ -166,6 +256,19 @@ namespace TaskFlow.Tests.Http
 
             // Assert (AC25)
             Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task Create_Refuses_WhenCallerIsUnauthenticated()
+        {
+            // Arrange
+            var client = _factory.CreateClient();
+
+            // Act
+            var response = await client.PostAsJsonAsync("api/v1/tasks", new { title = "Should be unauthorised" });
+
+            // Assert (AC26-equivalent for Create)
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         }
 
         [Fact]
@@ -190,6 +293,29 @@ namespace TaskFlow.Tests.Http
         }
 
         [Fact]
+        public async Task Get_ReportsCanAssignOthers_TrueForManagerAndAdmin_FalseForMember()
+        {
+            // f01-workflow.md Revision R2 wire changes: canAssignOthers on
+            // the detail shape (caller holds AssignAnyone, status not in
+            // {Review, Done}).
+            var (manager, _) = await CreateAuthenticatedClientAsync("Manager");
+            var (admin, _) = await CreateAuthenticatedClientAsync("Admin");
+            var (member, _) = await CreateAuthenticatedClientAsync("Member");
+
+            var createResponse = await manager.PostAsJsonAsync("api/v1/tasks", new { title = "Shared task for canAssignOthers" });
+            var created = (await createResponse.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions))!.Result!;
+
+            var managerBody = (await (await manager.GetAsync($"api/v1/tasks/{created.Id}")).Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions))!;
+            Assert.True(managerBody.Result!.CanAssignOthers);
+
+            var adminBody = (await (await admin.GetAsync($"api/v1/tasks/{created.Id}")).Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions))!;
+            Assert.True(adminBody.Result!.CanAssignOthers);
+
+            var memberBody = (await (await member.GetAsync($"api/v1/tasks/{created.Id}")).Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions))!;
+            Assert.False(memberBody.Result!.CanAssignOthers);
+        }
+
+        [Fact]
         public async Task Get_Refuses_WhenTaskDoesNotExist()
         {
             // Arrange
@@ -209,7 +335,7 @@ namespace TaskFlow.Tests.Http
         {
             // Arrange
             var (client, _) = await CreateAuthenticatedClientAsync("Member");
-            var createResponse = await client.PostAsJsonAsync("api/v1/tasks", new { title = "Will be deleted", priority = "Normal" });
+            var createResponse = await client.PostAsJsonAsync("api/v1/tasks", new { title = "Will be deleted" });
             var created = (await createResponse.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions))!.Result!;
 
             await using (var context = _dbFixture.CreateContext())

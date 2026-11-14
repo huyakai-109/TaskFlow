@@ -109,7 +109,8 @@ namespace TaskFlow.Tests.Http
         [Fact]
         public async Task UpdatePriority_ChangesPriority_AndRecordsPriorityChangedEntry()
         {
-            var member = await CreateAuthenticatedClientAsync("Member");
+            // PlanTasks (priority) is Manager/Admin only (Revision R2, D13).
+            var member = await CreateAuthenticatedClientAsync("Manager");
             var task = await CreateTaskAsync(member.Client, priority: "Normal");
 
             var response = await member.Client.PutAsJsonAsync($"api/v1/tasks/{task.Id}/priority", new { priority = "Urgent", version = task.Version });
@@ -130,7 +131,8 @@ namespace TaskFlow.Tests.Http
         [Fact]
         public async Task UpdateDueDate_SetsDueDateFromNull_AndRecordsDueDateChangedEntry()
         {
-            var member = await CreateAuthenticatedClientAsync("Member");
+            // PlanTasks (due date) is Manager/Admin only (Revision R2, D13).
+            var member = await CreateAuthenticatedClientAsync("Manager");
             var task = await CreateTaskAsync(member.Client);
             Assert.Null(task.DueDate);
 
@@ -150,7 +152,7 @@ namespace TaskFlow.Tests.Http
         [Fact]
         public async Task UpdateDueDate_ClearsDueDateToNull_AndRecordsDueDateChangedEntry()
         {
-            var member = await CreateAuthenticatedClientAsync("Member");
+            var member = await CreateAuthenticatedClientAsync("Manager");
             var task = await CreateTaskAsync(member.Client);
             var dueDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(10));
             var withDueDate = await UpdateDueDateAsync(member.Client, task.Id, dueDate, task.Version);
@@ -174,7 +176,7 @@ namespace TaskFlow.Tests.Http
         [Fact]
         public async Task UpdateDueDate_RefusesPastDate()
         {
-            var member = await CreateAuthenticatedClientAsync("Member");
+            var member = await CreateAuthenticatedClientAsync("Manager");
             var task = await CreateTaskAsync(member.Client);
             var pastDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1));
 
@@ -185,12 +187,63 @@ namespace TaskFlow.Tests.Http
             Assert.Equal(TaskControllerMS.UpdateDueDate.DueDateInPast, body!.ErrorCode);
         }
 
+        // ---- PUT /tasks/{id}/priority, /due-date: PlanTasks only (Revision R2, AC36) ----
+
+        [Fact]
+        public async Task UpdatePriority_Refuses_WhenCallerIsAMember()
+        {
+            var manager = await CreateAuthenticatedClientAsync("Manager");
+            var task = await CreateTaskAsync(manager.Client);
+            var member = await CreateAuthenticatedClientAsync("Member");
+
+            var response = await member.Client.PutAsJsonAsync($"api/v1/tasks/{task.Id}/priority", new { priority = "Urgent", version = task.Version });
+
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task UpdateDueDate_Refuses_WhenCallerIsAMember()
+        {
+            var manager = await CreateAuthenticatedClientAsync("Manager");
+            var task = await CreateTaskAsync(manager.Client);
+            var member = await CreateAuthenticatedClientAsync("Member");
+
+            var response = await member.Client.PutAsJsonAsync($"api/v1/tasks/{task.Id}/due-date", new { dueDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(5)), version = task.Version });
+
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task UpdatePriority_Refuses_WhenCallerIsUnauthenticated()
+        {
+            var manager = await CreateAuthenticatedClientAsync("Manager");
+            var task = await CreateTaskAsync(manager.Client);
+            var client = _factory.CreateClient();
+
+            var response = await client.PutAsJsonAsync($"api/v1/tasks/{task.Id}/priority", new { priority = "Urgent", version = task.Version });
+
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task UpdateDueDate_Refuses_WhenCallerIsUnauthenticated()
+        {
+            var manager = await CreateAuthenticatedClientAsync("Manager");
+            var task = await CreateTaskAsync(manager.Client);
+            var client = _factory.CreateClient();
+
+            var response = await client.PutAsJsonAsync($"api/v1/tasks/{task.Id}/due-date", new { dueDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(5)), version = task.Version });
+
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
         // ---- PUT /tasks/{id}/assignee (F04 AC3: names both old and new) ----
 
         [Fact]
         public async Task Assign_ReassignsFromOneMemberToAnother_AndRecordsBothOldAndNew()
         {
-            var mover = await CreateAuthenticatedClientAsync("Member");
+            // D12: cross-user reassignment needs AssignAnyone (Manager/Admin).
+            var mover = await CreateAuthenticatedClientAsync("Manager");
             var memberA = await CreateAuthenticatedClientAsync("Member");
             var memberB = await CreateAuthenticatedClientAsync("Member");
             var task = await CreateTaskAsync(mover.Client, memberA.UserId);
@@ -211,7 +264,9 @@ namespace TaskFlow.Tests.Http
         [Fact]
         public async Task Assign_RefusesUnknownAssigneeId()
         {
-            var mover = await CreateAuthenticatedClientAsync("Member");
+            // D12: a non-existent target (not self) needs AssignAnyone to
+            // reach the AssigneeNotFound check at all.
+            var mover = await CreateAuthenticatedClientAsync("Manager");
             var task = await CreateTaskAsync(mover.Client);
 
             var response = await mover.Client.PutAsJsonAsync($"api/v1/tasks/{task.Id}/assignee", new { assigneeId = 999_999_999L, version = task.Version });
@@ -219,6 +274,18 @@ namespace TaskFlow.Tests.Http
 
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
             Assert.Equal(TaskControllerMS.Assign.AssigneeNotFound, body!.ErrorCode);
+        }
+
+        [Fact]
+        public async Task Assign_Refuses_WhenCallerIsUnauthenticated()
+        {
+            var mover = await CreateAuthenticatedClientAsync("Manager");
+            var task = await CreateTaskAsync(mover.Client);
+            var client = _factory.CreateClient();
+
+            var response = await client.PutAsJsonAsync($"api/v1/tasks/{task.Id}/assignee", new { assigneeId = (long?)null, version = task.Version });
+
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         }
 
         // ---- DELETE /tasks/{id} (F04 AC9: trail survives, every earlier entry unchanged) ----
@@ -325,6 +392,33 @@ namespace TaskFlow.Tests.Http
             Assert.Contains(backlog.Items, i => i.Id == task.Id);
         }
 
+        [Fact]
+        public async Task GetBoard_ReportsCanAssignOthers_TrueForManagerAndAdmin_FalseForMember()
+        {
+            // f01-workflow.md Revision R2 wire changes: canAssignOthers on
+            // the summary shape (caller holds AssignAnyone, status not in
+            // {Review, Done}).
+            var manager = await CreateAuthenticatedClientAsync("Manager");
+            var admin = await CreateAuthenticatedClientAsync("Admin");
+            var member = await CreateAuthenticatedClientAsync("Member");
+            var task = await CreateTaskAsync(manager.Client);
+
+            var managerResponse = await manager.Client.GetAsync("api/v1/tasks/board");
+            var managerBody = await managerResponse.Content.ReadFromJsonAsync<ResultRes<BoardRes>>(JsonOptions);
+            var managerItem = managerBody!.Result!.Columns.Single(c => c.Status == TaskWorkflowStatus.Backlog).Items.Single(i => i.Id == task.Id);
+            Assert.True(managerItem.CanAssignOthers);
+
+            var adminResponse = await admin.Client.GetAsync("api/v1/tasks/board");
+            var adminBody = await adminResponse.Content.ReadFromJsonAsync<ResultRes<BoardRes>>(JsonOptions);
+            var adminItem = adminBody!.Result!.Columns.Single(c => c.Status == TaskWorkflowStatus.Backlog).Items.Single(i => i.Id == task.Id);
+            Assert.True(adminItem.CanAssignOthers);
+
+            var memberResponse = await member.Client.GetAsync("api/v1/tasks/board");
+            var memberBody = await memberResponse.Content.ReadFromJsonAsync<ResultRes<BoardRes>>(JsonOptions);
+            var memberItem = memberBody!.Result!.Columns.Single(c => c.Status == TaskWorkflowStatus.Backlog).Items.Single(i => i.Id == task.Id);
+            Assert.False(memberItem.CanAssignOthers);
+        }
+
         // ---- GET /tasks: pagination ----
 
         [Fact]
@@ -347,14 +441,23 @@ namespace TaskFlow.Tests.Http
 
         // ---- Helpers ----
 
-        private async Task<TaskDetailRes> CreateTaskAsync(HttpClient client, long? assigneeId = null, string priority = "Normal")
+        private async Task<TaskDetailRes> CreateTaskAsync(HttpClient client, long? assigneeId = null, string? priority = null)
         {
-            var response = await client.PostAsJsonAsync("api/v1/tasks", new
+            // f01-workflow.md Revision R2, D13: priority is sent only when
+            // explicitly requested - a Member sending it at all, even the
+            // default value, is refused (AC35).
+            var payload = new Dictionary<string, object?> { ["title"] = $"Reads/edits test {Guid.NewGuid():N}" };
+            if (priority != null)
             {
-                title = $"Reads/edits test {Guid.NewGuid():N}",
-                priority,
-                assigneeId,
-            });
+                payload["priority"] = priority;
+            }
+
+            if (assigneeId.HasValue)
+            {
+                payload["assigneeId"] = assigneeId.Value;
+            }
+
+            var response = await client.PostAsJsonAsync("api/v1/tasks", payload);
             var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
             Assert.True(body!.Success, body.Error);
             return body.Result!;

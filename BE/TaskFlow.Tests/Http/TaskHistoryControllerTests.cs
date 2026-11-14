@@ -67,7 +67,10 @@ namespace TaskFlow.Tests.Http
         [Fact]
         public async Task GetList_ReturnsFullTrail_OldestFirst_WithMessageAndBothTimestamps()
         {
-            var member = await CreateAuthenticatedClientAsync("Member");
+            // PlanTasks (priority) is Manager/Admin only (f01-workflow.md
+            // Revision R2, D13) - use a Manager so both the create and the
+            // priority edit are permitted.
+            var member = await CreateAuthenticatedClientAsync("Manager");
             var task = await CreateTaskAsync(member.Client, priority: "Normal");
             await UpdatePriorityAsync(member.Client, task.Id, "Urgent", task.Version);
 
@@ -179,13 +182,18 @@ namespace TaskFlow.Tests.Http
             return body.Result!;
         }
 
-        private async Task<TaskDetailRes> CreateTaskAsync(HttpClient client, string priority = "Normal")
+        private async Task<TaskDetailRes> CreateTaskAsync(HttpClient client, string? priority = null)
         {
-            var response = await client.PostAsJsonAsync("api/v1/tasks", new
+            // f01-workflow.md Revision R2, D13: priority is sent only when
+            // the caller actually wants it - a Member sending it at all is
+            // refused, even if the value is the default (AC35).
+            var payload = new Dictionary<string, object?> { ["title"] = $"History test {Guid.NewGuid():N}" };
+            if (priority != null)
             {
-                title = $"History test {Guid.NewGuid():N}",
-                priority,
-            });
+                payload["priority"] = priority;
+            }
+
+            var response = await client.PostAsJsonAsync("api/v1/tasks", payload);
             var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
             Assert.True(body!.Success, body.Error);
             return body.Result!;

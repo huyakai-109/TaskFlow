@@ -23,5 +23,9 @@ namespace TaskFlow.Api.Models.Responses.Tasks
         public Guid Version { get; set; }
 
         public List<AllowedTransitionRes> AllowedTransitions { get; set; } = [];
+
+        public bool CanTakeOver { get; set; }
+
+        public bool CanAssignOthers { get; set; }
     }
 }

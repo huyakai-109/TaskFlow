@@ -16,6 +16,8 @@
             Tasks.AssignTasks,
             Tasks.DeleteTasks,
             Tasks.ReopenTasks,
+            Tasks.PlanTasks,
+            Tasks.AssignAnyone,
         ];
 
         /// <summary>
@@ -44,6 +46,12 @@
             public const string AssignTasks = "AssignTasks";
             public const string DeleteTasks = "DeleteTasks";
             public const string ReopenTasks = "ReopenTasks";
+
+            // Round 2 (f01-workflow.md Revision R2, D13/D12): planning
+            // (priority, due date) and reassigning someone other than
+            // yourself, both Manager/Admin only.
+            public const string PlanTasks = "PlanTasks";
+            public const string AssignAnyone = "AssignAnyone";
         }
     }
 }

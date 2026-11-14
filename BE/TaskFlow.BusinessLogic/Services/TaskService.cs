@@ -68,8 +68,24 @@ namespace TaskFlow.BusinessLogic.Services
         private readonly string _timeZone = configuration.GetSection(ConfigKeys.Workflow.TimeZone).Get<string>()!;
         private readonly int _maxInProgressPerAssignee = configuration.GetSection(ConfigKeys.Workflow.MaxInProgressPerAssignee).Get<int>();
 
+        // f01-workflow.md Revision R2, D13/D12: order fixed by the contract -
+        // PlanningNotPermitted -> AssigneeNotPermitted -> DueDateInPast ->
+        // AssigneeNotFound. Priority defaults to Normal when the caller
+        // omits it (optional field, T5 Revision R2).
         public async Task<(string ErrorCode, TaskDetailResDto? Task)> Create(TaskCreateReqDto requestDto, long actorUserId, string[] callerPermissions)
         {
+            if (!callerPermissions.Contains(Permissions.Tasks.PlanTasks) &&
+                (requestDto.Priority.HasValue || requestDto.DueDate.HasValue))
+            {
+                return (TaskControllerMS.Create.PlanningNotPermitted, null);
+            }
+
+            if (!callerPermissions.Contains(Permissions.Tasks.AssignAnyone) &&
+                requestDto.AssigneeId.HasValue && requestDto.AssigneeId.Value != actorUserId)
+            {
+                return (TaskControllerMS.Create.AssigneeNotPermitted, null);
+            }
+
             var today = TodayInZone();
 
             if (requestDto.DueDate.HasValue && requestDto.DueDate.Value < today)
@@ -105,7 +121,7 @@ namespace TaskFlow.BusinessLogic.Services
                     Title = state.Title,
                     Description = state.Description,
                     Status = TaskWorkflowStatus.Backlog,
-                    Priority = state.Priority,
+                    Priority = state.Priority ?? TaskPriority.Normal,
                     AssigneeId = state.AssigneeId,
                     DueDate = state.DueDate,
                     CompletedAt = null,
@@ -187,6 +203,25 @@ namespace TaskFlow.BusinessLogic.Services
             if (edge.ActorMustNotBeAssignee && task.AssigneeId.HasValue && task.AssigneeId.Value == actorUserId)
             {
                 return (TaskControllerMS.Move.ActorIsAssignee, null, null);
+            }
+
+            // f01-workflow.md Revision R2, D11: holder-only progression -
+            // Todo->InProgress and InProgress->Review may only be performed
+            // by the task's current assignee, no role bypass. No assignee at
+            // all -> AssigneeRequired (unchanged code, AC2c); an assignee
+            // who is someone else -> the new ActorNotAssignee, distinct from
+            // D5's ActorIsAssignee (AC20).
+            if (edge.ActorMustBeAssignee)
+            {
+                if (!task.AssigneeId.HasValue)
+                {
+                    return (TaskControllerMS.Move.AssigneeRequired, null, null);
+                }
+
+                if (task.AssigneeId.Value != actorUserId)
+                {
+                    return (TaskControllerMS.Move.ActorNotAssignee, null, null);
+                }
             }
 
             // F02 D5/T3: a status that requires an assignee needs one that
@@ -604,11 +639,37 @@ namespace TaskFlow.BusinessLogic.Services
                 return (TaskControllerMS.Assign.Conflict, null, null);
             }
 
+            // f01-workflow.md Revision R2, D12/A3: assignment is locked
+            // while Review or Done, for every role including Admin - checked
+            // before the D5-era clearing rule below, which now only ever
+            // fires for InProgress. Reopen (Done -> Review) does not call
+            // this operation, so it is unaffected (A3's exception).
+            if (task.Status == TaskWorkflowStatus.Review || task.Status == TaskWorkflowStatus.Done)
+            {
+                return (TaskControllerMS.Assign.Locked, null, null);
+            }
+
             // D5, clarified 2026-11-05: the assignee cannot be cleared while
-            // the task is InProgress, Review or Done.
+            // the task is InProgress, Review or Done. Review/Done are
+            // already refused above, so only InProgress reaches this check.
             if (!requestDto.AssigneeId.HasValue && TaskCapacityRule.AssigneeRequiredWhile(task.Status))
             {
                 return (TaskControllerMS.Assign.AssigneeRequired, null, null);
+            }
+
+            // Revision R2, D12: AssignTasks (every role) covers taking over
+            // (assign to self) and releasing one's own assignment only;
+            // assigning or clearing someone else's assignment needs
+            // AssignAnyone (Manager/Admin).
+            if (!callerPermissions.Contains(Permissions.Tasks.AssignAnyone))
+            {
+                var assigningToOther = requestDto.AssigneeId.HasValue && requestDto.AssigneeId.Value != actorUserId;
+                var clearingSomeoneElses = !requestDto.AssigneeId.HasValue && task.AssigneeId.HasValue && task.AssigneeId.Value != actorUserId;
+
+                if (assigningToOther || clearingSomeoneElses)
+                {
+                    return (TaskControllerMS.Assign.SelfOnly, null, null);
+                }
             }
 
             User? targetAssignee = null;
@@ -877,6 +938,8 @@ namespace TaskFlow.BusinessLogic.Services
                 CompletedAt = task.CompletedAt,
                 Version = task.Version,
                 AllowedTransitions = BuildAllowedTransitions(task, actorUserId, callerPermissions),
+                CanTakeOver = CanTakeOver(task, actorUserId, callerPermissions),
+                CanAssignOthers = CanAssignOthers(task, callerPermissions),
             })];
         }
 
@@ -884,12 +947,42 @@ namespace TaskFlow.BusinessLogic.Services
         {
             return [.. TaskTransitions
                 .AllowedFor(task.Status, task.AssigneeId, actorUserId, callerPermissions)
-                .Select(edge => new AllowedTransitionResDto
+                .Select(result => new AllowedTransitionResDto
                 {
-                    Status = edge.To.ToString(),
-                    Operation = edge.Operation,
-                    RequiresReason = edge.RequiresReason,
+                    Status = result.Edge.To.ToString(),
+                    Operation = result.Edge.Operation,
+                    RequiresReason = result.Edge.RequiresReason,
+                    RequiresTakeover = result.RequiresTakeover,
                 })];
+        }
+
+        // f01-workflow.md Revision R2 wire changes: capacity is deliberately
+        // not applied to either flag, matching D10's existing precedent for
+        // allowedTransitions (an unassigned Todo task still offers the drop;
+        // the picker/capacity check resolves it).
+        private static bool CanTakeOver(TaskItem task, long actorUserId, string[] callerPermissions)
+        {
+            if (task.Status is TaskWorkflowStatus.Review or TaskWorkflowStatus.Done)
+            {
+                return false;
+            }
+
+            if (!callerPermissions.Contains(Permissions.Tasks.AssignTasks))
+            {
+                return false;
+            }
+
+            return !task.AssigneeId.HasValue || task.AssigneeId.Value != actorUserId;
+        }
+
+        private static bool CanAssignOthers(TaskItem task, string[] callerPermissions)
+        {
+            if (task.Status is TaskWorkflowStatus.Review or TaskWorkflowStatus.Done)
+            {
+                return false;
+            }
+
+            return callerPermissions.Contains(Permissions.Tasks.AssignAnyone);
         }
 
         private DateOnly TodayInZone()
@@ -913,6 +1006,8 @@ namespace TaskFlow.BusinessLogic.Services
                 CompletedAt = task.CompletedAt,
                 Version = task.Version,
                 AllowedTransitions = BuildAllowedTransitions(task, actorUserId, callerPermissions),
+                CanTakeOver = CanTakeOver(task, actorUserId, callerPermissions),
+                CanAssignOthers = CanAssignOthers(task, callerPermissions),
                 CreatedAt = task.CreatedAt,
                 CreatedBy = task.CreatedBy,
                 UpdatedAt = task.UpdatedAt,

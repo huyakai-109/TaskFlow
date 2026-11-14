@@ -273,14 +273,20 @@ namespace TaskFlow.Tests.Http
         // caller (not the assignee) approving into Done, so D5 holds.
         private async Task<(TaskDetailRes Task, long AssigneeId, HttpClient AssigneeClient)> AdvanceToDoneAsync()
         {
-            var mover = await CreateAuthenticatedClientAsync("Member");
+            // mover is a Manager: it creates the task assigned to a third
+            // party (needs AssignAnyone) and sends the unconditional
+            // priority="Normal" in CreateTaskAsync (needs PlanTasks).
+            var mover = await CreateAuthenticatedClientAsync("Manager");
             var assignee = await CreateAuthenticatedClientAsync("Member");
             var closer = await CreateAuthenticatedClientAsync("Manager");
 
             var current = await CreateTaskAsync(mover.Client, assignee.UserId);
             current = await MoveAsync(mover.Client, current.Id, TaskWorkflowStatus.Todo, current.Version);
-            current = await MoveAsync(mover.Client, current.Id, TaskWorkflowStatus.InProgress, current.Version);
-            current = await MoveAsync(mover.Client, current.Id, TaskWorkflowStatus.Review, current.Version);
+
+            // D11: holder-only - Todo->InProgress and InProgress->Review may
+            // only be done by the assignee.
+            current = await MoveAsync(assignee.Client, current.Id, TaskWorkflowStatus.InProgress, current.Version);
+            current = await MoveAsync(assignee.Client, current.Id, TaskWorkflowStatus.Review, current.Version);
             current = await MoveAsync(closer.Client, current.Id, TaskWorkflowStatus.Done, current.Version);
 
             return (current, assignee.UserId, assignee.Client);
