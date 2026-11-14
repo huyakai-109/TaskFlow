@@ -356,6 +356,33 @@ namespace TaskFlow.Tests.Http
             Assert.Contains(backlog.Items, i => i.Id == task.Id);
         }
 
+        [Fact]
+        public async Task GetBoard_ReportsCanAssignOthers_TrueForManagerAndAdmin_FalseForMember()
+        {
+            // f01-workflow.md Revision R2 wire changes: canAssignOthers on
+            // the summary shape (caller holds AssignAnyone, status not in
+            // {Review, Done}).
+            var manager = await CreateAuthenticatedClientAsync("Manager");
+            var admin = await CreateAuthenticatedClientAsync("Admin");
+            var member = await CreateAuthenticatedClientAsync("Member");
+            var task = await CreateTaskAsync(manager.Client);
+
+            var managerResponse = await manager.Client.GetAsync("api/v1/tasks/board");
+            var managerBody = await managerResponse.Content.ReadFromJsonAsync<ResultRes<BoardRes>>(JsonOptions);
+            var managerItem = managerBody!.Result!.Columns.Single(c => c.Status == TaskWorkflowStatus.Backlog).Items.Single(i => i.Id == task.Id);
+            Assert.True(managerItem.CanAssignOthers);
+
+            var adminResponse = await admin.Client.GetAsync("api/v1/tasks/board");
+            var adminBody = await adminResponse.Content.ReadFromJsonAsync<ResultRes<BoardRes>>(JsonOptions);
+            var adminItem = adminBody!.Result!.Columns.Single(c => c.Status == TaskWorkflowStatus.Backlog).Items.Single(i => i.Id == task.Id);
+            Assert.True(adminItem.CanAssignOthers);
+
+            var memberResponse = await member.Client.GetAsync("api/v1/tasks/board");
+            var memberBody = await memberResponse.Content.ReadFromJsonAsync<ResultRes<BoardRes>>(JsonOptions);
+            var memberItem = memberBody!.Result!.Columns.Single(c => c.Status == TaskWorkflowStatus.Backlog).Items.Single(i => i.Id == task.Id);
+            Assert.False(memberItem.CanAssignOthers);
+        }
+
         // ---- GET /tasks: pagination ----
 
         [Fact]

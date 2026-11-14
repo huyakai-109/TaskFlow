@@ -280,6 +280,29 @@ namespace TaskFlow.Tests.Http
         }
 
         [Fact]
+        public async Task Get_ReportsCanAssignOthers_TrueForManagerAndAdmin_FalseForMember()
+        {
+            // f01-workflow.md Revision R2 wire changes: canAssignOthers on
+            // the detail shape (caller holds AssignAnyone, status not in
+            // {Review, Done}).
+            var (manager, _) = await CreateAuthenticatedClientAsync("Manager");
+            var (admin, _) = await CreateAuthenticatedClientAsync("Admin");
+            var (member, _) = await CreateAuthenticatedClientAsync("Member");
+
+            var createResponse = await manager.PostAsJsonAsync("api/v1/tasks", new { title = "Shared task for canAssignOthers" });
+            var created = (await createResponse.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions))!.Result!;
+
+            var managerBody = (await (await manager.GetAsync($"api/v1/tasks/{created.Id}")).Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions))!;
+            Assert.True(managerBody.Result!.CanAssignOthers);
+
+            var adminBody = (await (await admin.GetAsync($"api/v1/tasks/{created.Id}")).Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions))!;
+            Assert.True(adminBody.Result!.CanAssignOthers);
+
+            var memberBody = (await (await member.GetAsync($"api/v1/tasks/{created.Id}")).Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions))!;
+            Assert.False(memberBody.Result!.CanAssignOthers);
+        }
+
+        [Fact]
         public async Task Get_Refuses_WhenTaskDoesNotExist()
         {
             // Arrange
