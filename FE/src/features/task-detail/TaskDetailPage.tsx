@@ -7,10 +7,13 @@ import { AssignAndMoveDialog } from '../../shared/components/AssignAndMoveDialog
 import { MoveRefusalDialog } from '../../shared/components/MoveRefusalDialog'
 import { MoveToast } from '../../shared/components/MoveToast'
 import { useAssignAndMoveTaskMutation } from '../../shared/hooks/useAssignAndMoveTaskMutation'
+import { useAssignTaskMutation } from '../../shared/hooks/useAssignTaskMutation'
+import { useAuthSession } from '../../shared/hooks/useAuthSession'
 import { useBoardQuery } from '../../shared/hooks/useBoardQuery'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
 import { isTypingTarget } from '../../shared/lib/isTypingTarget'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
+import { getTaskActionView } from '../../shared/lib/taskActions'
 
 import { AssigneePickerDialog } from './components/AssigneePickerDialog'
 import { EditTaskDialog } from './components/EditTaskDialog'
@@ -18,7 +21,6 @@ import { HistoryTimeline } from './components/HistoryTimeline'
 import { PropertiesPanel } from './components/PropertiesPanel'
 import { ReopenDialog } from './components/ReopenDialog'
 import { WorkflowStrip } from './components/WorkflowStrip'
-import { useAssignTaskMutation } from './hooks/useAssignTaskMutation'
 import { useReopenTaskMutation } from './hooks/useReopenTaskMutation'
 import { useTaskHistoryQuery } from './hooks/useTaskHistoryQuery'
 import { useTaskQuery } from './hooks/useTaskQuery'
@@ -48,6 +50,7 @@ export function TaskDetailPage() {
   const taskId = Number(id)
   const taskQuery = useTaskQuery(taskId)
   const historyQuery = useTaskHistoryQuery(taskId)
+  const { userId } = useAuthSession()
   // `J`/`K` previous/next task, `⌘↵` primary action (`docs/design/SPEC.md`
   // §5.3/§6 point 7, built 2026-11-11). Board data, already cached by
   // `useBoardQuery` elsewhere in the app (same `['board']` query key), gives
@@ -135,8 +138,17 @@ export function TaskDetailPage() {
         return
       }
 
-      setAssignErrorCode(code)
-      setAssignErrorMessage(message)
+      // "Take over" (`WorkflowStrip`/`CardMoveAction`) shares this mutation
+      // with the picker but has no dialog of its own to show a field error
+      // in — a toast either way, same as every other non-dialog refusal on
+      // this page. The picker's own inline error only applies while it's open.
+      if (assigneePickerOpen) {
+        setAssignErrorCode(code)
+        setAssignErrorMessage(message)
+        return
+      }
+
+      setToastMessage(describeErrorCode(code, message))
     },
   })
 
@@ -201,8 +213,7 @@ export function TaskDetailPage() {
   }
 
   const task = taskQuery.data
-  const moves = task.allowedTransitions.filter((t) => t.operation === 'Move')
-  const reopen = task.allowedTransitions.find((t) => t.operation === 'Reopen')
+  const { moves, reopen, showTakeOver } = getTaskActionView(task)
 
   function handlePriorityChange(priority: TaskPriority) {
     setPriorityError(null)
@@ -259,6 +270,13 @@ export function TaskDetailPage() {
               moveMutation.mutate({ taskId: task.id, toStatus, version: task.version, taskTitle: task.title })
             }
             onReopenRequested={() => setReopenOpen(true)}
+            showTakeOver={showTakeOver}
+            isTakeOverPending={assignMutation.isPending}
+            onTakeOver={() => {
+              if (userId !== null) {
+                assignMutation.mutate({ taskId: task.id, assigneeId: userId, version: task.version })
+              }
+            }}
           />
 
           <section aria-labelledby="activity-heading" className="flex flex-col gap-[var(--space-4)]">
@@ -328,6 +346,7 @@ export function TaskDetailPage() {
         <AssigneePickerDialog
           currentAssigneeId={task.assignee?.id ?? null}
           taskStatus={task.status}
+          canAssignOthers={task.canAssignOthers}
           isPending={assignMutation.isPending}
           errorCode={assignErrorCode}
           errorMessage={assignErrorMessage}
@@ -344,12 +363,16 @@ export function TaskDetailPage() {
           errorCode={assignAndMoveErrorCode}
           errorMessage={assignAndMoveErrorMessage}
           onClose={() => setAssignAndMove(null)}
-          onSelect={(assigneeId) =>
+          onConfirm={() => {
+            if (userId === null) {
+              return
+            }
+
             assignAndMoveMutation.mutate(
-              { taskId: task.id, toStatus: assignAndMove.toStatus, assigneeId, version: assignAndMove.version },
+              { taskId: task.id, toStatus: assignAndMove.toStatus, assigneeId: userId, version: assignAndMove.version },
               { onSuccess: () => setAssignAndMove(null) },
             )
-          }
+          }}
         />
       )}
 

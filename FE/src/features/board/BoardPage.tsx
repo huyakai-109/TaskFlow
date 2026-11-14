@@ -11,6 +11,8 @@ import { AssignAndMoveDialog } from '../../shared/components/AssignAndMoveDialog
 import { MoveRefusalDialog } from '../../shared/components/MoveRefusalDialog'
 import { MoveToast } from '../../shared/components/MoveToast'
 import { useAssignAndMoveTaskMutation } from '../../shared/hooks/useAssignAndMoveTaskMutation'
+import { useAssignTaskMutation } from '../../shared/hooks/useAssignTaskMutation'
+import { useAuthSession } from '../../shared/hooks/useAuthSession'
 import { useBoardQuery } from '../../shared/hooks/useBoardQuery'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
 import { useOverdueTasksQuery } from '../../shared/hooks/useOverdueTasksQuery'
@@ -88,6 +90,7 @@ const CONFLICT_CODES = new Set(['Task.Move.Conflict', 'Task.Move.NotFound'])
 export function BoardPage() {
   const boardQuery = useBoardQuery()
   const overdueTasksQuery = useOverdueTasksQuery()
+  const { userId } = useAuthSession()
   const [activeTask, setActiveTask] = useState<TaskSummary | null>(null)
   const [refusal, setRefusal] = useState<{ code: string | null; taskTitle: string; message: string | null } | null>(
     null,
@@ -180,6 +183,12 @@ export function BoardPage() {
       setAssignAndMoveErrorCode(failure.code)
       setAssignAndMoveErrorMessage(failure.message)
     },
+  })
+
+  // Revision R2 "Take over" — the board card menu's entry; same mutation
+  // (now `shared/`) as the task-detail picker and its own "Take over" button.
+  const takeOverMutation = useAssignTaskMutation({
+    onRefused: (code, message) => setToastMessage(describeErrorCode(code, message)),
   })
 
   /**
@@ -398,6 +407,11 @@ export function BoardPage() {
                       const task = findTask(taskId)
                       moveMutation.mutate({ taskId, toStatus, version, taskTitle: task?.title ?? `#${taskId}` })
                     }}
+                    onTakeOver={(taskId, version) => {
+                      if (userId !== null) {
+                        takeOverMutation.mutate({ taskId, assigneeId: userId, version })
+                      }
+                    }}
                   />
                 )
               })}
@@ -439,17 +453,21 @@ export function BoardPage() {
           errorCode={assignAndMoveErrorCode}
           errorMessage={assignAndMoveErrorMessage}
           onClose={() => setAssignAndMove(null)}
-          onSelect={(assigneeId) =>
+          onConfirm={() => {
+            if (userId === null) {
+              return
+            }
+
             assignAndMoveMutation.mutate(
               {
                 taskId: assignAndMove.taskId,
                 toStatus: assignAndMove.toStatus,
-                assigneeId,
+                assigneeId: userId,
                 version: assignAndMove.version,
               },
               { onSuccess: () => setAssignAndMove(null) },
             )
-          }
+          }}
         />
       )}
     </section>

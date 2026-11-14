@@ -35,6 +35,8 @@ function GripIcon() {
 interface TaskCardProps {
   task: TaskSummary
   onMove: (taskId: number, toStatus: TaskStatus, version: string) => void
+  /** Revision R2 "Take over" — rendered strictly from `task.canTakeOver` (`CardMoveAction`'s `takeOver` prop). */
+  onTakeOver: (taskId: number, version: string) => void
 }
 
 /**
@@ -45,7 +47,7 @@ interface TaskCardProps {
  * shortcut, not a second way to reach the same action for keyboard users, who
  * use the buttons instead.
  */
-export function TaskCard({ task, onMove }: TaskCardProps) {
+export function TaskCard({ task, onMove, onTakeOver }: TaskCardProps) {
   const moves = task.allowedTransitions.filter((t) => t.operation === 'Move')
   const { setNodeRef, setActivatorNodeRef, listeners, attributes, transform, isDragging } = useDraggable({
     id: `task-${task.id}`,
@@ -101,7 +103,14 @@ export function TaskCard({ task, onMove }: TaskCardProps) {
           </span>
         )}
         <span className="min-w-0 flex-1" />
-        <CardMoveAction taskId={task.id} taskTitle={task.title} taskStatus={task.status} moves={moves} onMove={(status) => onMove(task.id, status, task.version)} />
+        <CardMoveAction
+          taskId={task.id}
+          taskTitle={task.title}
+          taskStatus={task.status}
+          moves={moves}
+          onMove={(status) => onMove(task.id, status, task.version)}
+          takeOver={task.canTakeOver ? { onSelect: () => onTakeOver(task.id, task.version) } : undefined}
+        />
         {task.assignee !== null && (
           <span
             className="inline-flex size-4 shrink-0 items-center justify-center rounded-pill text-[9px] leading-none font-semibold @min-[170px]:size-5"

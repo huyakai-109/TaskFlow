@@ -18,6 +18,22 @@ interface CardMoveActionProps {
   taskStatus: TaskStatus
   moves: AllowedTransition[]
   onMove: (status: TaskStatus) => void
+  /**
+   * Revision R2 "Take over" (`task.canTakeOver`) — an extra, non-move entry
+   * merged into the same single-button-or-menu list below, so the card's
+   * one action control gains "Take over" without a second hand-rolled
+   * popover. Absent by default: `MyTasksPage`'s "Ready for you to review"
+   * rows (this component's other caller) never have `canTakeOver` true, so
+   * they pass no `takeOver` prop and render exactly as before.
+   */
+  takeOver?: { onSelect: () => void }
+}
+
+interface ActionItem {
+  key: string
+  label: string
+  ariaLabel: string
+  onSelect: () => void
 }
 
 /**
@@ -28,8 +44,8 @@ interface CardMoveActionProps {
  * More than one: it opens a small menu, modelled on `AvatarStack`'s own
  * popover (click-outside + Esc) rather than inventing a second pattern, with
  * full arrow-key/Enter/Esc keyboard support (`role="menu"`/`"menuitem"`).
- * Rendered only when `moves.length > 0` — a task with no legal move shows no
- * button at all, same as before.
+ * Rendered only when there is at least one move or a `takeOver` entry — a
+ * task with neither shows no button at all, same as before.
  *
  * Moved from `features/board/components/` to `shared/components/` (second
  * use — My tasks §5.8's "Ready for you to review" rows need the same
@@ -37,12 +53,23 @@ interface CardMoveActionProps {
  * not reach into a feature, and this control carries no board-specific
  * assumption to begin with.
  */
-export function CardMoveAction({ taskId, taskTitle, taskStatus, moves, onMove }: CardMoveActionProps) {
+export function CardMoveAction({ taskId, taskTitle, taskStatus, moves, onMove, takeOver }: CardMoveActionProps) {
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  const items: ActionItem[] = moves.map((move) => ({
+    key: move.status,
+    label: moveButtonLabel(taskStatus, move),
+    ariaLabel: `Move #${taskId} to ${STATUS_LABELS[move.status]}`,
+    onSelect: () => onMove(move.status),
+  }))
+
+  if (takeOver !== undefined) {
+    items.push({ key: 'take-over', label: 'Take over', ariaLabel: `Take over #${taskId}`, onSelect: takeOver.onSelect })
+  }
 
   useEffect(() => {
     if (!open) {
@@ -66,7 +93,7 @@ export function CardMoveAction({ taskId, taskTitle, taskStatus, moves, onMove }:
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault()
         setActiveIndex((index) => {
-          const next = event.key === 'ArrowDown' ? (index + 1) % moves.length : (index - 1 + moves.length) % moves.length
+          const next = event.key === 'ArrowDown' ? (index + 1) % items.length : (index - 1 + items.length) % items.length
           itemRefs.current[next]?.focus()
           return next
         })
@@ -79,7 +106,7 @@ export function CardMoveAction({ taskId, taskTitle, taskStatus, moves, onMove }:
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown)
     }
-  }, [open, moves.length])
+  }, [open, items.length])
 
   // Focus the first item once the menu's DOM exists; `activeIndex` itself is
   // set where `open` is set (the click that caused it), not here.
@@ -89,7 +116,7 @@ export function CardMoveAction({ taskId, taskTitle, taskStatus, moves, onMove }:
     }
   }, [open])
 
-  if (moves.length === 0) {
+  if (items.length === 0) {
     return null
   }
 
@@ -101,20 +128,19 @@ export function CardMoveAction({ taskId, taskTitle, taskStatus, moves, onMove }:
     event.stopPropagation()
   }
 
-  if (moves.length === 1) {
-    const move = moves[0]
-    const label = moveButtonLabel(taskStatus, move)
+  if (items.length === 1) {
+    const item = items[0]
 
     return (
       <button
         type="button"
-        title={label}
-        aria-label={`Move #${taskId} to ${STATUS_LABELS[move.status]}`}
+        title={item.label}
+        aria-label={item.ariaLabel}
         className="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-pill border border-border bg-surface text-text-muted opacity-0 [transition:opacity_var(--transition-fast)] group-hover:opacity-100 group-focus-within:opacity-100 hover:border-accent hover:bg-accent-soft hover:text-accent-ink [@media(hover:none)]:opacity-100 [@media(pointer:coarse)]:size-7"
         onPointerDown={stopDragActivation}
         onClick={(event) => {
           stopDragActivation(event)
-          onMove(move.status)
+          item.onSelect()
         }}
       >
         <ArrowIcon />
@@ -148,8 +174,8 @@ export function CardMoveAction({ taskId, taskTitle, taskStatus, moves, onMove }:
           aria-label={`Move "${taskTitle}" to`}
           className="absolute top-[calc(100%+4px)] right-0 z-50 m-0 min-w-[160px] list-none rounded-md border border-border bg-surface-raised p-[var(--space-1)] shadow-raised"
         >
-          {moves.map((move, index) => (
-            <li key={move.status} role="none">
+          {items.map((item, index) => (
+            <li key={item.key} role="none">
               <button
                 type="button"
                 role="menuitem"
@@ -163,10 +189,10 @@ export function CardMoveAction({ taskId, taskTitle, taskStatus, moves, onMove }:
                   stopDragActivation(event)
                   setOpen(false)
                   triggerRef.current?.focus()
-                  onMove(move.status)
+                  item.onSelect()
                 }}
               >
-                {moveButtonLabel(taskStatus, move)}
+                {item.label}
               </button>
             </li>
           ))}

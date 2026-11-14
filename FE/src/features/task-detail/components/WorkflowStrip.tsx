@@ -30,6 +30,10 @@ interface WorkflowStripProps {
   reopen: AllowedTransition | undefined
   onMove: (toStatus: TaskStatus) => void
   onReopenRequested: () => void
+  /** Revision R2 — `task.canTakeOver`, computed server-side (`shared/lib/taskActions.ts`'s `showTakeOver`). */
+  showTakeOver: boolean
+  isTakeOverPending: boolean
+  onTakeOver: () => void
 }
 
 /**
@@ -40,7 +44,16 @@ interface WorkflowStripProps {
  * `allowedTransitions` gets its own button — D10's "show only legal moves",
  * not a narrower reading of the wireframe's single sample.
  */
-export function WorkflowStrip({ status, moves, reopen, onMove, onReopenRequested }: WorkflowStripProps) {
+export function WorkflowStrip({
+  status,
+  moves,
+  reopen,
+  onMove,
+  onReopenRequested,
+  showTakeOver,
+  isTakeOverPending,
+  onTakeOver,
+}: WorkflowStripProps) {
   const currentIndex = BOARD_COLUMNS.indexOf(status)
 
   return (
@@ -108,7 +121,19 @@ export function WorkflowStrip({ status, moves, reopen, onMove, onReopenRequested
           </button>
         )}
 
-        {moves.length === 0 && reopen === undefined && (
+        {/* Revision R2 (D11/D12): rendered strictly from `canTakeOver` — never inferred from role/status client-side. */}
+        {showTakeOver && (
+          <button
+            type="button"
+            className="inline-flex min-h-11 cursor-pointer items-center rounded-md border border-border bg-surface px-[var(--space-4)] font-medium text-text hover:bg-column disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={isTakeOverPending}
+            onClick={onTakeOver}
+          >
+            {isTakeOverPending ? 'Taking over…' : 'Take over'}
+          </button>
+        )}
+
+        {moves.length === 0 && reopen === undefined && !showTakeOver && (
           <span className="flex items-center gap-[var(--space-2)] text-[length:var(--font-size-sm)] text-text-muted">
             {status === 'Done' && <LockIcon />}
             {status === 'Done'
