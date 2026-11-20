@@ -7,6 +7,7 @@ import { MoveToast } from '../../../shared/components/MoveToast'
 import { useMarkAllNotificationsReadMutation } from '../hooks/useMarkAllNotificationsReadMutation'
 import { useMarkNotificationReadMutation } from '../hooks/useMarkNotificationReadMutation'
 import { useNotificationsQuery } from '../hooks/useNotificationsQuery'
+import { useUnreadNotificationCountQuery } from '../hooks/useUnreadNotificationCountQuery'
 
 const relativeTimeFormatter = new Intl.RelativeTimeFormat('en', { numeric: 'always' })
 const RELATIVE_TIME_UNITS: ReadonlyArray<{ unit: Intl.RelativeTimeFormatUnit; ms: number }> = [
@@ -51,26 +52,36 @@ function BellIcon() {
  * existing popover visual language (raised surface, `--radius-xl`,
  * `--shadow-raised`) rather than inventing a new one.
  *
- * Shows both read and unread rows (`useNotificationsQuery`, fixed this task
+ * Shows both read and unread rows (`useNotificationsQuery`, fixed earlier
  * — a read notification used to disappear from the list entirely, a
  * client-side filter bug, not an API limitation; see that hook's own doc
- * comment). The badge counts unread only, never the total.
+ * comment). The list pages itself as the user scrolls (`IntersectionObserver`
+ * below); the unread badge is `useUnreadNotificationCountQuery`'s own real
+ * total, never derived from however many pages are loaded.
  */
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const notificationsQuery = useNotificationsQuery()
+  const unreadCountQuery = useUnreadNotificationCountQuery()
   const markReadMutation = useMarkNotificationReadMutation({
     onRefused: (error) => setToastMessage(describeError(error)),
   })
   const markAllReadMutation = useMarkAllNotificationsReadMutation({
     onRefused: (error) => setToastMessage(describeError(error)),
   })
-  const items = notificationsQuery.data?.result ?? []
-  const unreadIds = items.filter((notification) => !notification.isRead).map((notification) => notification.id)
-  const unreadCount = unreadIds.length
+  const pages = notificationsQuery.data?.pages ?? []
+  const items = pages.flatMap((page) => page.result ?? [])
+  const loadedUnreadIds = items.filter((notification) => !notification.isRead).map((notification) => notification.id)
+  const lastPagination = pages.at(-1)?.pagination ?? null
+  // The badge is the server's real unread total (F06 D4), never how many
+  // unread rows happen to be loaded into the popover — falls back to the
+  // loaded count only until that separate query has resolved once.
+  const unreadCount = unreadCountQuery.data ?? loadedUnreadIds.length
   const panelRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  const sentinelRef = useRef<HTMLLIElement>(null)
 
   useEffect(() => {
     if (!open) {
@@ -105,6 +116,44 @@ export function NotificationBell() {
     }
   }, [open])
 
+  const hasNextPage = notificationsQuery.hasNextPage === true
+  const isFetchingNextPage = notificationsQuery.isFetchingNextPage
+  const fetchNextPage = notificationsQuery.fetchNextPage
+
+  // Jira-style incremental loading (F06 D3): the next page loads itself once
+  // the sentinel row at the bottom of the scrollable list enters the list's
+  // own viewport — an `IntersectionObserver` scoped to that one scroll
+  // container (`root`), never a `scroll` event listener polled on every
+  // frame. Never fires while a page is already in flight or once the server
+  // says there is no next page (`hasNextPage`).
+  const isFetchNextPageError = notificationsQuery.isFetchNextPageError
+
+  useEffect(() => {
+    if (!open || !hasNextPage || isFetchNextPageError) {
+      return
+    }
+
+    const sentinel = sentinelRef.current
+    const root = listRef.current
+
+    if (sentinel == null || root == null) {
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting === true && !isFetchingNextPage) {
+          void fetchNextPage()
+        }
+      },
+      { root },
+    )
+
+    observer.observe(sentinel)
+
+    return () => observer.disconnect()
+  }, [open, hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage])
+
   return (
     <div className="relative">
       <button
@@ -136,8 +185,8 @@ export function NotificationBell() {
             <button
               type="button"
               className="cursor-pointer border-0 bg-transparent p-0 text-[length:var(--font-size-xs)] font-medium text-accent-ink underline disabled:cursor-not-allowed disabled:text-text-muted disabled:no-underline"
-              disabled={unreadCount === 0 || markAllReadMutation.isPending}
-              onClick={() => markAllReadMutation.mutate(unreadIds)}
+              disabled={loadedUnreadIds.length === 0 || markAllReadMutation.isPending}
+              onClick={() => markAllReadMutation.mutate(loadedUnreadIds)}
             >
               Mark all as read
             </button>
@@ -146,16 +195,46 @@ export function NotificationBell() {
           {notificationsQuery.isPending && (
             <p className="p-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted">Loading…</p>
           )}
-          {notificationsQuery.isError && (
+          {/*
+           * A page-2+ fetch failure (`isFetchNextPageError`) must never hide
+           * the rows already loaded — react-query reuses the overall query's
+           * `isError`/`error` for that case too (its `status` reflects the
+           * *last* fetch, not just the first), so this is scoped to a true
+           * first-load failure (`items.length === 0`, nothing cached yet).
+           * The page-2+ case gets its own inline Retry row below, inside the
+           * list, instead.
+           */}
+          {notificationsQuery.isError && items.length === 0 && (
             <p className="p-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted" role="alert">
               {describeError(notificationsQuery.error)}
             </p>
           )}
-          {notificationsQuery.isSuccess && items.length === 0 && (
+          {!notificationsQuery.isPending && !notificationsQuery.isError && items.length === 0 && (
             <p className="p-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted">You&rsquo;re all caught up.</p>
           )}
-          {notificationsQuery.isSuccess && items.length > 0 && (
-            <ul className="m-0 flex max-h-[360px] list-none flex-col gap-[2px] overflow-y-auto p-0">
+          {items.length > 0 && (
+            // `max-h-[320px]` ≈ 5 rows of this list's own markup (measured:
+            // an unread row with its "Mark read" button is ~73.5px, a read
+            // row without one is ~54px — "roughly 5" either way) — past that
+            // the list scrolls inside itself instead of growing the popover
+            // off-screen (layout fix, this task). `tabIndex={0}` makes the
+            // scroll container itself keyboard-reachable (arrow/Page keys
+            // scroll it once focused, same as a native scrollable element
+            // anywhere else); the visible focus ring is the app-wide
+            // `:focus-visible` rule (`global.css`), not a one-off here.
+            // `scrollbar-gutter: stable` reserves the scrollbar's width
+            // whether or not it is currently shown, so the few-notification
+            // (no scroll) and many-notification (scroll) cases render at the
+            // same width — no layout shift when paging introduces the first
+            // scrollbar. The scrollbar's own look (thin, transparent track,
+            // no arrow buttons) is the existing app-wide rule in
+            // `global.css`, not new CSS.
+            <ul
+              ref={listRef}
+              tabIndex={0}
+              aria-label="Notification list"
+              className="m-0 flex max-h-[320px] list-none flex-col gap-[2px] overflow-y-auto p-0 [scrollbar-gutter:stable]"
+            >
               {items.map((notification) => (
                 <li
                   key={notification.id}
@@ -214,6 +293,34 @@ export function NotificationBell() {
                   )}
                 </li>
               ))}
+
+              {/*
+               * The `IntersectionObserver` target: invisible, no text —
+               * entering the list's own scroll viewport is what triggers
+               * `fetchNextPage`, never a label a screen reader should read.
+               * Rendered only while there is a next page to fetch and no
+               * fetch is already failed (a failed fetch instead shows the
+               * Retry button below, which must stay keyboard/AT reachable).
+               */}
+              {hasNextPage && !isFetchNextPageError && <li ref={sentinelRef} aria-hidden="true" className="h-px" />}
+
+              {(isFetchingNextPage || isFetchNextPageError || (!hasNextPage && (lastPagination?.totalPages ?? 1) > 1)) && (
+                <li aria-live="polite" className="flex justify-center p-[var(--space-2)] text-[length:var(--font-size-xs)] text-text-muted">
+                  {isFetchNextPageError ? (
+                    <button
+                      type="button"
+                      className="cursor-pointer rounded-sm border border-border bg-surface px-[var(--space-2)] py-[4px] text-[length:var(--font-size-xs)] text-text-muted hover:bg-accent-soft hover:text-accent-ink"
+                      onClick={() => void fetchNextPage()}
+                    >
+                      Couldn&rsquo;t load more — Retry
+                    </button>
+                  ) : isFetchingNextPage ? (
+                    'Loading more…'
+                  ) : (
+                    'No more notifications'
+                  )}
+                </li>
+              )}
             </ul>
           )}
         </div>
