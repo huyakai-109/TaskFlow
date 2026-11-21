@@ -206,6 +206,33 @@ export interface TaskHistoryEntry {
   message: string
 }
 
+/** `CursorPageRes` — ADR 0007 (keyset paging), `GET /activity` only; no total count, just `hasMore`. */
+export interface CursorPage {
+  nextCursor: string | null
+  hasMore: boolean
+  pageSize: number
+}
+
+/** `CursorResultRes<T>` — a second paging envelope next to `PaginationResultRes<T>`, scoped to append-only newest-first streams (ADR 0007). */
+export interface CursorResultRes<T> extends ResultRes<T> {
+  page?: CursorPage | null
+}
+
+/** `ActivityRes` (`docs/features/f04-activity-feed.md` "Technical contract") — one cross-task history row, newest first. */
+export interface ActivityEntry {
+  id: number
+  event: TaskHistoryEvent
+  task: { id: number; title: string; isDeleted: boolean }
+  actorUserId: number | null
+  actorName: string | null
+  fromValue: string | null
+  toValue: string | null
+  reason: string | null
+  occurredAt: string
+  occurredAtLocal: string
+  message: string
+}
+
 /** `TaskNotificationEvent` enum — `ReturnedForRework` is the only MVP value (F01 D7). */
 export type TaskNotificationEvent = 'ReturnedForRework'
 

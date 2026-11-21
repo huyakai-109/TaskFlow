@@ -29,6 +29,14 @@ function MyTasksIcon() {
   )
 }
 
+function ActivityFeedIcon() {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 8h2.5l1.5-4 3 8 1.5-4H14" />
+    </svg>
+  )
+}
+
 function TeamCapacityIcon() {
   return (
     <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -166,6 +174,16 @@ function SidebarNav({ collapsed, onNavigate }: SidebarNavProps) {
           <BoardIcon />
           {!collapsed && 'Board'}
           {collapsed && <CollapsedTooltip>Board</CollapsedTooltip>}
+        </NavLink>
+        {/*
+         * Activity takes the "Inbox" slot (removed 2026-11-13, replacement
+         * undecided until now — `docs/design/SPEC.md` §3/§10 point 15): a
+         * read-only, shared feed, no unread/counter badge of any kind.
+         */}
+        <NavLink to="/activity" className={navLinkClass(collapsed)} onClick={onNavigate}>
+          <ActivityFeedIcon />
+          {!collapsed && 'Activity'}
+          {collapsed && <CollapsedTooltip>Activity</CollapsedTooltip>}
         </NavLink>
         <NavLink to="/team-capacity" className={navLinkClass(collapsed)} onClick={onNavigate}>
           <TeamCapacityIcon />

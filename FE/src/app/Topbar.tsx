@@ -27,6 +27,7 @@ interface Crumb {
 function crumbFor(pathname: string): Crumb {
   if (pathname === '/board') return { parent: null, current: 'Board' }
   if (pathname === '/my-tasks') return { parent: null, current: 'My tasks' }
+  if (pathname === '/activity') return { parent: null, current: 'Activity' }
   if (pathname === '/team-capacity') return { parent: null, current: 'Team capacity' }
   if (pathname === '/profile') return { parent: null, current: 'Profile' }
   if (pathname === '/accounts') return { parent: null, current: 'Accounts' }

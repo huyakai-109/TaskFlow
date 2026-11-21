@@ -4,6 +4,7 @@ import { AppLayout } from './AppLayout'
 import { RequireAuth } from './RequireAuth'
 import { RequirePermission } from './RequirePermission'
 import { AccountsPage } from '../features/accounts/AccountsPage'
+import { ActivityPage } from '../features/activity/ActivityPage'
 import { BoardPage } from '../features/board/BoardPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { MyTasksPage } from '../features/my-tasks/MyTasksPage'
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="/board" replace /> },
           { path: 'board', element: <BoardPage /> },
+          { path: 'activity', element: <ActivityPage /> },
           { path: 'my-tasks', element: <MyTasksPage /> },
           { path: 'overdue', element: <OverdueListPage /> },
           { path: 'team-capacity', element: <TeamCapacityPage /> },
