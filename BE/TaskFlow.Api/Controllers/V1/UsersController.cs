@@ -3,7 +3,6 @@ using AutoMapper;
 using TaskFlow.Api.Models.Requests.Users;
 using TaskFlow.Api.Models.Responses.Base;
 using TaskFlow.Api.Models.Responses.Users;
-using TaskFlow.Api.Presence;
 using TaskFlow.BusinessLogic.Services;
 using TaskFlow.BusinessLogic.Storage;
 using TaskFlow.Common.Constants;
@@ -21,8 +20,7 @@ namespace TaskFlow.Api.Controllers.V1
         ILogger<UsersController> logger,
         IMapper mapper,
         IUserService userService,
-        IStorageService storageService,
-        IPresenceTracker presenceTracker) : BaseController(logger, mapper)
+        IStorageService storageService) : BaseController(logger, mapper)
     {
         [HttpGet]
         [Route("")]
@@ -187,12 +185,10 @@ namespace TaskFlow.Api.Controllers.V1
                 }
 
                 // f08-accounts-profile.md "Quick revocation on deactivation" /
-                // f07-presence.md AC9: the presence tracker aborts every live
-                // connection for this user in the same request - near-
-                // immediate, not bounded by the access token's own ≤15 min
-                // expiry. A no-op if the user has no open hub connection.
-                presenceTracker.AbortUserConnections(id);
-
+                // f07-presence.md AC9: the hub-abort itself now happens
+                // inside UserService.Deactivate (review-change: moved out of
+                // this controller so the invariant holds for every caller,
+                // not just this one HTTP action).
                 response.Success = true;
                 response.Result = Mapper.Map<UserAdminRes>(user);
                 return Ok(response);

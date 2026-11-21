@@ -82,6 +82,7 @@ builder.Services.AddAutoMapper(cfg =>
 // instance this round (C1 deferred), no Redis backplane.
 builder.Services.AddSingleton<IPresenceTracker, PresenceTracker>();
 builder.Services.AddSingleton<IConnectionRateLimiter, ConnectionRateLimiter>();
+builder.Services.AddSingleton<TaskFlow.BusinessLogic.Services.IUserPresenceNotifier, PresenceUserNotifier>();
 
 builder.Services.AddSignalR(options =>
 {

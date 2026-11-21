@@ -38,7 +38,11 @@ namespace TaskFlow.BusinessLogic.Services
     // f02-capacity.md T4 (sign-off #6): GET /users, the assignee picker's
     // source list. R2-3 (f08-accounts-profile.md "Admin API") adds account
     // administration, policy ManageUsers.
-    public class UserService(IUnitOfWork unitOfWork, UserManager<User> userManager, IStorageService storageService) : IUserService
+    public class UserService(
+        IUnitOfWork unitOfWork,
+        UserManager<User> userManager,
+        IStorageService storageService,
+        IUserPresenceNotifier presenceNotifier) : IUserService
     {
         // Soft-deleted users are excluded by User's existing query filter
         // (!IsDeleted, UserConfiguration) - no IgnoreQueryFilters() here,
@@ -214,6 +218,10 @@ namespace TaskFlow.BusinessLogic.Services
 
             if (user.DeactivatedAt.HasValue)
             {
+                // Idempotent, but still aborts: closes the tiny race window
+                // where a connection was established between an earlier
+                // deactivation's abort and this one's check.
+                presenceNotifier.NotifyDeactivated(id);
                 var alreadyDto = await BuildAdminDto(user);
                 return (string.Empty, alreadyDto);
             }
@@ -242,6 +250,12 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return (UserControllerMS.Deactivate.Conflict, null);
             }
+
+            // f08-accounts-profile.md "Quick revocation on deactivation" /
+            // f07-presence.md AC9: called here, not by the controller, so
+            // the invariant holds for every caller of Deactivate, not only
+            // the one HTTP action that exists today.
+            presenceNotifier.NotifyDeactivated(id);
 
             var dto = await BuildAdminDto(user);
             return (string.Empty, dto);
