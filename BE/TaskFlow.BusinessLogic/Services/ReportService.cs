@@ -154,7 +154,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 Meta = BuildMeta(null, from, to, ReportGranularity.Week, dataAvailableSince, "Team"),
                 TeamTotals = teamTotals,
-                Contributors = members.Count,
+                Contributors = members.Count(m => m.Totals.Delivery.Done >= 1),
                 UnassignedOverdueMarked = unassignedOverdueMarked,
                 TeamMedian = teamMedian,
                 Members = members,
@@ -503,7 +503,12 @@ namespace TaskFlow.BusinessLogic.Services
 
             return new ReportTeamMedianDto
             {
-                Contributors = members.Count,
+                // R12 (corrected 2026-11-21, AC22): contributors counts
+                // roster members with at least one counted completion in
+                // range (done >= 1) - never the roster size. A member with
+                // only a take-over or InProgress time but no completion
+                // does not count.
+                Contributors = members.Count(m => m.Delivery.Done >= 1),
                 Done = NonZeroMedian(members.Select(m => (double)m.Delivery.Done)),
                 CycleTimeMedianSeconds = ReportStatistics.Median(members.Where(m => m.Speed.CycleTime.MedianSeconds.HasValue).Select(m => m.Speed.CycleTime.MedianSeconds!.Value).ToList()),
                 LeadTimeMedianSeconds = ReportStatistics.Median(members.Where(m => m.Speed.LeadTime.MedianSeconds.HasValue).Select(m => m.Speed.LeadTime.MedianSeconds!.Value).ToList()),

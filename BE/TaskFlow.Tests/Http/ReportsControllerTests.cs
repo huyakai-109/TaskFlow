@@ -5,8 +5,11 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using TaskFlow.Api.Models.Responses.Auth;
 using TaskFlow.Api.Models.Responses.Base;
 using TaskFlow.Api.Models.Responses.Reports;
@@ -296,6 +299,75 @@ namespace TaskFlow.Tests.Http
             Assert.True(amyIndex < zedIndex);
         }
 
+        // ---- AC22 (corrected 2026-11-21): contributors = members with
+        // done >= 1, never the roster size; pooled take-over counts are
+        // unaffected by contributors ----
+
+        [Fact]
+        public async Task GetTeam_Contributors_CountsOnlyMembersWithAtLeastOneCompletion()
+        {
+            var manager = await CreateUserAndLoginAsync("Manager");
+            var m1 = await CreateUserAndLoginAsync("Member", displayName: "M1");
+            var m2 = await CreateUserAndLoginAsync("Member", displayName: "M2");
+
+            // m1: two completions, credited at Done (T1, T2).
+            var t1 = await SeedTaskAsync("T1", assigneeId: m1.UserId, dueDate: new DateOnly(2026, 3, 4));
+            await SeedTrail(t1.Id, m1.UserId, Local(2026, 3, 2, 9, 0), Local(2026, 3, 2, 10, 0), Local(2026, 3, 3, 10, 0), Local(2026, 3, 4, 10, 0));
+            var t2 = await SeedTaskAsync("T2", assigneeId: m1.UserId, dueDate: new DateOnly(2026, 3, 4));
+            await SeedTrail(t2.Id, m1.UserId, Local(2026, 3, 2, 8, 0), Local(2026, 3, 2, 9, 0), Local(2026, 3, 3, 9, 0), Local(2026, 3, 4, 11, 0));
+
+            // T3: created for m1, taken over by m2 (take-over credit), then
+            // completed by m2 - m1's third completion, credited to m2.
+            var t3 = await SeedTaskAsync("T3", assigneeId: m1.UserId, dueDate: null);
+            await SeedHistoryAsync(t3.Id, TaskHistoryEvent.Created, Local(2026, 3, 1, 9, 0));
+            await SeedHistoryAsync(t3.Id, TaskHistoryEvent.StatusChanged, Local(2026, 3, 2, 9, 0), "Todo", "InProgress");
+            await SeedHistoryAsync(t3.Id, TaskHistoryEvent.AssigneeChanged, Local(2026, 3, 3, 9, 0), m1.UserId.ToString(), m2.UserId.ToString(), m2.UserId);
+            await SeedHistoryAsync(t3.Id, TaskHistoryEvent.StatusChanged, Local(2026, 3, 4, 9, 0), "InProgress", "Review");
+            await SeedHistoryAsync(t3.Id, TaskHistoryEvent.StatusChanged, Local(2026, 3, 4, 18, 0), "Review", "Done");
+            await using (var context = _dbFixture.CreateContext())
+            {
+                var task = await context.Set<TaskItem>().IgnoreQueryFilters().SingleAsync(t => t.Id == t3.Id);
+                task.AssigneeId = m2.UserId;
+                task.Status = TaskWorkflowStatus.Done;
+                task.CompletedAt = Local(2026, 3, 4, 18, 0);
+                await context.SaveChangesAsync();
+            }
+
+            // m1 needs a third completion to reach done=3 (T1, T2 above are
+            // only 2 - T3 went to m2). Add T5, credited to m1.
+            var t5 = await SeedTaskAsync("T5", assigneeId: m1.UserId, dueDate: null);
+            await SeedTrail(t5.Id, m1.UserId, Local(2026, 3, 3, 8, 0), Local(2026, 3, 3, 11, 0), Local(2026, 3, 4, 9, 0), Local(2026, 3, 5, 9, 0));
+
+            // T4: m2's second completion.
+            var t4 = await SeedTaskAsync("T4", assigneeId: m2.UserId, dueDate: null);
+            await SeedTrail(t4.Id, m2.UserId, Local(2026, 3, 5, 8, 0), Local(2026, 3, 6, 8, 0), Local(2026, 3, 8, 8, 0), Local(2026, 3, 8, 12, 0));
+
+            var response = await manager.Client.GetAsync("api/v1/reports/team?from=2026-03-02&to=2026-03-08");
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<ReportTeamRes>>(JsonOptions);
+
+            Assert.True(response.IsSuccessStatusCode && body!.Success, body?.Error);
+
+            // Full R11 roster (every active user) still has 3 rows, incl.
+            // mgr with done = 0.
+            Assert.Equal(3, body.Result!.Members.Count);
+            var mgrRow = body.Result.Members.Single(m => m.User.Id == manager.UserId);
+            Assert.Equal(0, mgrRow.Totals.Delivery.Done);
+
+            // contributors excludes mgr (done = 0): 2, never the roster size (3).
+            Assert.Equal(2, body.Result.Team.Contributors);
+            Assert.Equal(2, body.Result.TeamMedian.Contributors);
+
+            // Pooled take-over counts (T3, m1 -> m2) are unaffected by
+            // contributors - a take-over needs no completion.
+            Assert.Equal(1, body.Result.Team.Totals.Attribution.TakeOvers);
+            Assert.Equal(1, body.Result.Team.Totals.Attribution.TakenFrom);
+
+            var m1Row = body.Result.Members.Single(m => m.User.Id == m1.UserId);
+            var m2Row = body.Result.Members.Single(m => m.User.Id == m2.UserId);
+            Assert.Equal(3, m1Row.Totals.Delivery.Done);
+            Assert.Equal(2, m2Row.Totals.Delivery.Done);
+        }
+
         // ---- AC19: export ----
 
         [Fact]
@@ -315,6 +387,39 @@ namespace TaskFlow.Tests.Http
 
             var text = Encoding.UTF8.GetString(bytes, bom.Length, bytes.Length - bom.Length);
             Assert.StartsWith("bucket_start,bucket_end,is_partial,done,", text);
+        }
+
+        // R17: the export log line carries the caller id, subject, range,
+        // dataset and row count - and never the exported content (task
+        // titles, display names). A dedicated capturing ILoggerFactory
+        // swapped in for this one test's host (WithWebHostBuilder), since
+        // the real pipeline is Serilog and no test-log-capture precedent
+        // exists in this codebase yet.
+        [Fact]
+        public async Task Export_LogsCallerSubjectRangeDatasetRowCount_NeverReportContent()
+        {
+            var capturingFactory = new CapturingLoggerFactory();
+            await using var hostFactory = _factory.WithWebHostBuilder(builder =>
+                builder.ConfigureServices(services => services.Replace(ServiceDescriptor.Singleton<ILoggerFactory>(capturingFactory))));
+
+            var manager = await CreateUserAndLoginAsync("Manager", hostFactory);
+
+            var secretTask = await SeedTaskAsync("Secret Project Nightingale", assigneeId: manager.UserId, dueDate: new DateOnly(2026, 3, 4));
+            await SeedTrail(secretTask.Id, manager.UserId, Local(2026, 3, 2, 9, 0), Local(2026, 3, 2, 10, 0), Local(2026, 3, 3, 10, 0), Local(2026, 3, 4, 10, 0));
+
+            var response = await manager.Client.GetAsync("api/v1/reports/export?from=2026-03-02&to=2026-03-08&dataset=Tasks&granularity=Week");
+            Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+
+            var exportLog = capturingFactory.Messages.FirstOrDefault(m => m.Contains("Report export by"));
+            Assert.NotNull(exportLog);
+            Assert.Contains(manager.UserId.ToString(), exportLog);
+            Assert.Contains("team", exportLog);
+            Assert.Contains("2026-03-02", exportLog);
+            Assert.Contains("2026-03-08", exportLog);
+            Assert.Contains("Tasks", exportLog);
+            Assert.Contains("rows=1", exportLog);
+
+            Assert.DoesNotContain(capturingFactory.Messages, m => m.Contains("Secret") || m.Contains("Nightingale"));
         }
 
         [Fact]
@@ -405,11 +510,14 @@ namespace TaskFlow.Tests.Http
         private static DateTimeOffset Local(int year, int month, int day, int hour, int minute) =>
             new(year, month, day, hour, minute, 0, TimeSpan.FromHours(7));
 
-        private async Task<(HttpClient Client, long UserId)> CreateUserAndLoginAsync(string roleName, string? displayName = null)
+        private Task<(HttpClient Client, long UserId)> CreateUserAndLoginAsync(string roleName, string? displayName = null) =>
+            CreateUserAndLoginAsync(roleName, _factory, displayName);
+
+        private async Task<(HttpClient Client, long UserId)> CreateUserAndLoginAsync(string roleName, WebApplicationFactory<Program> factory, string? displayName = null)
         {
             var userName = $"r3s1-{Guid.NewGuid():N}";
 
-            using (var scope = _factory.Services.CreateScope())
+            using (var scope = factory.Services.CreateScope())
             {
                 var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
                 var user = new User
@@ -430,7 +538,7 @@ namespace TaskFlow.Tests.Http
                 await context.SaveChangesAsync();
             }
 
-            var client = _factory.CreateClient();
+            var client = factory.CreateClient();
             var deviceGuid = Guid.NewGuid();
             var loginResponse = await client.PostAsJsonAsync("api/v1/auth/login", new { deviceGuid, username = userName, password = TestPassword });
             var loginBody = await loginResponse.Content.ReadFromJsonAsync<ResultRes<LoginRes>>();
@@ -439,7 +547,7 @@ namespace TaskFlow.Tests.Http
 
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", loginBody!.Result!.Token);
 
-            using (var scope = _factory.Services.CreateScope())
+            using (var scope = factory.Services.CreateScope())
             {
                 var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
                 var user = await userManager.FindByNameAsync(userName);
