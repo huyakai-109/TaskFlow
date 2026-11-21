@@ -76,6 +76,16 @@ const ERROR_MESSAGES: Record<string, string> = {
   'Notification.MarkRead.Exception': 'Could not mark this notification as read.',
   'Notification.MarkAllRead.Exception': 'Could not mark your notifications as read. Try again in a moment.',
   [FORBIDDEN_SENTINEL]: "You don't have permission to change this. Your session is refreshing — try again in a moment.",
+  // f08-accounts-profile.md "Auth changes": `POST /auth/password/change-required`
+  // folds a wrong current password, a deactivated account, a MustChangePassword
+  // mismatch *and* the Identity lockout check into this one code — there is
+  // no distinct lockout signal on this endpoint (verified in
+  // `AuthService.ChangeRequiredPassword`, confirmed not a client gap). Shown
+  // generically, on purpose: a more specific message would let someone probe
+  // whether a username exists or is currently locked out.
+  'Auth.ChangeRequired.InvalidCredential': 'That username or current password is incorrect.',
+  'Auth.ChangeRequired.PolicyViolation': 'Check the highlighted fields.',
+  'Auth.ChangeRequired.Exception': 'The password could not be changed. Try again in a moment.',
 }
 
 const GENERIC_FALLBACK = 'Something went wrong. Try again.'

@@ -6,7 +6,10 @@ import { ApiError } from '../../api/client'
 import { describeLoginError, LOGIN_INVALID_CREDENTIAL, LOGIN_WILL_LOCK_OUT } from '../../api/errorMessages'
 import { useAuthSession } from '../../shared/hooks/useAuthSession'
 
+import { ChangeRequiredPasswordForm } from './components/ChangeRequiredPasswordForm'
 import { useLoginMutation } from './hooks/useLoginMutation'
+
+const PASSWORD_CHANGE_REQUIRED = 'Auth.Login.PasswordChangeRequired'
 
 // Field/label/button classes copied from `NewTaskDialog.tsx`, the closest
 // existing form (docs/features/f01-login.md "UI" — no wireframe exists yet).
@@ -31,6 +34,12 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [serverError, setServerError] = useState<string | null>(null)
   const [errorTone, setErrorTone] = useState<'danger' | 'warning'>('danger')
+  // Set only for the span between `Auth.Login.PasswordChangeRequired` and
+  // either cancelling or a successful change — `currentPassword` here is the
+  // same value `password` held when the login attempt failed, carried across
+  // just long enough for `ChangeRequiredPasswordForm`'s one request, then
+  // cleared (never logged, never persisted).
+  const [changeRequired, setChangeRequired] = useState<{ username: string; currentPassword: string } | null>(null)
 
   const mutation = useLoginMutation()
 
@@ -50,6 +59,12 @@ export function LoginPage() {
       { username, password },
       {
         onError: (error) => {
+          if (error instanceof ApiError && error.errorCode === PASSWORD_CHANGE_REQUIRED) {
+            setChangeRequired({ username, currentPassword: password })
+            setPassword('')
+            return
+          }
+
           const rawError = error instanceof ApiError ? error.message : null
 
           setServerError(describeLoginError(rawError))
@@ -62,6 +77,35 @@ export function LoginPage() {
           }
         },
       },
+    )
+  }
+
+  if (changeRequired !== null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg px-[var(--space-4)]">
+        <ChangeRequiredPasswordForm
+          username={changeRequired.username}
+          currentPassword={changeRequired.currentPassword}
+          onCancel={() => setChangeRequired(null)}
+          onChanged={(newPassword) => {
+            // The server issues no token from the change-required call
+            // itself — log in again with the password just set, then forget
+            // it immediately either way (success moves on via `authSession`;
+            // a failure here is unexpected enough to just fall back to the
+            // plain sign-in form rather than loop on this screen).
+            setChangeRequired(null)
+            mutation.mutate(
+              { username: changeRequired.username, password: newPassword },
+              {
+                onError: () => {
+                  setServerError('Your password was changed. Sign in with it below.')
+                  setErrorTone('warning')
+                },
+              },
+            )
+          }}
+        />
+      </div>
     )
   }
 

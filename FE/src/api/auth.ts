@@ -34,3 +34,25 @@ export async function login(input: LoginInput): Promise<LoginResult> {
 
   return { permissions: envelope.result.permissions }
 }
+
+/** Body of `POST /auth/password/change-required` (`ChangeRequiredPasswordReq`). */
+export interface ChangeRequiredPasswordInput {
+  username: string
+  currentPassword: string
+  newPassword: string
+}
+
+/**
+ * `POST /auth/password/change-required` (`docs/features/f08-accounts-profile.md`
+ * "Auth changes") — `[AllowAnonymous]`, lockout-protected. Succeeds only when
+ * the password is right **and** the account's `MustChangePassword` flag is
+ * set; clears the flag. Issues no token itself — the caller logs in again
+ * with the new password afterwards, same two-step flow the server specifies.
+ * Never logs or stores any of the three fields beyond this one call.
+ */
+export async function changeRequiredPassword(input: ChangeRequiredPasswordInput): Promise<void> {
+  await request('/auth/password/change-required', {
+    method: 'POST',
+    body: { userName: input.username, currentPassword: input.currentPassword, newPassword: input.newPassword },
+  })
+}
