@@ -6,6 +6,7 @@ import { NavLink } from 'react-router-dom'
 import { Avatar } from '../shared/components/Avatar'
 import { useAuthSession } from '../shared/hooks/useAuthSession'
 import { useDialogA11y } from '../shared/hooks/useDialogA11y'
+import { useHasPermission } from '../shared/hooks/useHasPermission'
 import { useOverdueTasksQuery } from '../shared/hooks/useOverdueTasksQuery'
 import { useUsersQuery } from '../shared/hooks/useUsersQuery'
 import { useLogout } from '../shared/hooks/useLogout'
@@ -34,6 +35,16 @@ function TeamCapacityIcon() {
       <circle cx="5.5" cy="5" r="2" />
       <circle cx="11" cy="6" r="1.6" />
       <path d="M1.5 13c0-2.5 1.8-3.8 4-3.8s4 1.3 4 3.8M9.8 9.6c1.7.1 3.2 1.3 3.2 3.4" />
+    </svg>
+  )
+}
+
+function AccountsIcon() {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="6" cy="5" r="2" />
+      <path d="M1.5 13.5c0-2.5 1.8-4 4.5-4s4.5 1.5 4.5 4" />
+      <path d="M11 3.5v3M9.5 5h3" />
     </svg>
   )
 }
@@ -133,6 +144,12 @@ function SidebarNav({ collapsed, onNavigate }: SidebarNavProps) {
   const { userId } = useAuthSession()
   const overdueTasksQuery = useOverdueTasksQuery()
   const usersQuery = useUsersQuery()
+  // Item 5 (Account administration): fully hidden from the sidebar for
+  // anyone without `ManageUsers` — gated on the permission embedded in the
+  // token (`useHasPermission`), never a role-name string. Presentation
+  // only; `RequirePermission` (router) and the server's own policy are the
+  // real boundary.
+  const canManageUsers = useHasPermission('ManageUsers')
 
   const overdueCount = overdueTasksQuery.data?.pages.at(-1)?.pagination?.totalItems ?? 0
   const currentUser = usersQuery.data?.find((user) => user.id === userId) ?? null
@@ -155,6 +172,13 @@ function SidebarNav({ collapsed, onNavigate }: SidebarNavProps) {
           {!collapsed && 'Team capacity'}
           {collapsed && <CollapsedTooltip>Team capacity</CollapsedTooltip>}
         </NavLink>
+        {canManageUsers && (
+          <NavLink to="/accounts" className={navLinkClass(collapsed)} onClick={onNavigate}>
+            <AccountsIcon />
+            {!collapsed && 'Accounts'}
+            {collapsed && <CollapsedTooltip>Accounts</CollapsedTooltip>}
+          </NavLink>
+        )}
       </nav>
 
       <div className="flex flex-col gap-[2px]">

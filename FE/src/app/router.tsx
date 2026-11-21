@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 
 import { AppLayout } from './AppLayout'
 import { RequireAuth } from './RequireAuth'
+import { RequirePermission } from './RequirePermission'
+import { AccountsPage } from '../features/accounts/AccountsPage'
 import { BoardPage } from '../features/board/BoardPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { MyTasksPage } from '../features/my-tasks/MyTasksPage'
@@ -31,6 +33,14 @@ export const router = createBrowserRouter([
           { path: 'overdue', element: <OverdueListPage /> },
           { path: 'team-capacity', element: <TeamCapacityPage /> },
           { path: 'profile', element: <ProfilePage /> },
+          {
+            path: 'accounts',
+            element: (
+              <RequirePermission permission="ManageUsers">
+                <AccountsPage />
+              </RequirePermission>
+            ),
+          },
           { path: 'tasks/:id', element: <TaskDetailPage /> },
           { path: '*', element: <NotFoundPage /> },
         ],
