@@ -1,5 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 using TaskFlow.Api.Configurations;
+using TaskFlow.Api.Hubs;
+using TaskFlow.Api.Presence;
 using TaskFlow.Common.Constants;
 using Serilog;
 
@@ -76,8 +78,26 @@ builder.Services.AddAutoMapper(cfg =>
     cfg.LicenseKey = config["LuckyPennyLicense"];
 });
 
+// f07-presence.md "Server design": in-memory singletons - a single API
+// instance this round (C1 deferred), no Redis backplane.
+builder.Services.AddSingleton<IPresenceTracker, PresenceTracker>();
+builder.Services.AddSingleton<IConnectionRateLimiter, ConnectionRateLimiter>();
+
+builder.Services.AddSignalR(options =>
+{
+    // f07-presence.md "Server design": killed-tab detection within ~30s.
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+    options.MaximumReceiveMessageSize = 4 * 1024;
+}).AddJsonProtocol(options =>
+{
+    options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+
 builder.Host.UseSerilog((ctx, lc) => lc
-    .ReadFrom.Configuration(ctx.Configuration));
+    .ReadFrom.Configuration(ctx.Configuration)
+    .Enrich.With<TaskFlow.Api.Logging.AccessTokenRedactionEnricher>());
 
 var app = builder.Build();
 
@@ -95,6 +115,15 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// f07-presence.md "Authentication": CloseOnAuthenticationExpiration closes
+// the connection when the 15-min access token expires rather than trusting
+// it until the client notices; the client's accessTokenFactory reconnects
+// with a fresh one (ADR 0004).
+app.MapHub<PresenceHub>("/hubs/presence", options =>
+{
+    options.CloseOnAuthenticationExpiration = true;
+});
 
 app.UseMetricExporters();
 

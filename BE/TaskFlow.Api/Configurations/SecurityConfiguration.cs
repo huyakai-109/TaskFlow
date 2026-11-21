@@ -36,6 +36,27 @@ namespace TaskFlow.Api.Configurations
                         ValidIssuer = configuration.GetSection(ConfigKeys.Security.Jwt.Issuer).Get<string>(),
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration[ConfigKeys.Security.Jwt.Secret]!)),
                     };
+
+                    // f07-presence.md "Authentication" / ADR 0004 condition 2:
+                    // browsers cannot set headers on a WebSocket upgrade, so
+                    // the token travels as ?access_token= - but only on hub
+                    // paths. Every ordinary HTTP route keeps requiring the
+                    // Authorization header only; this never relaxes that.
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnMessageReceived = context =>
+                        {
+                            var accessToken = context.Request.Query["access_token"];
+                            var path = context.HttpContext.Request.Path;
+
+                            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                            {
+                                context.Token = accessToken;
+                            }
+
+                            return Task.CompletedTask;
+                        },
+                    };
                 });
 
             collection.AddAuthorization(options =>

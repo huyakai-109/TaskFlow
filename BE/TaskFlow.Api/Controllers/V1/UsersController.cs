@@ -3,6 +3,7 @@ using AutoMapper;
 using TaskFlow.Api.Models.Requests.Users;
 using TaskFlow.Api.Models.Responses.Base;
 using TaskFlow.Api.Models.Responses.Users;
+using TaskFlow.Api.Presence;
 using TaskFlow.BusinessLogic.Services;
 using TaskFlow.BusinessLogic.Storage;
 using TaskFlow.Common.Constants;
@@ -20,7 +21,8 @@ namespace TaskFlow.Api.Controllers.V1
         ILogger<UsersController> logger,
         IMapper mapper,
         IUserService userService,
-        IStorageService storageService) : BaseController(logger, mapper)
+        IStorageService storageService,
+        IPresenceTracker presenceTracker) : BaseController(logger, mapper)
     {
         [HttpGet]
         [Route("")]
@@ -183,6 +185,13 @@ namespace TaskFlow.Api.Controllers.V1
                     response.ErrorCode = errorCode;
                     return BadRequest(response);
                 }
+
+                // f08-accounts-profile.md "Quick revocation on deactivation" /
+                // f07-presence.md AC9: the presence tracker aborts every live
+                // connection for this user in the same request - near-
+                // immediate, not bounded by the access token's own ≤15 min
+                // expiry. A no-op if the user has no open hub connection.
+                presenceTracker.AbortUserConnections(id);
 
                 response.Success = true;
                 response.Result = Mapper.Map<UserAdminRes>(user);
