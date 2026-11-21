@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { describeError } from '../../../api/errorMessages'
+import { Avatar } from '../../../shared/components/Avatar'
 import { MoveToast } from '../../../shared/components/MoveToast'
+import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
 import { useMarkAllNotificationsReadMutation } from '../hooks/useMarkAllNotificationsReadMutation'
 import { useMarkNotificationReadMutation } from '../hooks/useMarkNotificationReadMutation'
 import { useNotificationsQuery } from '../hooks/useNotificationsQuery'
@@ -64,6 +66,7 @@ export function NotificationBell() {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const notificationsQuery = useNotificationsQuery()
   const unreadCountQuery = useUnreadNotificationCountQuery()
+  const usersQuery = useUsersQuery()
   const markReadMutation = useMarkNotificationReadMutation({
     onRefused: (error) => setToastMessage(describeError(error)),
   })
@@ -240,13 +243,27 @@ export function NotificationBell() {
                   key={notification.id}
                   className="flex items-start gap-[var(--space-2)] rounded-md px-[var(--space-3)] py-[var(--space-2)] hover:bg-column"
                 >
-                  <span
-                    aria-hidden="true"
-                    className={clsx(
-                      'mt-[6px] size-2 shrink-0 rounded-pill',
-                      notification.isRead ? 'bg-transparent' : 'bg-accent',
+                  <span className="relative shrink-0">
+                    {notification.actor !== null ? (
+                      <Avatar
+                        userId={notification.actor.id}
+                        name={usersQuery.data?.find((user) => user.id === notification.actor!.id)?.displayName ?? notification.actor.userName}
+                        avatarUrl={usersQuery.data?.find((user) => user.id === notification.actor!.id)?.avatarUrl ?? null}
+                        size={24}
+                      />
+                    ) : (
+                      <span className="flex size-6 items-center justify-center rounded-pill bg-column text-[9px] font-semibold text-text-muted" aria-hidden="true">
+                        ?
+                      </span>
                     )}
-                  />
+                    {!notification.isRead && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute -top-px -right-px size-2 rounded-pill bg-accent"
+                        style={{ boxShadow: '0 0 0 2px var(--color-surface-raised)' }}
+                      />
+                    )}
+                  </span>
                   {/*
                    * Title and time stacked, not side by side (feedback this
                    * task): inline, a long title wrapping to a second line
@@ -277,7 +294,8 @@ export function NotificationBell() {
                       }}
                     >
                       &ldquo;{notification.task.title}&rdquo; was sent back for rework
-                      {notification.actor !== null && ` by ${notification.actor.userName}`}
+                      {notification.actor !== null &&
+                        ` by ${usersQuery.data?.find((user) => user.id === notification.actor!.id)?.displayName ?? notification.actor.userName}`}
                     </Link>
                     <time dateTime={notification.createdAt} className="text-[length:var(--font-size-2xs)] text-text-muted">
                       {formatRelativeTime(notification.createdAt)}

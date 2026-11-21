@@ -3,11 +3,11 @@ import { useRef } from 'react'
 
 import type { TaskStatus } from '../../../api/types'
 import { describeErrorCode } from '../../../api/errorMessages'
+import { Avatar } from '../../../shared/components/Avatar'
 import { useAuthSession } from '../../../shared/hooks/useAuthSession'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 import { IN_PROGRESS_LIMIT, useTeamCapacity } from '../../../shared/hooks/useTeamCapacity'
 import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
-import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
 
 interface AssigneePickerDialogProps {
   currentAssigneeId: number | null
@@ -166,17 +166,8 @@ export function AssigneePickerDialog({
                   disabled={isPending}
                   onClick={() => onSelect(assignee.id)}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold"
-                    style={{
-                      backgroundColor: `var(--avatar-${avatarPaletteIndex(assignee.id)}-bg)`,
-                      color: `var(--avatar-${avatarPaletteIndex(assignee.id)}-ink)`,
-                    }}
-                  >
-                    {initialsOf(assignee.userName)}
-                  </span>
-                  {assignee.userName}
+                  <Avatar userId={assignee.id} name={assignee.displayName ?? assignee.userName} avatarUrl={assignee.avatarUrl} size={22} />
+                  {assignee.displayName ?? assignee.userName}
                 </button>
               </li>
             ))}
@@ -193,17 +184,8 @@ export function AssigneePickerDialog({
                   disabled={isPending}
                   onClick={() => onSelect(user.id)}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold"
-                    style={{
-                      backgroundColor: `var(--avatar-${avatarPaletteIndex(user.id)}-bg)`,
-                      color: `var(--avatar-${avatarPaletteIndex(user.id)}-ink)`,
-                    }}
-                  >
-                    {initialsOf(user.userName)}
-                  </span>
-                  {user.userName}
+                  <Avatar userId={user.id} name={user.displayName ?? user.userName} avatarUrl={user.avatarUrl} size={22} />
+                  {user.displayName ?? user.userName}
                   <span className="ml-auto text-[length:var(--font-size-xs)] text-text-muted">
                     {inProgressCount}/{IN_PROGRESS_LIMIT}
                   </span>
@@ -221,17 +203,10 @@ export function AssigneePickerDialog({
               {atCapacity.map(({ user }) => (
                 <li key={user.id} role="option" aria-selected="false" aria-disabled="true">
                   <button type="button" className={clsx(optionClass, 'gap-[var(--space-2)] opacity-60')} disabled>
-                    <span
-                      aria-hidden="true"
-                      className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold opacity-60"
-                      style={{
-                        backgroundColor: `var(--avatar-${avatarPaletteIndex(user.id)}-bg)`,
-                        color: `var(--avatar-${avatarPaletteIndex(user.id)}-ink)`,
-                      }}
-                    >
-                      {initialsOf(user.userName)}
+                    <span className="opacity-60">
+                      <Avatar userId={user.id} name={user.displayName ?? user.userName} avatarUrl={user.avatarUrl} size={22} />
                     </span>
-                    {user.userName} · can&rsquo;t take more active work
+                    {user.displayName ?? user.userName} · can&rsquo;t take more active work
                     <span className="ml-auto text-[length:var(--font-size-xs)] font-semibold text-danger">Full</span>
                   </button>
                 </li>

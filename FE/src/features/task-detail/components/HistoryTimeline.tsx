@@ -1,5 +1,6 @@
 import type { TaskHistoryEntry } from '../../../api/types'
-import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
+import { Avatar } from '../../../shared/components/Avatar'
+import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
 
 const timestampFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
@@ -39,6 +40,8 @@ function splitActorFromMessage(message: string, actorLabel: string): [string, st
  * gets its own icon, not an avatar (`docs/design/SPEC.md`).
  */
 export function HistoryTimeline({ entries }: HistoryTimelineProps) {
+  const usersQuery = useUsersQuery()
+
   if (entries.length === 0) {
     return <p className="text-[length:var(--font-size-sm)] text-text-muted">No activity yet.</p>
   }
@@ -48,6 +51,7 @@ export function HistoryTimeline({ entries }: HistoryTimelineProps) {
       {entries.map((entry) => {
         const actorLabel = entry.actorUserId === null ? 'System' : (entry.actorName ?? '?')
         const [actorPart, restPart] = splitActorFromMessage(entry.message, actorLabel)
+        const roster = entry.actorUserId === null ? null : usersQuery.data?.find((user) => user.id === entry.actorUserId)
 
         return (
           <li
@@ -62,16 +66,12 @@ export function HistoryTimeline({ entries }: HistoryTimelineProps) {
                 <SystemIcon />
               </span>
             ) : (
-              <span
-                aria-hidden="true"
-                className="inline-flex size-5 shrink-0 items-center justify-center rounded-pill text-[9px] font-semibold"
-                style={{
-                  backgroundColor: `var(--avatar-${avatarPaletteIndex(entry.actorUserId)}-bg)`,
-                  color: `var(--avatar-${avatarPaletteIndex(entry.actorUserId)}-ink)`,
-                }}
-              >
-                {initialsOf(entry.actorName ?? '?')}
-              </span>
+              <Avatar
+                userId={entry.actorUserId}
+                name={roster?.displayName ?? entry.actorName ?? '?'}
+                avatarUrl={roster?.avatarUrl ?? null}
+                size={20}
+              />
             )}
             <span className="grow">
               {actorPart !== '' && <strong className="font-semibold">{actorPart}</strong>}

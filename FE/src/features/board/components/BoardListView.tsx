@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom'
 
 import { BOARD_COLUMNS } from '../../../api/types'
 import type { PaginationRes, TaskStatus, TaskSummary } from '../../../api/types'
+import { Avatar } from '../../../shared/components/Avatar'
 import { DueChip, OverdueChip } from '../../../shared/components/DueDateChips'
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
-import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
+import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
 const cellClass = 'px-[var(--space-3)] py-[var(--space-2)] text-left align-middle'
@@ -32,6 +33,7 @@ interface BoardListViewProps {
  * itself would show via its own "Show more".
  */
 export function BoardListView({ itemsByStatus, paginationByStatus, onLoadMore, isLoadingMore }: BoardListViewProps) {
+  const usersQuery = useUsersQuery()
   const allEmpty = BOARD_COLUMNS.every((status) => itemsByStatus[status].length === 0)
 
   if (allEmpty) {
@@ -94,17 +96,13 @@ export function BoardListView({ itemsByStatus, paginationByStatus, onLoadMore, i
                 <td className={cellClass}>
                   {task.assignee !== null ? (
                     <span className="inline-flex items-center gap-[var(--space-2)]">
-                      <span
-                        className="inline-flex size-5 shrink-0 items-center justify-center rounded-pill text-[9px] font-semibold"
-                        aria-label={`Assigned to ${task.assignee.userName}`}
-                        style={{
-                          backgroundColor: `var(--avatar-${avatarPaletteIndex(task.assignee.id)}-bg)`,
-                          color: `var(--avatar-${avatarPaletteIndex(task.assignee.id)}-ink)`,
-                        }}
-                      >
-                        {initialsOf(task.assignee.userName)}
-                      </span>
-                      {task.assignee.userName}
+                      <Avatar
+                        userId={task.assignee.id}
+                        name={usersQuery.data?.find((user) => user.id === task.assignee!.id)?.displayName ?? task.assignee.userName}
+                        avatarUrl={usersQuery.data?.find((user) => user.id === task.assignee!.id)?.avatarUrl ?? null}
+                        size={20}
+                      />
+                      {usersQuery.data?.find((user) => user.id === task.assignee!.id)?.displayName ?? task.assignee.userName}
                     </span>
                   ) : (
                     <span className="text-text-muted">Unassigned</span>

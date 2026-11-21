@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom'
 
 import { describeError } from '../../api/errorMessages'
 import { ComingSoon } from '../../shared/components/ComingSoon'
-import { avatarPaletteIndex, initialsOf } from '../../shared/lib/avatar'
+import { Avatar } from '../../shared/components/Avatar'
 import { PriorityIcon } from '../../shared/components/PriorityIcon'
 import { useComingSoon } from '../../shared/hooks/useComingSoon'
+import { useUsersQuery } from '../../shared/hooks/useUsersQuery'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 import { daysLate, dueDateFormatter, isToday, parseDueDate } from '../../shared/lib/dueDate'
 import { useOverdueTasksQuery } from '../../shared/hooks/useOverdueTasksQuery'
@@ -39,6 +40,7 @@ const cellClass = 'px-[var(--space-3)] py-[var(--space-3)] text-left align-middl
  * as-is, never re-sorted client-side.
  */
 export function OverdueListPage() {
+  const usersQuery = useUsersQuery()
   const query = useOverdueTasksQuery()
   const pages = query.data?.pages ?? []
   const items = pages.flatMap((page) => page.result ?? [])
@@ -175,17 +177,13 @@ export function OverdueListPage() {
                     <td className={cellClass}>
                       {task.assignee !== null ? (
                         <span className="inline-flex items-center gap-[var(--space-2)]">
-                          <span
-                            className="inline-flex size-5 shrink-0 items-center justify-center rounded-pill text-[9px] font-semibold"
-                            aria-label={`Assigned to ${task.assignee.userName}`}
-                            style={{
-                              backgroundColor: `var(--avatar-${avatarPaletteIndex(task.assignee.id)}-bg)`,
-                              color: `var(--avatar-${avatarPaletteIndex(task.assignee.id)}-ink)`,
-                            }}
-                          >
-                            {initialsOf(task.assignee.userName)}
-                          </span>
-                          {task.assignee.userName}
+                          <Avatar
+                            userId={task.assignee.id}
+                            name={usersQuery.data?.find((user) => user.id === task.assignee!.id)?.displayName ?? task.assignee.userName}
+                            avatarUrl={usersQuery.data?.find((user) => user.id === task.assignee!.id)?.avatarUrl ?? null}
+                            size={20}
+                          />
+                          {usersQuery.data?.find((user) => user.id === task.assignee!.id)?.displayName ?? task.assignee.userName}
                         </span>
                       ) : (
                         <span className="text-text-muted">Unassigned</span>
@@ -268,7 +266,19 @@ export function OverdueListPage() {
                     </td>
                     <td className={cellClass}>Due today, {task.dueDate !== null ? formatDueDate(task.dueDate) : ''}</td>
                     <td className={cellClass}>
-                      {task.assignee !== null ? task.assignee.userName : <span className="text-text-muted">Unassigned</span>}
+                      {task.assignee !== null ? (
+                        <span className="inline-flex items-center gap-[var(--space-2)]">
+                          <Avatar
+                            userId={task.assignee.id}
+                            name={usersQuery.data?.find((user) => user.id === task.assignee!.id)?.displayName ?? task.assignee.userName}
+                            avatarUrl={usersQuery.data?.find((user) => user.id === task.assignee!.id)?.avatarUrl ?? null}
+                            size={20}
+                          />
+                          {usersQuery.data?.find((user) => user.id === task.assignee!.id)?.displayName ?? task.assignee.userName}
+                        </span>
+                      ) : (
+                        <span className="text-text-muted">Unassigned</span>
+                      )}
                     </td>
                   </tr>
                 ))}

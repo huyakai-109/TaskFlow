@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 
 import { describeError, describeErrorCode } from '../../api/errorMessages'
 import type { TaskStatus, TaskSummary } from '../../api/types'
+import { Avatar } from '../../shared/components/Avatar'
 import { CardMoveAction } from '../../shared/components/CardMoveAction'
 import { ComingSoon } from '../../shared/components/ComingSoon'
 import { chipBase, DueChip, OverdueChip } from '../../shared/components/DueDateChips'
@@ -13,7 +14,6 @@ import { useBoardQuery } from '../../shared/hooks/useBoardQuery'
 import { useComingSoon } from '../../shared/hooks/useComingSoon'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
 import { useUsersQuery } from '../../shared/hooks/useUsersQuery'
-import { avatarPaletteIndex, initialsOf } from '../../shared/lib/avatar'
 import { moveButtonLabel } from '../../shared/lib/moveButtonLabel'
 
 /** "Good morning"/"afternoon"/"evening" by the viewer's local clock — decorative copy only, not a server fact. */
@@ -43,20 +43,20 @@ function TaskRow({ task, primary = false, disabledReason, assigneeLine, statusCh
   // `shared/components/` for this second use) instead of a second popover.
   const moves = task.allowedTransitions.filter((t) => t.operation === 'Move')
   const disabled = disabledReason !== undefined
+  const usersQuery = useUsersQuery()
+  const assigneeRoster = task.assignee === null ? null : (usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? null)
 
   return (
     <div className="group flex flex-wrap items-center gap-[var(--space-3)] rounded-card-lg border border-border bg-surface p-[var(--space-3)]">
       <PriorityIcon priority={task.priority} />
       {task.assignee !== null && (
-        <span
-          aria-label={`Assigned to ${task.assignee.userName}`}
-          className="inline-flex size-5 shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold"
-          style={{
-            backgroundColor: `var(--avatar-${avatarPaletteIndex(task.assignee.id)}-bg)`,
-            color: `var(--avatar-${avatarPaletteIndex(task.assignee.id)}-ink)`,
-          }}
-        >
-          {initialsOf(task.assignee.userName)}
+        <span aria-label={`Assigned to ${assigneeRoster?.displayName ?? task.assignee.userName}`}>
+          <Avatar
+            userId={task.assignee.id}
+            name={assigneeRoster?.displayName ?? task.assignee.userName}
+            avatarUrl={assigneeRoster?.avatarUrl ?? null}
+            size={20}
+          />
         </span>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
@@ -198,7 +198,7 @@ export function MyTasksPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] rounded-xl border border-border bg-surface p-[var(--space-4)] shadow-card">
         <p className="m-0 text-[length:var(--font-size-greeting)] font-semibold">
-          Good {greetingWord()}{me !== null ? `, ${me.userName}` : ''}
+          Good {greetingWord()}{me !== null ? `, ${me.displayName ?? me.userName}` : ''}
         </p>
         <div className="flex items-center gap-[var(--space-2)]">
           <div className="flex gap-[2px]" aria-hidden="true">
@@ -307,7 +307,11 @@ export function MyTasksPage() {
                 <TaskRow
                   key={task.id}
                   task={task}
-                  assigneeLine={task.assignee !== null ? `Assigned to ${task.assignee.userName}` : 'Unassigned'}
+                  assigneeLine={
+                    task.assignee !== null
+                      ? `Assigned to ${usersQuery.data?.find((user) => user.id === task.assignee!.id)?.displayName ?? task.assignee.userName}`
+                      : 'Unassigned'
+                  }
                   onMove={handleMove}
                 />
               ))}

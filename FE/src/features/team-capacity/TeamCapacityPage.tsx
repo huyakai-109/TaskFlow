@@ -1,8 +1,8 @@
 import { ComingSoon } from '../../shared/components/ComingSoon'
+import { Avatar } from '../../shared/components/Avatar'
 import { useComingSoon } from '../../shared/hooks/useComingSoon'
 import { Link } from 'react-router-dom'
 
-import { avatarPaletteIndex, initialsOf } from '../../shared/lib/avatar'
 import { IN_PROGRESS_LIMIT, useTeamCapacity } from '../../shared/hooks/useTeamCapacity'
 
 /**
@@ -90,17 +90,9 @@ export function TeamCapacityPage() {
                     : 'flex min-h-[72px] min-w-0 items-center gap-[var(--space-3)] rounded-card-lg border border-border bg-surface p-[var(--space-3)]'
                 }
               >
-                <span
-                  className="flex size-[32px] shrink-0 items-center justify-center rounded-pill text-[12px] font-semibold"
-                  style={{
-                    backgroundColor: `var(--avatar-${avatarPaletteIndex(user.id)}-bg)`,
-                    color: `var(--avatar-${avatarPaletteIndex(user.id)}-ink)`,
-                  }}
-                >
-                  {initialsOf(user.userName)}
-                </span>
+                <Avatar userId={user.id} name={user.displayName ?? user.userName} avatarUrl={user.avatarUrl} size={32} />
                 <span className="flex min-w-0 flex-1 flex-col gap-[var(--space-1)]">
-                  <span className="truncate text-[length:var(--font-size-base)] font-medium">{user.userName}</span>
+                  <span className="truncate text-[length:var(--font-size-base)] font-medium">{user.displayName ?? user.userName}</span>
                   <span className="flex items-center gap-[3px]" aria-hidden="true">
                     {Array.from({ length: IN_PROGRESS_LIMIT }).map((_, i) => (
                       <span
