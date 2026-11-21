@@ -347,6 +347,28 @@ namespace TaskFlow.DataAccess.Migrations
                         },
                         new
                         {
+                            Id = 16,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "ViewReports",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 1L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 17,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "ExportReports",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 1L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
                             Id = 1001,
                             ClaimType = "RolePolicy",
                             ClaimValue = "ViewMembers",
@@ -493,6 +515,28 @@ namespace TaskFlow.DataAccess.Migrations
                             Id = 1014,
                             ClaimType = "RolePolicy",
                             ClaimValue = "AssignAnyone",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 3L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 1015,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "ViewReports",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 3L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 1016,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "ExportReports",
                             CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
                             CreatedBy = 1L,
                             RoleId = 3L,

@@ -19,6 +19,8 @@
             Tasks.PlanTasks,
             Tasks.AssignAnyone,
             Users.ManageUsers,
+            Reports.ViewReports,
+            Reports.ExportReports,
         ];
 
         /// <summary>
@@ -36,6 +38,14 @@
         public struct Reports
         {
             public const string ManageReports = "ManageReports";
+
+            // f09-reports.md R1/ADR 0008 decision 4: the scorecard/drill-down
+            // endpoints use ViewTasks (+ the service's own SelfOnly check);
+            // these two gate the team-scope and export operations. Seeded
+            // for Admin/Manager only (AddReportPermissions) - ManageReports
+            // stays dead, like Manager's unused Members.* claims (B8).
+            public const string ViewReports = "ViewReports";
+            public const string ExportReports = "ExportReports";
         }
 
         public struct Tasks

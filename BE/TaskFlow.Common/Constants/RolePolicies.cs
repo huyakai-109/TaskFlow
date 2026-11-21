@@ -27,6 +27,11 @@
                 Permissions.Tasks.PlanTasks,
                 Permissions.Tasks.AssignAnyone,
                 Permissions.Users.ManageUsers,
+
+                // f09-reports.md "Data model / migration" AddReportPermissions:
+                // appended at the end (seed ids are positional) -> 16, 17.
+                Permissions.Reports.ViewReports,
+                Permissions.Reports.ExportReports,
             ];
         }
 
@@ -52,6 +57,10 @@
                 Permissions.Tasks.ReopenTasks,
                 Permissions.Tasks.PlanTasks,
                 Permissions.Tasks.AssignAnyone,
+
+                // Appended at the end -> 1015, 1016.
+                Permissions.Reports.ViewReports,
+                Permissions.Reports.ExportReports,
             ];
         }
 

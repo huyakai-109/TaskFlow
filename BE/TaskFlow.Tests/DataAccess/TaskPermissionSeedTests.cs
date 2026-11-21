@@ -34,6 +34,46 @@ namespace TaskFlow.Tests.DataAccess
             await AssertTasksPermissions(RolePolicies.ClaimType, "Member", expectedCount: 5, expectManagerOnly: false);
         }
 
+        // f09-reports.md AC20 / AddReportPermissions: ViewReports/
+        // ExportReports seeded for Admin (16, 17) and Manager (1015, 1016),
+        // appended at the end of each role's AllowedPermissions - never for
+        // Member. ManageReports (legacy, dead for every role) is untouched.
+        [Theory]
+        [InlineData("Admin", 16, 17)]
+        [InlineData("Manager", 1015, 1016)]
+        public async Task RoleClaims_SeedsViewAndExportReports_ForAdminAndManager(string roleName, long viewReportsId, long exportReportsId)
+        {
+            await using var context = _fixture.CreateContext();
+
+            var role = await context.Set<Role>().SingleAsync(r => r.Name == roleName);
+
+            var viewReports = await context.Set<RoleClaim>().SingleAsync(c => c.Id == viewReportsId);
+            var exportReports = await context.Set<RoleClaim>().SingleAsync(c => c.Id == exportReportsId);
+
+            Assert.Equal(role.Id, viewReports.RoleId);
+            Assert.Equal(RolePolicies.ClaimType, viewReports.ClaimType);
+            Assert.Equal(Permissions.Reports.ViewReports, viewReports.ClaimValue);
+
+            Assert.Equal(role.Id, exportReports.RoleId);
+            Assert.Equal(RolePolicies.ClaimType, exportReports.ClaimType);
+            Assert.Equal(Permissions.Reports.ExportReports, exportReports.ClaimValue);
+        }
+
+        [Fact]
+        public async Task RoleClaims_Member_HasNeitherViewNorExportReports()
+        {
+            await using var context = _fixture.CreateContext();
+
+            var role = await context.Set<Role>().SingleAsync(r => r.Name == "Member");
+
+            var seededClaims = await context.Set<RoleClaim>()
+                .Where(c => c.RoleId == role.Id && c.ClaimType == RolePolicies.ClaimType
+                    && (c.ClaimValue == Permissions.Reports.ViewReports || c.ClaimValue == Permissions.Reports.ExportReports))
+                .ToListAsync();
+
+            Assert.Empty(seededClaims);
+        }
+
         private async Task AssertTasksPermissions(string claimType, string roleName, int expectedCount, bool expectManagerOnly)
         {
             await using var context = _fixture.CreateContext();
