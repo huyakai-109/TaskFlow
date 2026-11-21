@@ -21,7 +21,7 @@ export function TemporaryPasswordDialog({ userName, temporaryPassword, onClose }
   useDialogA11y(closeButtonRef, onClose)
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgb(16_16_24_/_40%)] p-[var(--space-4)]" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-overlay p-[var(--space-4)]" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"

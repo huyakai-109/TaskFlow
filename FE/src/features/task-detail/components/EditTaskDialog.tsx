@@ -78,7 +78,7 @@ export function EditTaskDialog({ task, onClose, onRefused }: EditTaskDialogProps
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-[rgb(16_16_24_/_40%)] px-[var(--space-4)] py-[var(--space-6)]"
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-overlay px-[var(--space-4)] py-[var(--space-6)]"
       onClick={() => !mutation.isPending && onClose()}
     >
       <form

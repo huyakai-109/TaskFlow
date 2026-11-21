@@ -67,7 +67,7 @@ export function ReopenDialog({ taskTitle, isPending, onCancel, onSubmit }: Reope
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgb(16_16_24_/_40%)] p-[var(--space-4)]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-overlay p-[var(--space-4)]"
       onClick={() => !isPending && onCancel()}
     >
       <form
