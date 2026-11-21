@@ -7,6 +7,7 @@ import { LoginPage } from '../features/auth/LoginPage'
 import { MyTasksPage } from '../features/my-tasks/MyTasksPage'
 import { NotFoundPage } from '../features/not-found/NotFoundPage'
 import { OverdueListPage } from '../features/overdue/OverdueListPage'
+import { ProfilePage } from '../features/profile/ProfilePage'
 import { TaskDetailPage } from '../features/task-detail/TaskDetailPage'
 import { TeamCapacityPage } from '../features/team-capacity/TeamCapacityPage'
 
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
           { path: 'my-tasks', element: <MyTasksPage /> },
           { path: 'overdue', element: <OverdueListPage /> },
           { path: 'team-capacity', element: <TeamCapacityPage /> },
+          { path: 'profile', element: <ProfilePage /> },
           { path: 'tasks/:id', element: <TaskDetailPage /> },
           { path: '*', element: <NotFoundPage /> },
         ],

@@ -60,13 +60,52 @@ export interface Assignee {
  * `UserRes` — `GET /users` (`docs/features/f02-capacity.md` T4), the assignee
  * picker's roster. `role` is the role's display name (`UserResDto.Role`), a
  * plain string on the wire, not an enum `JsonStringEnumConverter` controls —
- * unlike `TaskStatus`/`TaskPriority` above.
+ * unlike `TaskStatus`/`TaskPriority` above. `displayName`/`avatarUrl`/
+ * `isActive` are additive (f08-accounts-profile.md "GET /users"); a
+ * deactivated user is still listed (`isActive: false`) so historic names
+ * keep rendering.
  */
 export interface UserListItem {
   id: number
   userName: string
   role: string
+  displayName: string | null
+  avatarUrl: string | null
+  isActive: boolean
 }
+
+/** `MeRes` — `GET /me` (f08-accounts-profile.md "Self API"). */
+export interface Me {
+  id: number
+  userName: string
+  displayName: string | null
+  role: string
+  avatarUrl: string | null
+}
+
+/** `MeSummaryRes` — `GET /me/summary` (f10-read-models-and-sort.md §6). */
+export interface MeSummary {
+  inProgress: number
+  completedThisWeek: number
+  weekStart: string
+  weekEnd: string
+}
+
+/** `UserAdminRes` — admin-only user detail/list rows (f08-accounts-profile.md "Admin API"). */
+export interface UserAdmin {
+  id: number
+  userName: string
+  displayName: string | null
+  role: string
+  isActive: boolean
+  deactivatedAt: string | null
+  mustChangePassword: boolean
+  isLockedOut: boolean
+  createdAt: string
+  avatarUrl: string | null
+}
+
+export type AccountRole = 'Admin' | 'Manager' | 'Member'
 
 /**
  * `AllowedTransitionRes` — one legal next move for *this* caller, with the

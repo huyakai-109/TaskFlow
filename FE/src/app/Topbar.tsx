@@ -28,6 +28,7 @@ function crumbFor(pathname: string): Crumb {
   if (pathname === '/board') return { parent: null, current: 'Board' }
   if (pathname === '/my-tasks') return { parent: null, current: 'My tasks' }
   if (pathname === '/team-capacity') return { parent: null, current: 'Team capacity' }
+  if (pathname === '/profile') return { parent: null, current: 'Profile' }
   if (pathname === '/overdue') return { parent: 'Views', current: 'Overdue' }
   return { parent: null, current: 'TaskFlow' }
 }

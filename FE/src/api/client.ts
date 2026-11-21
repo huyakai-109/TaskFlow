@@ -12,6 +12,19 @@ import type { ExecutionRes, ResultRes } from './types'
 const baseUrl: string = import.meta.env.VITE_API_BASE_URL
 
 /**
+ * The server's own origin (scheme + host + port), with `baseUrl`'s trailing
+ * `/api/v1` (or whatever version segment) stripped off. Needed for the one
+ * case where the server hands back an already-`/api/v{n}`-prefixed absolute
+ * path (`avatarUrl`, `f08-accounts-profile.md` — `AvatarKeyHelper.BuildUrl`)
+ * rather than a bare resource path: fetching it against `baseUrl` would
+ * double the prefix. Also the base for the SignalR hub URL (`f07-presence.md`),
+ * which lives outside `/api/v{n}` entirely.
+ */
+export function getApiOrigin(): string {
+  return baseUrl.replace(/\/api\/v\d+\/?$/, '')
+}
+
+/**
  * The access token is held in memory only: never localStorage, never a URL.
  * A page reload therefore starts unauthenticated and the app asks the refresh
  * endpoint for a new token (see `refreshAccessToken`).
@@ -126,6 +139,94 @@ export async function request<TResponse extends ExecutionRes>(
   if (!response.ok || payload === null || !payload.success) {
     // AC9: the retried call's own second 401 (refresh "succeeded" but the new
     // token is still rejected, or a genuine second 401) also ends the session.
+    if (response.status === 401) {
+      setAccessToken(null)
+      sessionExpiredListener?.()
+    }
+
+    throw new ApiError(response.status, payload, `Request to ${path} failed`)
+  }
+
+  return payload
+}
+
+/**
+ * For a binary resource served by an authenticated `GET` (avatars,
+ * `f08-accounts-profile.md`) — a bare `<img src>` can't carry the bearer
+ * token, so the caller fetches the bytes itself and turns them into a blob
+ * URL (`shared/hooks/useAvatarUrl.ts`). Mirrors `request()`'s one-shot
+ * refresh-then-retry (R3/AC9) but returns the raw `Response` instead of
+ * decoding JSON, and never logs `path` or the token — a caller must not pass
+ * it to an error message either (`coding-standards.md` §5/§6, this feature's
+ * own brief: never log a bearer-token-carrying URL).
+ */
+export async function fetchAuthenticatedBlob(path: string, signal?: AbortSignal, isRetry = false): Promise<Response> {
+  const headers: Record<string, string> = {}
+
+  if (accessToken !== null) {
+    headers.Authorization = `Bearer ${accessToken}`
+  }
+
+  const response = await fetch(`${getApiOrigin()}${path}`, { headers, credentials: 'include', signal })
+
+  if (response.status === 401 && !isRetry && accessToken !== null) {
+    try {
+      await sharedRefresh()
+    } catch {
+      setAccessToken(null)
+      sessionExpiredListener?.()
+      throw new ApiError(response.status, null, 'Request failed')
+    }
+
+    return fetchAuthenticatedBlob(path, signal, true)
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      setAccessToken(null)
+      sessionExpiredListener?.()
+    }
+
+    throw new ApiError(response.status, null, 'Request failed')
+  }
+
+  return response
+}
+
+/**
+ * For a multipart upload (`PUT /me/avatar`) — `request()` always sets
+ * `Content-Type: application/json` when a body is present, which would break
+ * the browser's own multipart boundary header. Same one-shot
+ * refresh-then-retry as `request()` (R3/AC9), JSON envelope on the way back.
+ */
+export async function requestMultipart<TResponse extends ExecutionRes>(
+  path: string,
+  method: 'PUT' | 'POST',
+  formData: FormData,
+  isRetry = false,
+): Promise<TResponse> {
+  const headers: Record<string, string> = { Accept: 'application/json' }
+
+  if (accessToken !== null) {
+    headers.Authorization = `Bearer ${accessToken}`
+  }
+
+  const response = await fetch(`${baseUrl}${path}`, { method, headers, body: formData, credentials: 'include' })
+  const payload = (await response.json().catch(() => null)) as TResponse | null
+
+  if (response.status === 401 && !isRetry && accessToken !== null) {
+    try {
+      await sharedRefresh()
+    } catch {
+      setAccessToken(null)
+      sessionExpiredListener?.()
+      throw new ApiError(response.status, payload, `Request to ${path} failed`)
+    }
+
+    return requestMultipart<TResponse>(path, method, formData, true)
+  }
+
+  if (!response.ok || payload === null || !payload.success) {
     if (response.status === 401) {
       setAccessToken(null)
       sessionExpiredListener?.()

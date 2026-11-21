@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 import type { TaskDetail, TaskPriority } from '../../../api/types'
+import { Avatar } from '../../../shared/components/Avatar'
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { useHasPermission } from '../../../shared/hooks/useHasPermission'
 import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
@@ -82,6 +83,9 @@ export function PropertiesPanel({
 }: PropertiesPanelProps) {
   const usersQuery = useUsersQuery()
   const createdByName = usersQuery.data?.find((user) => user.id === task.createdBy)?.userName ?? null
+  const assigneeId = task.assignee?.id
+  const assigneeRoster = assigneeId === undefined ? null : (usersQuery.data?.find((user) => user.id === assigneeId) ?? null)
+  const assigneeDisplayName = assigneeRoster?.displayName ?? task.assignee?.userName ?? null
   const canPlan = useHasPermission('PlanTasks')
   // Revision R2 (D12, A3): the assignee is locked while Review/Done for
   // every role — the picker is never opened for those statuses rather than
@@ -129,13 +133,16 @@ export function PropertiesPanel({
       )}
 
       <PropertyRow label="Assignee">
+        {task.assignee !== null && (
+          <Avatar userId={task.assignee.id} name={assigneeDisplayName ?? task.assignee.userName} avatarUrl={assigneeRoster?.avatarUrl ?? null} size={20} />
+        )}
         {assignmentLocked ? (
           <span className={pendingClass}>
-            {task.assignee !== null ? task.assignee.userName : 'Unassigned'} — locked while {STATUS_LABELS[task.status]}
+            {assigneeDisplayName ?? 'Unassigned'} — locked while {STATUS_LABELS[task.status]}
           </span>
         ) : (
           <button type="button" className={linkButtonClass} disabled={isAssigneePending} onClick={onOpenAssigneePicker}>
-            {task.assignee !== null ? task.assignee.userName : 'Unassigned'}
+            {assigneeDisplayName ?? 'Unassigned'}
           </button>
         )}
         {isAssigneePending && (

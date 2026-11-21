@@ -3,12 +3,12 @@ import { useRef } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import { NavLink } from 'react-router-dom'
 
+import { Avatar } from '../shared/components/Avatar'
 import { useAuthSession } from '../shared/hooks/useAuthSession'
 import { useDialogA11y } from '../shared/hooks/useDialogA11y'
 import { useOverdueTasksQuery } from '../shared/hooks/useOverdueTasksQuery'
 import { useUsersQuery } from '../shared/hooks/useUsersQuery'
 import { useLogout } from '../shared/hooks/useLogout'
-import { avatarPaletteIndex, initialsOf } from '../shared/lib/avatar'
 
 function BoardIcon() {
   return (
@@ -182,26 +182,27 @@ function SidebarNav({ collapsed, onNavigate }: SidebarNavProps) {
         )}
       >
         {currentUser !== null && (
-          <span
-            className="group relative flex size-[26px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] leading-none font-semibold"
-            style={{
-              backgroundColor: `var(--avatar-${avatarPaletteIndex(currentUser.id)}-bg)`,
-              color: `var(--avatar-${avatarPaletteIndex(currentUser.id)}-ink)`,
-            }}
-          >
-            {initialsOf(currentUser.userName)}
+          <NavLink to="/profile" className="group relative flex shrink-0 items-center justify-center" onClick={onNavigate}>
+            <Avatar
+              userId={currentUser.id}
+              name={currentUser.displayName ?? currentUser.userName}
+              avatarUrl={currentUser.avatarUrl}
+              size={26}
+            />
             {collapsed && (
               <CollapsedTooltip>
-                {currentUser.userName} · {currentUser.role}
+                {currentUser.displayName ?? currentUser.userName} · {currentUser.role}
               </CollapsedTooltip>
             )}
-          </span>
+          </NavLink>
         )}
         {!collapsed && currentUser !== null && (
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate text-[length:var(--font-size-base)] font-medium">{currentUser.userName}</span>
+          <NavLink to="/profile" className="flex min-w-0 flex-col no-underline" onClick={onNavigate}>
+            <span className="truncate text-[length:var(--font-size-base)] font-medium text-text">
+              {currentUser.displayName ?? currentUser.userName}
+            </span>
             <span className="text-[length:var(--font-size-xs)] text-text-muted">{currentUser.role}</span>
-          </span>
+          </NavLink>
         )}
         <button
           type="button"
