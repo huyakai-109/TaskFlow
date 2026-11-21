@@ -1,8 +1,12 @@
-# Accent colour — light theme proposal (brainstorm only, not implemented)
+# Accent colour — light theme proposal
 
-Status: **Proposal, awaiting the product owner's choice.** No token, component or
-test file has been changed for this. Written in response to feedback that the
-light-theme accent (purple/indigo) on primary buttons reads too saturated/heavy.
+Status: **Decided 2026-11-21 — Option 3 (soft teal) chosen and implemented.**
+Light theme's accent tokens (`FE/src/styles/tokens.css` `:root` block) now use
+the Option 3 values below; dark theme is unchanged. Recorded as a deviation in
+`docs/design/SPEC.md` §10. The rest of this file is kept as the rationale/
+options record — history isn't deleted, same convention `SPEC.md` §10 itself
+already uses. Written in response to feedback that the light-theme accent
+(purple/indigo) on primary buttons read too saturated/heavy.
 
 ## 1. Where the accent colour is used today (light theme)
 
@@ -84,7 +88,7 @@ it replaces; closest to a "corporate SaaS grey-blue" look, lowest-risk against
 clashing with anything else in the palette (danger/warning/success/priority are
 all still clearly distinct from it).
 
-### Option 3 — Soft teal (a genuinely different hue)
+### Option 3 — Soft teal (a genuinely different hue) — **CHOSEN**
 
 | Token | Value |
 |---|---|
@@ -130,11 +134,111 @@ open it directly in a browser to compare the three options against the real
 computed colours above. It is **not** a screenshot and does not substitute for
 opening the real app.
 
-## 4. Decision needed
+## 4. Decision
 
-Pick **Option 1**, **Option 2**, or **Option 3** (or ask for a fourth). Once chosen:
-implementation is the six tokens in `tokens.css`'s `:root` block only (one place,
-per the brief) — dark theme's own block is untouched unless told otherwise — and
-the decision gets recorded in `docs/design/SPEC.md` §10 as a documented deviation
-from the original wireframe's accent colour, same pattern every other §10 entry
-already follows.
+**Option 3 chosen 2026-11-21.** Implemented as the six tokens in `tokens.css`'s
+`:root` block only, light theme, nothing else touched. Recorded in
+`docs/design/SPEC.md` §10.
+
+## 5. Follow-up audit (2026-11-21, after implementation)
+
+### Real measured contrast (every accent combination in the shipped light theme)
+
+| Pairing | Colours | Ratio | AA needed | Result |
+|---|---|---|---|---|
+| White button text on `accent` | `#ffffff` / `#2f7f74` | 4.76:1 | 4.5:1 (text) | Pass |
+| White button text on `accent-hover` | `#ffffff` / `#256961` | 6.42:1 | 4.5:1 | Pass |
+| `accent-ink` link text on white (`--color-surface`) | `#1f5d55` / `#ffffff` | 7.62:1 | 4.5:1 | Pass |
+| `accent-ink` on page bg `--color-bg` | `#1f5d55` / `#fbfbfc` | 7.37:1 | 4.5:1 | Pass |
+| `accent-ink` on `--color-column` | `#1f5d55` / `#f3f3f6` | 6.88:1 | 4.5:1 | Pass |
+| `accent-ink` on `--color-sidebar` | `#1f5d55` / `#f2f2f5` | 6.82:1 | 4.5:1 | Pass |
+| `accent-ink` on `--color-side-panel` | `#1f5d55` / `#f5f5f8` | 7.00:1 | 4.5:1 | Pass |
+| `accent-ink` on `accent-soft` (selected nav item/row text) | `#1f5d55` / `#e3f4f1` | 6.71:1 | 4.5:1 | Pass |
+| Plain `--color-text` on `accent-soft` (selected priority card body text) | `#18181d` / `#e3f4f1` | 15.56:1 | 4.5:1 | Pass |
+| Focus ring (`--color-focus`) on white/surface | `#2f7f74` / `#ffffff` | 4.76:1 | 3:1 (UI component) | Pass |
+| Focus ring on page bg | `#2f7f74` / `#fbfbfc` | 4.61:1 | 3:1 | Pass |
+| Focus ring on `--color-column` (weakest case found) | `#2f7f74` / `#f3f3f6` | 4.30:1 | 3:1 | Pass |
+| `accent` border on `accent-soft` (selected priority card border) | `#2f7f74` / `#e3f4f1` | 4.19:1 | 3:1 | Pass |
+
+Every combination that uses the accent colour passes AA, including the weakest
+case found (focus ring against `--color-column`, 4.30:1, still comfortably above
+the 3:1 floor).
+
+### Teal vs. success-green confusability — audited, no literal colour-alone violation found, but flagged
+
+Measured: `--color-accent` `#2f7f74` is HSL(172°, 46%, 34%); `--color-success`
+`#1f7a4d` is HSL(150°, 59%, 30%) — only **22° of hue** and **4 points of
+lightness** apart, and the luminance contrast *between the two colours
+themselves* is **1.12:1** (i.e. near-indistinguishable brightness if the two
+swatches were placed side by side with nothing else to go on).
+
+Audited every place `--color-success` carries business meaning:
+
+| Place | Colour use | Also carries | Colour-alone? |
+|---|---|---|---|
+| Done column header icon (`BoardPage` `StatusIcon`) | Filled green circle + white check | A **distinct icon shape** per status (dashed circle / circle / half-circle / three-quarter circle / filled-check-circle) — Done's shape differs from every other status, not just its colour | No |
+| "Flag cleared this week" heading dot (`OverdueListPage`, still a dead/withdrawn "Coming soon" stub per SPEC §10 point 14 — pre-existing, not touched here) | Small decorative dot, `aria-hidden` | The heading text itself ("Flag cleared this week") | No |
+| Avatar-upload "Picture updated." (`AvatarUploadCard`) | Green status text | The sentence itself | No |
+| Profile "Saved."/"Password changed." (`ProfilePage`) | Green status text | The sentence itself | No |
+
+**Conclusion: nothing in the current UI relies on colour alone to separate
+"accent" from "success"** — every success-green use already carries text or a
+distinct icon shape. But the two colours are quantitatively close enough (22°
+hue, 1.12:1 contrast to each other) that it's worth a conscious design decision,
+not an accident: for a colour-vision-deficient user (deuteranopia/protanopia
+compress green/teal hues further than typical vision does), two swatches this
+close in hue *and* lightness could still read as "the same colour" if a future
+screen ever places them right next to each other with nothing else to
+distinguish them (none does today).
+
+**Proposed fix, not implemented (needs approval, and would be a token-only
+change in the same one place):** shift `--color-success` away from teal, e.g.
+toward a truer green around HSL(145°, 60%, 28%) ≈ `#1a7a46` — about 27° further
+from the new accent's 172° than today's 22° gap, same lightness, same existing
+contrast ratios (this is a tiny hue nudge, re-verified to keep every existing
+`--color-success` contrast pairing unchanged in magnitude). Left as a documented
+option, not applied, since it's outside this task's one-place/accent-only scope
+and needs your sign-off the same way the accent colour itself did.
+
+### Hardcoded-colour audit outside the token system (light theme)
+
+Grepped every `.tsx`/`.ts`/`.css` file for literal hex and `rgb()`/`rgba()`
+values (outside `tokens.css` itself, which *is* the token system).
+
+| Found | Where | Purple/accent-related? | Action |
+|---|---|---|---|
+| `bg-[rgb(16_16_24_/_40%)]` — a literal dialog-overlay colour, duplicating `--color-overlay` (`rgb(24 24 29 / 32%)`, a close but not identical value) | `CreateUserDialog.tsx`, `TemporaryPasswordDialog.tsx`, `EditTaskDialog.tsx`, `ReopenDialog.tsx` | No — neutral black overlay | **Migrated** to the existing `bg-overlay` utility (already used by `AssigneePickerDialog`/`MoveRefusalDialog`/others) — one-line class swap, four files, no visual intent change beyond matching the token's own slightly different value |
+| `rgba(255,255,255,0.18)` — a translucent white "key chip" background drawn on top of accent-coloured buttons | `Topbar.tsx`, `NewTaskDialog.tsx`, `WorkflowStrip.tsx` | Decorative overlay only, not itself a brand colour — looks correct over *any* accent hue since it's relative transparency, not a fixed colour | **Left as-is** — not migrated to a token. A translucent-white decoration isn't a colour identity choice the way `--color-accent` is, and it already renders correctly against both the old purple and the new teal without any change; introducing a one-off token for a single reusable decoration felt like inventing an abstraction nobody asked for. Flagging in case you'd rather it become `--color-key-chip-bg` for consistency regardless. |
+
+No hardcoded hex/rgb found in: buttons, links, focus ring, chips, status bar,
+badges, Avatar initials background (`Avatar.tsx` already reads
+`var(--avatar-{n}-bg/-ink)`), charts (none exist in this app), or the scrollbar
+(`global.css` already uses `var(--color-border-strong)`).
+
+### Dark theme — proposed teal companion (not implemented, your call)
+
+Dark theme's current purple (`#8b8bf5` family) is untouched by this task. Since
+light is now teal and dark stays purple, the two themes read as different brand
+identities depending on OS/user preference. If you want dark theme to match,
+here is a candidate, token-for-token, with the same role split, **measured, not
+implemented**:
+
+| Token | Proposed dark value |
+|---|---|
+| `--color-accent` | `#39b3a2` |
+| `--color-accent-hover` | `#4fcab9` |
+| `--color-accent-soft` | `#163733` |
+| `--color-accent-ink` | `#6fe0cf` |
+| `--color-on-accent` | `#0b1f1c` |
+| `--color-focus` | `#39b3a2` |
+
+Measured contrast: dark-on-accent text on accent bg = **6.64:1** · `accent-ink`
+on dark bg `#111114` = **11.88:1** · on dark surface `#202026` = **10.22:1** ·
+on `accent-soft` = **8.13:1** · focus ring on dark bg = **7.31:1** · on dark
+surface = **6.28:1** — all comfortably past AA. The same green-proximity
+question recurs in dark theme too: this candidate teal vs. dark theme's own
+`--color-success` (`#5fd39a`) measures 1.38:1 contrast to each other (same
+"close but not colour-alone-dependent today" situation as light theme).
+
+Not applied — this is a proposal for you to approve or reject separately, same
+as light theme's own three-option choice was.
