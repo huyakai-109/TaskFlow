@@ -138,12 +138,17 @@
     --color-side-panel: #26262d;
     --color-overlay: rgb(24 24 29 / 32%);
 
-    --color-accent: #8b8bf5;
-    --color-accent-hover: #a3a3f8;
-    --color-accent-soft: #25253d;
-    --color-accent-ink: #c4c4fa;
-    --color-on-accent: #0e0e14;
-    --color-focus: #8b8bf5;
+    /* Dark theme accent — same teal family as light theme (one brand
+       identity across both themes, docs/design/SPEC.md §10), lighter/more
+       saturated so it still reads clearly against a dark background.
+       --color-on-accent stays dark text, not white: measured — white on
+       this accent is only 2.58:1 (fails AA text), dark text is 6.64:1. */
+    --color-accent: #39b3a2;
+    --color-accent-hover: #4fcab9;
+    --color-accent-soft: #163733;
+    --color-accent-ink: #6fe0cf;
+    --color-on-accent: #0b1f1c;
+    --color-focus: #39b3a2;
 
     --color-danger: #ff8c8c;
     --color-danger-surface: #2b1a1d;
@@ -194,12 +199,15 @@
   --color-side-panel: #26262d;
   --color-overlay: rgb(24 24 29 / 32%);
 
-  --color-accent: #8b8bf5;
-  --color-accent-hover: #a3a3f8;
-  --color-accent-soft: #25253d;
-  --color-accent-ink: #c4c4fa;
-  --color-on-accent: #0e0e14;
-  --color-focus: #8b8bf5;
+  /* Dark theme accent — same teal family as light theme (one brand identity
+     across both themes, docs/design/SPEC.md §10). See the media-query block
+     above for the measured-contrast rationale (on-accent stays dark text). */
+  --color-accent: #39b3a2;
+  --color-accent-hover: #4fcab9;
+  --color-accent-soft: #163733;
+  --color-accent-ink: #6fe0cf;
+  --color-on-accent: #0b1f1c;
+  --color-focus: #39b3a2;
 
   --color-danger: #ff8c8c;
   --color-danger-surface: #2b1a1d;
