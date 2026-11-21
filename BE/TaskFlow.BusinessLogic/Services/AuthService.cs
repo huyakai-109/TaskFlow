@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using TaskFlow.BusinessLogic.Dtos.Auth;
 using TaskFlow.Common.Constants;
+using TaskFlow.Common.Constants.Messages;
 using TaskFlow.Common.Helpers;
 using TaskFlow.DataAccess.Entities;
 using TaskFlow.Repositories.UoW;
@@ -19,6 +20,8 @@ namespace TaskFlow.BusinessLogic.Services
         Task<LoginResultDto> Login(Guid deviceGuid, string username, string password);
 
         Task<RefreshTokenDto> RefreshToken(Guid deviceGuid, string token, string refreshToken);
+
+        Task<string> ChangeRequiredPassword(string username, string currentPassword, string newPassword);
     }
 
     public class AuthService(
@@ -72,6 +75,23 @@ namespace TaskFlow.BusinessLogic.Services
 
                 loginResult.InvalidCredential = true;
 
+                return loginResult;
+            }
+
+            // f08-accounts-profile.md "Auth changes": a deactivated account
+            // gets the same generic invalid-credential response as a wrong
+            // password - no account-state oracle. Checked only after the
+            // password itself is confirmed correct, same as every other
+            // branch above.
+            if (user.DeactivatedAt.HasValue)
+            {
+                loginResult.InvalidCredential = true;
+                return loginResult;
+            }
+
+            if (user.MustChangePassword)
+            {
+                loginResult.PasswordChangeRequired = true;
                 return loginResult;
             }
 
@@ -173,6 +193,14 @@ namespace TaskFlow.BusinessLogic.Services
                 return result;
             }
 
+            // f08-accounts-profile.md "Auth changes": refused (generic) the
+            // same way an invalid/expired refresh token is - no account-state
+            // oracle on this endpoint either.
+            if (user.DeactivatedAt.HasValue || user.MustChangePassword)
+            {
+                return result;
+            }
+
             var userTokenRepo = await unitOfWork.GetRepository<UserToken>().QueryAll();
             var userToken = await userTokenRepo.FirstOrDefaultAsync(x => x.DeviceGuid == deviceGuid && x.UserId == userId);
 
@@ -216,6 +244,38 @@ namespace TaskFlow.BusinessLogic.Services
             await unitOfWork.SaveChanges();
 
             return result;
+        }
+
+        // f08-accounts-profile.md "Auth changes": [AllowAnonymous], lockout-
+        // protected. Succeeds only when the password is right AND
+        // MustChangePassword is set - otherwise the same generic
+        // invalid-credential code either way, so the endpoint cannot be used
+        // to probe which usernames exist or which accounts must change
+        // their password.
+        public async Task<string> ChangeRequiredPassword(string username, string currentPassword, string newPassword)
+        {
+            var user = await userManager.FindByNameAsync(username);
+            if (user == null)
+            {
+                return AuthControllerMS.ChangeRequired.InvalidCredential;
+            }
+
+            var checkResult = await signInManager.CheckPasswordSignInAsync(user, currentPassword, lockoutOnFailure: true);
+            if (!checkResult.Succeeded || user.DeactivatedAt.HasValue || !user.MustChangePassword)
+            {
+                return AuthControllerMS.ChangeRequired.InvalidCredential;
+            }
+
+            var changeResult = await userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+            if (!changeResult.Succeeded)
+            {
+                return AuthControllerMS.ChangeRequired.PolicyViolation;
+            }
+
+            user.MustChangePassword = false;
+            await unitOfWork.SaveChanges();
+
+            return string.Empty;
         }
 
         private async Task<string[]> GetRolePolicyPermissions(long userId)

@@ -61,6 +61,15 @@ catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneExc
     throw new InvalidOperationException($"'{ConfigKeys.Workflow.TimeZone}' value '{workflowTimeZone}' is not a valid time zone.", ex);
 }
 
+// f08-accounts-profile.md "Password policy": fail fast the same way as the
+// three settings above, rather than silently falling back to Identity's
+// unconfigured default (6).
+var passwordRequiredLength = config.GetSection(ConfigKeys.Security.Password.RequiredLength).Get<int?>();
+if (passwordRequiredLength is null or < 1)
+{
+    throw new InvalidOperationException($"'{ConfigKeys.Security.Password.RequiredLength}' must be configured with a value of at least 1.");
+}
+
 builder.Services.AddAutoMapper(cfg =>
 {
     cfg.AddMaps(typeof(Program).Assembly);

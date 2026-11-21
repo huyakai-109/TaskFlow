@@ -26,6 +26,7 @@
                 Permissions.Tasks.ReopenTasks,
                 Permissions.Tasks.PlanTasks,
                 Permissions.Tasks.AssignAnyone,
+                Permissions.Users.ManageUsers,
             ];
         }
 

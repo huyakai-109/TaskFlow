@@ -71,6 +71,14 @@
             { Images.SvgExtension, Images.SvgContentType }
         };
 
+        // f08-accounts-profile.md "Avatars on the existing StorageService":
+        // distinct from Images.MaxSize above (the old anonymous-bucket
+        // upload path, untouched).
+        public struct Avatar
+        {
+            public const long MaxSizeBytes = 2_097_152; // 2 MiB
+        }
+
         public struct StorageErrorMessage
         {
             public const string BucketIsNull = "Bucket is null.";

@@ -336,6 +336,17 @@ namespace TaskFlow.DataAccess.Migrations
                         },
                         new
                         {
+                            Id = 15,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "ManageUsers",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 1L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
                             Id = 1001,
                             ClaimType = "RolePolicy",
                             ClaimValue = "ViewMembers",
@@ -730,6 +741,10 @@ namespace TaskFlow.DataAccess.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
 
+                    b.Property<string>("AvatarObjectKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("longtext");
@@ -739,6 +754,13 @@ namespace TaskFlow.DataAccess.Migrations
 
                     b.Property<long>("CreatedBy")
                         .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("DeactivatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
@@ -755,6 +777,9 @@ namespace TaskFlow.DataAccess.Migrations
 
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
@@ -813,6 +838,7 @@ namespace TaskFlow.DataAccess.Migrations
                             EmailConfirmed = true,
                             IsDeleted = false,
                             LockoutEnabled = true,
+                            MustChangePassword = false,
                             NormalizedEmail = "ADMIN@IMT-SOFT.COM",
                             NormalizedUserName = "ADMIN",
                             PasswordHash = "AQAAAAEAACcQAAAAEELKNErj+EBVy3yZwAI32HSAQILEj5UAOooOEHTMPYU/yp0E28xNH1BjU/SEBw8kuA==",

@@ -97,7 +97,7 @@ namespace TaskFlow.BusinessLogic.Services
             if (requestDto.AssigneeId.HasValue)
             {
                 var assignee = await unitOfWork.GetRepository<User>().FindById(requestDto.AssigneeId.Value);
-                if (assignee == null)
+                if (assignee == null || assignee.DeactivatedAt.HasValue)
                 {
                     return (TaskControllerMS.Create.AssigneeNotFound, null);
                 }
@@ -677,7 +677,11 @@ namespace TaskFlow.BusinessLogic.Services
             if (requestDto.AssigneeId.HasValue)
             {
                 targetAssignee = await unitOfWork.GetRepository<User>().FindById(requestDto.AssigneeId.Value);
-                if (targetAssignee == null)
+                // f08-accounts-profile.md "Tasks held by a deactivated user"
+                // (f02 R2 AC17 extension): a deactivated user can no longer
+                // be chosen as a new assignment target - existing
+                // assignments are left untouched elsewhere.
+                if (targetAssignee == null || targetAssignee.DeactivatedAt.HasValue)
                 {
                     return (TaskControllerMS.Assign.AssigneeNotFound, null, null);
                 }

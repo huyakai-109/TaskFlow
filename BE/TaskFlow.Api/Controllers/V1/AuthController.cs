@@ -4,6 +4,7 @@ using TaskFlow.Api.Models.Requests.Auth;
 using TaskFlow.Api.Models.Responses.Auth;
 using TaskFlow.Api.Models.Responses.Base;
 using TaskFlow.BusinessLogic.Services;
+using TaskFlow.Common.Constants.Messages;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -47,6 +48,13 @@ namespace TaskFlow.Api.Controllers.V1
                     SetRefreshTokenCookie(loginResult.RefreshToken!, loginResult.RefreshTokenExpiresAt);
 
                     return Ok(result);
+                }
+
+                if (loginResult.PasswordChangeRequired)
+                {
+                    result.ErrorCode = AuthControllerMS.Login.PasswordChangeRequired;
+                    result.Error = "Password change required";
+                    return BadRequest(result);
                 }
 
                 if (loginResult.InvalidCredential)
@@ -113,6 +121,34 @@ namespace TaskFlow.Api.Controllers.V1
             }
 
             return Ok(result);
+        }
+
+        [HttpPost]
+        [Route("password/change-required")]
+        [ProducesResponseType(typeof(ExecutionRes), StatusCodes.Status200OK)]
+        [AllowAnonymous]
+        public async Task<IActionResult> ChangeRequiredPassword(ChangeRequiredPasswordReq request)
+        {
+            var response = new ExecutionRes();
+
+            try
+            {
+                var errorCode = await authService.ChangeRequiredPassword(request.UserName, request.CurrentPassword, request.NewPassword);
+                if (!string.IsNullOrEmpty(errorCode))
+                {
+                    response.ErrorCode = errorCode;
+                    return BadRequest(response);
+                }
+
+                response.Success = true;
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                response.ErrorCode = AuthControllerMS.ChangeRequired.Exception;
+                Logger.LogError(ex, "Change required password failed");
+                return InternalServerError(response);
+            }
         }
 
         [HttpGet]

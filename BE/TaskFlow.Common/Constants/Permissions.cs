@@ -18,6 +18,7 @@
             Tasks.ReopenTasks,
             Tasks.PlanTasks,
             Tasks.AssignAnyone,
+            Users.ManageUsers,
         ];
 
         /// <summary>
@@ -52,6 +53,15 @@
             // yourself, both Manager/Admin only.
             public const string PlanTasks = "PlanTasks";
             public const string AssignAnyone = "AssignAnyone";
+        }
+
+        // Round 2 (f08-accounts-profile.md, ADR 0006): account administration
+        // (create user, change role, deactivate/activate, reset password,
+        // remove anyone's avatar). Admin only (A4 sign-off) - never granted
+        // to Manager, despite Manager's unused legacy Members.* claims.
+        public struct Users
+        {
+            public const string ManageUsers = "ManageUsers";
         }
     }
 }

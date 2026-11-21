@@ -29,6 +29,14 @@
                 public const string Issuer = "Security:Jwt:Issuer";
                 public const string Audience = "Security:Jwt:Audience";
             }
+
+            public struct Password
+            {
+                // f08-accounts-profile.md "Password policy": default 10.
+                // DevSeed:Password must keep satisfying this - checked at
+                // startup, the same way other required settings fail fast.
+                public const string RequiredLength = "Security:Password:RequiredLength";
+            }
         }
 
         public struct Cors
@@ -55,6 +63,12 @@
             public const string Secure = "MinIO:Secure";
             public const string Bucket = "MinIO:Bucket";
             public const string Region = "MinIO:Region";
+
+            // f08-accounts-profile.md "Avatars on the existing StorageService":
+            // a new private (no anonymous policy) bucket, distinct from the
+            // existing anonymous-read "Bucket" above - avatars must never
+            // land in the public bucket.
+            public const string PrivateBucket = "MinIO:PrivateBucket";
         }
     }
 }

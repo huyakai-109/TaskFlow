@@ -15,6 +15,11 @@ namespace TaskFlow.Api.Configurations
                 {
                     options.Lockout.MaxFailedAccessAttempts = configuration.GetSection(ConfigKeys.Security.Lockout.MaxFailedAccessAttempts).Get<int>();
                     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(configuration.GetSection(ConfigKeys.Security.Lockout.DefaultLockoutMinutes).Get<int>());
+
+                    // f08-accounts-profile.md "Password policy": Identity's
+                    // digit/upper/lower/non-alphanumeric defaults are kept;
+                    // only the minimum length is raised, from configuration.
+                    options.Password.RequiredLength = configuration.GetSection(ConfigKeys.Security.Password.RequiredLength).Get<int>();
                 })
                 .AddEntityFrameworkStores<MyDbContext>();
 

@@ -7,5 +7,11 @@ namespace TaskFlow.Api.Models.Responses.Users
         public string UserName { get; set; } = string.Empty;
 
         public string Role { get; set; } = string.Empty;
+
+        public string? DisplayName { get; set; }
+
+        public string? AvatarUrl { get; set; }
+
+        public bool IsActive { get; set; }
     }
 }
