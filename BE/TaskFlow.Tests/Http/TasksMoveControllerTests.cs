@@ -221,6 +221,8 @@ namespace TaskFlow.Tests.Http
             Assert.Equal(assigneeId, notification.RecipientUserId);
             Assert.Equal(TaskNotificationEvent.ReturnedForRework, notification.Event);
             Assert.False(notification.IsRead);
+            // f06-notification-history.md AC7: the actor who sent it back is recorded.
+            Assert.Equal(nonAssigneeMover.UserId, notification.ActorUserId);
         }
 
         [Fact]

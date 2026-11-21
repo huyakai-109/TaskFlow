@@ -300,6 +300,7 @@ namespace TaskFlow.BusinessLogic.Services
                     RecipientUserId = task.AssigneeId.Value,
                     TaskId = task.Id,
                     Event = TaskNotificationEvent.ReturnedForRework,
+                    ActorUserId = actorUserId,
                 };
                 await unitOfWork.GetRepository<TaskNotification>().Add(notification);
             }

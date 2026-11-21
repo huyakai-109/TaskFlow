@@ -677,6 +677,9 @@ namespace TaskFlow.DataAccess.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -706,9 +709,12 @@ namespace TaskFlow.DataAccess.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("RecipientUserId");
+                    b.HasIndex("ActorUserId");
 
                     b.HasIndex("TaskId");
+
+                    b.HasIndex("RecipientUserId", "IsRead", "CreatedAt", "Id")
+                        .HasDatabaseName("IX_TaskNotifications_RecipientUserId_IsRead_CreatedAt_Id");
 
                     b.ToTable("TaskNotifications");
                 });
@@ -1010,6 +1016,11 @@ namespace TaskFlow.DataAccess.Migrations
 
             modelBuilder.Entity("TaskFlow.DataAccess.Entities.TaskNotification", b =>
                 {
+                    b.HasOne("TaskFlow.DataAccess.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("TaskFlow.DataAccess.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("RecipientUserId")

@@ -23,3 +23,17 @@ D1 read notifications stay visible; unread are visually prominent (accent dot, b
 
 ## Acceptance criteria
 AC1 a read notification is still listed after marking read, with `isRead=true`. AC2 the sidebar badge equals the number of the caller's unread rows on non-deleted tasks, including beyond 20 — never `result.length` of a capped page. AC3 read-all marks only the caller's rows ≤ `upToId`; a later row stays unread. AC4 read-all twice → the second call returns 0, success. AC5 another user's rows are never touched or counted. AC6 a notification for a soft-deleted task is neither listed nor counted. AC7 a send-back records the actor; the list can show "Sent back by `<name>`". AC8 legacy rows (no `ActorUserId`) render with actor `null` and no error.
+
+## Event code catalogue (R2-2)
+
+`TaskNotificationEvent` (`BE/TaskFlow.Common/Enums/TaskNotificationEvent.cs`) is the one closed enum behind every `TaskNotifications.Event` row and the `event` field of `NotificationRes`. Round 2 adds no new value — D5 keeps it a single event type; this table exists so the catalogue is documented in one place rather than only in the enum's source.
+
+| Value | Int | Written by | Recipient | `ActorUserId` |
+|---|---|---|---|---|
+| `ReturnedForRework` | 1 | `TaskService.Move`, on the `Review → InProgress` edge only (F01 D7) | the task's current assignee | the user who moved it back (R2-2; `null` for rows written before this migration, no backfill — AC8) |
+
+Adding a second event value is a future decision, not assumed here: `TaskNotificationEvent` stays a plain int-backed enum (never reorder or renumber existing members — stored values would change meaning), and any new value needs its own written-by/recipient/actor row above plus the matching write path and a test, the same way `ReturnedForRework` has one. No generic event bus is introduced to support that later (D5, unchanged).
+
+## Data retention (R2-2, explicit)
+
+No notification row is ever deleted by this round, by `MarkRead`, or by `MarkAllRead` — all three only flip `IsRead`/`ReadAt` on existing rows. There is no TTL, archiving or purge job (D2, unchanged). Every row ever written, including legacy rows with `ActorUserId = null`, stays queryable through `GET /notifications` for as long as its task is not soft-deleted (AC6).

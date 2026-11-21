@@ -15,5 +15,23 @@ namespace TaskFlow.Api.Models.Responses.Notifications
         public DateTimeOffset? ReadAt { get; set; }
 
         public DateTimeOffset CreatedAt { get; set; }
+
+        public NotificationTaskRes Task { get; set; } = null!;
+
+        public NotificationActorRes? Actor { get; set; }
+    }
+
+    public class NotificationTaskRes
+    {
+        public long Id { get; set; }
+
+        public string Title { get; set; } = string.Empty;
+    }
+
+    public class NotificationActorRes
+    {
+        public long Id { get; set; }
+
+        public string UserName { get; set; } = string.Empty;
     }
 }

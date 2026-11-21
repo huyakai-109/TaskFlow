@@ -18,6 +18,11 @@ namespace TaskFlow.DataAccess.Entities
 
         public long TaskId { get; set; }
 
+        // R2-2 (f06-notification-history.md "Data"): the user who sent the
+        // task back; null for legacy rows (no backfill) and, in principle,
+        // for any future event with no acting user.
+        public long? ActorUserId { get; set; }
+
         public TaskNotificationEvent Event { get; set; }
 
         public bool IsRead { get; set; }
