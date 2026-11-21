@@ -167,7 +167,7 @@ export interface TaskHistoryEntry {
 /** `TaskNotificationEvent` enum — `ReturnedForRework` is the only MVP value (F01 D7). */
 export type TaskNotificationEvent = 'ReturnedForRework'
 
-/** `NotificationRes` */
+/** `NotificationRes` — R2-2 (f06-notification-history.md) adds `task`/`actor`, additive. */
 export interface TaskNotification {
   id: number
   taskId: number
@@ -175,4 +175,7 @@ export interface TaskNotification {
   isRead: boolean
   readAt: string | null
   createdAt: string
+  task: { id: number; title: string }
+  /** The user who sent the task back; `null` for a legacy row (no backfill, F06 AC8). */
+  actor: { id: number; userName: string } | null
 }

@@ -186,7 +186,7 @@ export function NotificationBell() {
               type="button"
               className="cursor-pointer border-0 bg-transparent p-0 text-[length:var(--font-size-xs)] font-medium text-accent-ink underline disabled:cursor-not-allowed disabled:text-text-muted disabled:no-underline"
               disabled={loadedUnreadIds.length === 0 || markAllReadMutation.isPending}
-              onClick={() => markAllReadMutation.mutate(loadedUnreadIds)}
+              onClick={() => markAllReadMutation.mutate(items[0]?.id)}
             >
               Mark all as read
             </button>
@@ -276,7 +276,8 @@ export function NotificationBell() {
                         setOpen(false)
                       }}
                     >
-                      Task #{notification.taskId} was sent back for rework
+                      &ldquo;{notification.task.title}&rdquo; was sent back for rework
+                      {notification.actor !== null && ` by ${notification.actor.userName}`}
                     </Link>
                     <time dateTime={notification.createdAt} className="text-[length:var(--font-size-2xs)] text-text-muted">
                       {formatRelativeTime(notification.createdAt)}

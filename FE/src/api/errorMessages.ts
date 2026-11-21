@@ -74,6 +74,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   'Notification.GetList.Exception': 'Notifications could not be loaded. Try again in a moment.',
   'Notification.MarkRead.NotFound': 'This notification no longer exists.',
   'Notification.MarkRead.Exception': 'Could not mark this notification as read.',
+  'Notification.MarkAllRead.Exception': 'Could not mark your notifications as read. Try again in a moment.',
   [FORBIDDEN_SENTINEL]: "You don't have permission to change this. Your session is refreshing — try again in a moment.",
 }
 

@@ -17,7 +17,16 @@ vi.mock('../../../api/notifications', () => ({ markNotificationRead }))
 type NotificationsData = InfiniteData<PaginationResultRes<TaskNotification[]>>
 
 function notification(id: number, isRead = false): TaskNotification {
-  return { id, taskId: 1000 + id, event: 'ReturnedForRework', isRead, readAt: isRead ? '2026-11-01T00:00:00Z' : null, createdAt: '2026-11-01T00:00:00Z' }
+  return {
+    id,
+    taskId: 1000 + id,
+    event: 'ReturnedForRework',
+    isRead,
+    readAt: isRead ? '2026-11-01T00:00:00Z' : null,
+    createdAt: '2026-11-01T00:00:00Z',
+    task: { id: 1000 + id, title: `Task ${id}` },
+    actor: null,
+  }
 }
 
 /** Two already-loaded pages, mirroring what `useNotificationsQuery` caches once the popover has paged past page 1. */
