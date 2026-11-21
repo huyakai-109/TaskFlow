@@ -215,30 +215,65 @@ badges, Avatar initials background (`Avatar.tsx` already reads
 `var(--avatar-{n}-bg/-ink)`), charts (none exist in this app), or the scrollbar
 (`global.css` already uses `var(--color-border-strong)`).
 
-### Dark theme — proposed teal companion (not implemented, your call)
+### Dark theme — approved and implemented 2026-11-21
 
-Dark theme's current purple (`#8b8bf5` family) is untouched by this task. Since
-light is now teal and dark stays purple, the two themes read as different brand
-identities depending on OS/user preference. If you want dark theme to match,
-here is a candidate, token-for-token, with the same role split, **measured, not
-implemented**:
+Dark theme's purple (`#8b8bf5` family) was originally left untouched by the first
+pass, with a measured teal companion proposed but not applied. **Approved the
+same day**: both themes now share one teal identity rather than reading as two
+different products depending on OS/user preference. Implemented with the exact
+values originally proposed here, re-verified rather than re-guessed:
 
-| Token | Proposed dark value |
+| Token | Dark value |
 |---|---|
 | `--color-accent` | `#39b3a2` |
 | `--color-accent-hover` | `#4fcab9` |
 | `--color-accent-soft` | `#163733` |
 | `--color-accent-ink` | `#6fe0cf` |
-| `--color-on-accent` | `#0b1f1c` |
+| `--color-on-accent` | `#0b1f1c` (was `#0e0e14` — re-picked, see below) |
 | `--color-focus` | `#39b3a2` |
 
-Measured contrast: dark-on-accent text on accent bg = **6.64:1** · `accent-ink`
-on dark bg `#111114` = **11.88:1** · on dark surface `#202026` = **10.22:1** ·
-on `accent-soft` = **8.13:1** · focus ring on dark bg = **7.31:1** · on dark
-surface = **6.28:1** — all comfortably past AA. The same green-proximity
-question recurs in dark theme too: this candidate teal vs. dark theme's own
-`--color-success` (`#5fd39a`) measures 1.38:1 contrast to each other (same
-"close but not colour-alone-dependent today" situation as light theme).
+**On-accent text colour was measured, not assumed:** white text on this accent
+is only **2.58:1** against `#39b3a2` — fails the 4.5:1 AA floor for text. Dark
+text (`#0b1f1c`) measures **6.64:1** — comfortably passes, and matches the same
+"dark text on a lighter accent" convention the original dark-theme purple
+already used (`#0e0e14` on `#8b8bf5`).
 
-Not applied — this is a proposal for you to approve or reject separately, same
-as light theme's own three-option choice was.
+**Full re-measured contrast table, every dark-theme accent combination:**
+
+| Pairing | Colours | Ratio | Needed | Result |
+|---|---|---|---|---|
+| White text on `accent` | `#ffffff` / `#39b3a2` | 2.58:1 | 4.5:1 | **Fails — not used** |
+| Dark text (`on-accent`) on `accent` | `#0b1f1c` / `#39b3a2` | 6.64:1 | 4.5:1 | Pass |
+| Dark text on `accent-hover` | `#0b1f1c` / `#4fcab9` | 8.54:1 | 4.5:1 | Pass |
+| `accent-ink` on `--color-bg` (`#111114`) | `#6fe0cf` / `#111114` | 11.88:1 | 4.5:1 | Pass |
+| `accent-ink` on `--color-sidebar` (`#0c0c0e`) | `#6fe0cf` / `#0c0c0e` | 12.32:1 | 4.5:1 | Pass |
+| `accent-ink` on `--color-surface` (`#202026`) | `#6fe0cf` / `#202026` | 10.22:1 | 4.5:1 | Pass |
+| `accent-ink` on `--color-surface-raised` (`#26262d`) | `#6fe0cf` / `#26262d` | 9.47:1 | 4.5:1 | Pass |
+| `accent-ink` on `accent-soft` (selected nav/row) | `#6fe0cf` / `#163733` | 8.13:1 | 4.5:1 | Pass |
+| Focus ring on `--color-bg` | `#39b3a2` / `#111114` | 7.31:1 | 3:1 | Pass |
+| Focus ring on `--color-sidebar` | `#39b3a2` / `#0c0c0e` | 7.58:1 | 3:1 | Pass |
+| Focus ring on `--color-column` | `#39b3a2` / `#17171b` | 6.93:1 | 3:1 | Pass |
+| Focus ring on `--color-surface` | `#39b3a2` / `#202026` | 6.28:1 | 3:1 | Pass |
+| **Focus ring on `--color-surface-raised` (weakest case)** | `#39b3a2` / `#26262d` | **5.83:1** | 3:1 | Pass |
+
+Every combination passes AA (the one failing pairing, white-on-accent, is
+confirmed never used — `--color-on-accent` is the dark value above everywhere).
+
+**Green/teal collision, re-checked for dark theme:** dark accent `#39b3a2` vs.
+dark `--color-success` `#5fd39a` measures **1.38:1** contrast to each other
+(close, same situation as light theme). Audited the same business-meaning
+places as light theme (Done's filled-check icon — shape differs from every
+other status regardless of theme; the two plain-text success messages) —
+**confirmed none relies on colour alone in dark theme either.** The same
+proposed-but-unapplied success-colour nudge from the light-theme section would
+need its own dark-theme value if ever approved; not done here, out of this
+task's scope.
+
+**Hardcoded-colour re-audit, both themes:** repeated the full grep across every
+`.tsx`/`.ts`/`.css` file. No hex/`rgb()`/`rgba()` found anywhere outside
+`tokens.css` except the same, already-documented `rgba(255,255,255,0.18)`
+"key chip" decoration (three buttons) left as-is — it already renders correctly
+over this teal just as it did over the old purple. Avatar initials
+(`--avatar-{n}-bg/-ink`, both themes) were checked and are **not** part of this
+identity change — that is a separate six-colour palette for telling people
+apart, not the brand accent, and stays exactly as it was.
