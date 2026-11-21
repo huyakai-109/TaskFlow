@@ -2,10 +2,10 @@ import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
 import clsx from 'clsx'
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 import { BOARD_COLUMNS } from '../../api/types'
-import type { TaskStatus, TaskSummary } from '../../api/types'
+import type { BoardSort, TaskStatus, TaskSummary } from '../../api/types'
 import { describeError, describeErrorCode } from '../../api/errorMessages'
 import { AssignAndMoveDialog } from '../../shared/components/AssignAndMoveDialog'
 import { MoveRefusalDialog } from '../../shared/components/MoveRefusalDialog'
@@ -71,6 +71,11 @@ function parseDraggedTaskId(dragId: string | number): number {
 }
 
 const CONFLICT_CODES = new Set(['Task.Move.Conflict', 'Task.Move.NotFound'])
+const SORT_VALUES: ReadonlySet<string> = new Set<BoardSort>(['priority', 'dueDate', 'newest'])
+
+function isBoardSort(value: string | null): value is BoardSort {
+  return value !== null && SORT_VALUES.has(value)
+}
 
 /**
  * The board: five fixed columns, drag-and-drop between them (F01 D9, D10).
@@ -88,7 +93,14 @@ const CONFLICT_CODES = new Set(['Task.Move.Conflict', 'Task.Move.NotFound'])
  * each column, a pre-existing defect this slice fixes.
  */
 export function BoardPage() {
-  const boardQuery = useBoardQuery()
+  // f10-read-models-and-sort.md §1: the choice lives in the URL (`?sort=`),
+  // never stored server-side, so a shared link or a reload keeps the same
+  // order. Falls back to `priority` (the server's own default) for a missing
+  // or unrecognised value rather than rejecting the page.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const rawSort = searchParams.get('sort')
+  const sort: BoardSort = isBoardSort(rawSort) ? rawSort : 'priority'
+  const boardQuery = useBoardQuery(sort)
   const overdueTasksQuery = useOverdueTasksQuery()
   const { userId } = useAuthSession()
   const [activeTask, setActiveTask] = useState<TaskSummary | null>(null)
@@ -131,12 +143,16 @@ export function BoardPage() {
 
   // One `useInfiniteQuery` per column, called unconditionally for all five
   // fixed statuses (never in a loop) — `BOARD_COLUMNS` never changes shape.
+  // `sort` is part of each column's own query key (`useColumnPagesQuery`), so
+  // switching it starts a fresh, correctly-ordered pagination sequence under
+  // the new order rather than continuing stale pages fetched under the old
+  // one (f10 §1 "each order is stable across pages").
   const columnPages = {
-    Backlog: useColumnPagesQuery('Backlog', pageSizeFor('Backlog'), expandedColumns.Backlog),
-    Todo: useColumnPagesQuery('Todo', pageSizeFor('Todo'), expandedColumns.Todo),
-    InProgress: useColumnPagesQuery('InProgress', pageSizeFor('InProgress'), expandedColumns.InProgress),
-    Review: useColumnPagesQuery('Review', pageSizeFor('Review'), expandedColumns.Review),
-    Done: useColumnPagesQuery('Done', pageSizeFor('Done'), expandedColumns.Done),
+    Backlog: useColumnPagesQuery('Backlog', pageSizeFor('Backlog'), expandedColumns.Backlog, sort),
+    Todo: useColumnPagesQuery('Todo', pageSizeFor('Todo'), expandedColumns.Todo, sort),
+    InProgress: useColumnPagesQuery('InProgress', pageSizeFor('InProgress'), expandedColumns.InProgress, sort),
+    Review: useColumnPagesQuery('Review', pageSizeFor('Review'), expandedColumns.Review, sort),
+    Done: useColumnPagesQuery('Done', pageSizeFor('Done'), expandedColumns.Done, sort),
   } as const satisfies Record<TaskStatus, ReturnType<typeof useColumnPagesQuery>>
 
   function loadMore(status: TaskStatus) {
@@ -284,7 +300,15 @@ export function BoardPage() {
             List
           </button>
         </div>
-        <SortMenu />
+        <SortMenu value={sort} onChange={(next) => setSearchParams((prev) => {
+          const params = new URLSearchParams(prev)
+          if (next === 'priority') {
+            params.delete('sort')
+          } else {
+            params.set('sort', next)
+          }
+          return params
+        })} />
         <div className="ml-auto flex items-center gap-[var(--space-3)] max-[600px]:ml-0 max-[600px]:w-full max-[600px]:flex-wrap">
           {overdueCount > 0 && (
             <Link

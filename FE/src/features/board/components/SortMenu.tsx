@@ -1,15 +1,12 @@
 import clsx from 'clsx'
 import { useEffect, useRef, useState } from 'react'
 
-import { ComingSoon } from '../../../shared/components/ComingSoon'
-import { useComingSoon } from '../../../shared/hooks/useComingSoon'
+import type { BoardSort } from '../../../api/types'
 
-type SortOption = 'priority' | 'dueDate' | 'recentlyUpdated'
-
-const SORT_OPTIONS: ReadonlyArray<{ value: SortOption; label: string }> = [
+const SORT_OPTIONS: ReadonlyArray<{ value: BoardSort; label: string }> = [
   { value: 'priority', label: 'Priority' },
   { value: 'dueDate', label: 'Due date' },
-  { value: 'recentlyUpdated', label: 'Recently updated' },
+  { value: 'newest', label: 'Newest' },
 ]
 
 function SortIcon() {
@@ -28,29 +25,25 @@ function CheckIcon() {
   )
 }
 
+interface SortMenuProps {
+  value: BoardSort
+  onChange: (value: BoardSort) => void
+}
+
 /**
  * The Board/List toolbar's Sort control (`docs/design/SPEC.md` §4 "Sort
- * button") — was a plain `<span>` (no `onClick`, no keyboard handling, no
- * `role`), so clicking or tabbing to it did nothing; this is the fix, not a
- * re-skin. "Priority" is the one real, current sort: F03 always orders the
- * board priority-first then earliest due date (`docs/design/SPEC.md` §6
- * point 6), so it is shown as the current selection, not a default guess.
- *
- * The other two options are real menu items — `role="menu"`/`"menuitem"`,
- * arrow-key navigation, outside-click/Esc to close, modelled on
- * `CardMoveAction`'s own menu rather than a new pattern — but selecting one
- * never re-sorts the already-loaded page client-side: the board's first page
- * is capped (`BoardColumnPageSize` 50, Done 20, `docs/design/COMING-SOON.md`),
- * so sorting only what happens to be loaded would silently produce a wrong
- * order once a column has more than one page. There is no server-side sort
- * parameter yet (see COMING-SOON.md), so picking "Due date" or "Recently
- * updated" opens the same `ComingSoon` toast every other blocked control
- * uses, and fires no request of its own.
+ * button"). All three options are real now (f10-read-models-and-sort.md §1,
+ * R2-5): `priority` (F03's own rule, still the default), `dueDate` and
+ * `newest` both call the server's `sort` query parameter on `GET
+ * /tasks/board`/`GET /tasks` — never a client-side re-sort of a capped,
+ * possibly-partial page (`BoardColumnPageSize` 50, Done 20), which is exactly
+ * why this stayed a `ComingSoon` stub before the parameter existed
+ * (`docs/design/COMING-SOON.md` B7). `Done` always ignores the server's own
+ * order regardless of which option is selected (f10 §1), unchanged here.
  */
-export function SortMenu() {
+export function SortMenu({ value, onChange }: SortMenuProps) {
   const [open, setOpen] = useState(false)
-  const [activeIndex, setActiveIndex] = useState(0)
-  const comingSoon = useComingSoon('Sorting by this is coming soon — it needs a server-side sort parameter.')
+  const [activeIndex, setActiveIndex] = useState(() => SORT_OPTIONS.findIndex((option) => option.value === value))
   const containerRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -98,14 +91,13 @@ export function SortMenu() {
     }
   }, [open, activeIndex])
 
-  function select(option: SortOption) {
+  function select(option: BoardSort) {
     setOpen(false)
     triggerRef.current?.focus()
-
-    if (option !== 'priority') {
-      comingSoon.show()
-    }
+    onChange(option)
   }
+
+  const currentLabel = SORT_OPTIONS.find((option) => option.value === value)?.label ?? 'Priority'
 
   return (
     <div ref={containerRef} className="relative">
@@ -117,12 +109,12 @@ export function SortMenu() {
         title="Urgent → High → Normal, then earliest due date. Tasks with no date go last."
         className="inline-flex min-h-9 cursor-pointer items-center gap-[var(--space-1)] rounded-control-lg border border-border bg-surface px-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted hover:bg-column"
         onClick={() => {
-          setActiveIndex(0)
-          setOpen((value) => !value)
+          setActiveIndex(SORT_OPTIONS.findIndex((option) => option.value === value))
+          setOpen((open) => !open)
         }}
       >
         <SortIcon />
-        Sort: <strong className="ml-[var(--space-1)] font-semibold text-text">Priority</strong>
+        Sort: <strong className="ml-[var(--space-1)] font-semibold text-text">{currentLabel}</strong>
       </button>
 
       {open && (
@@ -136,26 +128,24 @@ export function SortMenu() {
               <button
                 type="button"
                 role="menuitem"
-                aria-current={option.value === 'priority' ? 'true' : undefined}
+                aria-current={option.value === value ? 'true' : undefined}
                 ref={(el) => {
                   itemRefs.current[index] = el
                 }}
                 tabIndex={activeIndex === index ? 0 : -1}
                 className={clsx(
                   'flex w-full cursor-pointer items-center justify-between gap-[var(--space-2)] rounded-sm border-0 bg-transparent px-[var(--space-2)] py-[var(--space-2)] text-left text-[length:var(--font-size-sm)] text-text hover:bg-accent-soft hover:text-accent-ink',
-                  option.value === 'priority' && 'font-semibold',
+                  option.value === value && 'font-semibold',
                 )}
                 onClick={() => select(option.value)}
               >
                 {option.label}
-                {option.value === 'priority' && <CheckIcon />}
+                {option.value === value && <CheckIcon />}
               </button>
             </li>
           ))}
         </ul>
       )}
-
-      {comingSoon.message !== null && <ComingSoon message={comingSoon.message} onDismiss={comingSoon.hide} />}
     </div>
   )
 }

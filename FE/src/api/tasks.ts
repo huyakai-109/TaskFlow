@@ -1,6 +1,7 @@
 import { request } from './client'
 import type {
   Board,
+  BoardSort,
   PaginationResultRes,
   ResultRes,
   TaskDetail,
@@ -30,28 +31,33 @@ export interface CreateTaskInput {
 }
 
 /**
- * `GET /tasks/board` (`docs/features/f01-workflow.md` T5 #3). Always returns all
- * five columns, in lifecycle order, even when empty — the client never has to
- * invent a missing column.
+ * `GET /tasks/board?sort=` (`docs/features/f01-workflow.md` T5 #3, `sort`
+ * added by f10-read-models-and-sort.md §1). Always returns all five columns,
+ * in lifecycle order, even when empty — the client never has to invent a
+ * missing column. `sort` defaults to `priority` (F03's own rule, unchanged
+ * when omitted); `Done` ignores whatever value is sent, server-side.
  */
-export async function getBoard(signal?: AbortSignal): Promise<Board> {
-  const envelope = await request<ResultRes<Board>>('/tasks/board', { signal })
+export async function getBoard(sort: BoardSort = 'priority', signal?: AbortSignal): Promise<Board> {
+  const envelope = await request<ResultRes<Board>>(`/tasks/board?sort=${sort}`, { signal })
   return envelope.result ?? { columns: [] }
 }
 
 /**
- * `GET /tasks?status=&start=&length=` (T5 #4) — page 2+ of one board column.
- * `length` must equal the board's `pagination.pageSize` for that column so the
- * page continues exactly where the board's page 1 ended (F03 AC15).
+ * `GET /tasks?status=&start=&length=&sort=` (T5 #4) — page 2+ of one board
+ * column. `length` must equal the board's `pagination.pageSize` for that
+ * column so the page continues exactly where the board's page 1 ended (F03
+ * AC15); `sort` must be the same value the board's own page 1 was fetched
+ * with, or the two pages would not agree on order (f10 §1).
  */
 export async function getTaskPage(
   status: TaskStatus,
   start: number,
   length: number,
+  sort: BoardSort = 'priority',
   signal?: AbortSignal,
 ): Promise<PaginationResultRes<TaskSummary[]>> {
   return request<PaginationResultRes<TaskSummary[]>>(
-    `/tasks?status=${status}&start=${start}&length=${length}`,
+    `/tasks?status=${status}&start=${start}&length=${length}&sort=${sort}`,
     { signal },
   )
 }

@@ -10,6 +10,9 @@ export type TaskStatus = 'Backlog' | 'Todo' | 'InProgress' | 'Review' | 'Done'
 
 export type TaskPriority = 'Urgent' | 'High' | 'Normal'
 
+/** `TaskSortOrder` (f10-read-models-and-sort.md §1) — `priority` is F03's own rule and the default; `Done` ignores every value server-side. */
+export type BoardSort = 'priority' | 'dueDate' | 'newest'
+
 /** The four columns that F03 orders by priority; `Done` has its own rule. */
 export const ACTIVE_STATUSES: readonly TaskStatus[] = ['Backlog', 'Todo', 'InProgress', 'Review']
 

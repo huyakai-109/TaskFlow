@@ -1,7 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 
 import { getTaskPage } from '../../../api/tasks'
-import type { PaginationResultRes, TaskStatus, TaskSummary } from '../../../api/types'
+import type { BoardSort, PaginationResultRes, TaskStatus, TaskSummary } from '../../../api/types'
 
 /**
  * Page 2+ of one board column (F03 "show more"). Keyed under the `['board']`
@@ -21,13 +21,18 @@ import type { PaginationResultRes, TaskStatus, TaskSummary } from '../../../api/
  * (50 for the active columns, 20 for `Done`) so a fetched page continues
  * exactly where the board's page 1 ended (AC15) — never a literal.
  */
-export function useColumnPagesQuery(status: TaskStatus, pageSize: number | undefined, enabled: boolean) {
+export function useColumnPagesQuery(
+  status: TaskStatus,
+  pageSize: number | undefined,
+  enabled: boolean,
+  sort: BoardSort = 'priority',
+) {
   return useInfiniteQuery<PaginationResultRes<TaskSummary[]>>({
-    queryKey: ['board', 'column', status],
+    queryKey: ['board', 'column', status, sort],
     queryFn: ({ pageParam, signal }) => {
       const pageNumber = pageParam as number
       const start = (pageNumber - 1) * (pageSize ?? 0) + 1
-      return getTaskPage(status, start, pageSize ?? 0, signal)
+      return getTaskPage(status, start, pageSize ?? 0, sort, signal)
     },
     initialPageParam: 2,
     getNextPageParam: (lastPage) => {
