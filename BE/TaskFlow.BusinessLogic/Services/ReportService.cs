@@ -280,10 +280,13 @@ namespace TaskFlow.BusinessLogic.Services
             var subjectName = teamScope ? ReportRules.TeamSubject : (subjectUser?.UserName ?? userId!.Value.ToString());
             var fileName = $"{ReportRules.ExportFileNamePrefix}-{Sanitize(subjectName)}-{from.ToString(DateTimeFormats.Date)}-{to.ToString(DateTimeFormats.Date)}-{dataset.ToString().ToLowerInvariant()}.{GlobalConstants.Files.CsvExtension}";
 
-            // R17: export logs the subject/range/dataset/row count, never content.
+            // R17: export logs the subject/range/dataset/row count, never
+            // content. Dates are formatted explicitly (DateOnly's default
+            // ToString() renders per CurrentCulture, not ISO) so the log
+            // line is deterministic regardless of host culture.
             logger.LogInformation(
                 "Report export by {CallerId} subject={Subject} from={From} to={To} dataset={Dataset} rows={RowCount}",
-                actorUserId, teamScope ? ReportRules.TeamSubject : userId!.Value.ToString(), from, to, dataset, rows.Count);
+                actorUserId, teamScope ? ReportRules.TeamSubject : userId!.Value.ToString(), from.ToString(DateTimeFormats.Date), to.ToString(DateTimeFormats.Date), dataset, rows.Count);
 
             stopwatch.Stop();
             if (stopwatch.ElapsedMilliseconds > ReportRules.SlowCallWarningMs)
@@ -684,7 +687,7 @@ namespace TaskFlow.BusinessLogic.Services
             stopwatch.Stop();
             logger.LogInformation(
                 "Report call {Operation} caller={CallerId} scope={Subject} from={From} to={To} granularity={Granularity} elapsedMs={ElapsedMs}",
-                operation, callerId, subject, from, to, granularity, stopwatch.ElapsedMilliseconds);
+                operation, callerId, subject, from.ToString(DateTimeFormats.Date), to.ToString(DateTimeFormats.Date), granularity, stopwatch.ElapsedMilliseconds);
 
             if (stopwatch.ElapsedMilliseconds > ReportRules.SlowCallWarningMs)
             {

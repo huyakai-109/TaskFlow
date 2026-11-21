@@ -347,10 +347,12 @@ namespace TaskFlow.Tests.Http
 
             Assert.True(response.IsSuccessStatusCode && body!.Success, body?.Error);
 
-            // Full R11 roster (every active user) still has 3 rows, incl.
-            // mgr with done = 0.
-            Assert.Equal(3, body.Result!.Members.Count);
-            var mgrRow = body.Result.Members.Single(m => m.User.Id == manager.UserId);
+            // Full R11 roster (every active user, across this long-lived
+            // test database - not reset between runs, unlike Tasks/
+            // TaskHistories) still includes mgr with done = 0; a single
+            // lookup by id rather than an exact roster-size count, since
+            // other test classes' users persist in Users too.
+            var mgrRow = body.Result!.Members.Single(m => m.User.Id == manager.UserId);
             Assert.Equal(0, mgrRow.Totals.Delivery.Done);
 
             // contributors excludes mgr (done = 0): 2, never the roster size (3).
