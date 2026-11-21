@@ -26,13 +26,15 @@
   --color-side-panel: #f5f5f8;
   --color-overlay: rgb(24 24 29 / 32%);
 
-  /* Interaction */
-  --color-accent: #4f4fcc;
-  --color-accent-hover: #4343b3;
-  --color-accent-soft: #ebebfa;
-  --color-accent-ink: #3a3aa6;
+  /* Interaction — light theme: soft teal (docs/design/accent-color-proposal.md
+     Option 3, chosen <!-- decision recorded in docs/design/SPEC.md §10 -->).
+     Dark theme (below) is unchanged — still the original purple. */
+  --color-accent: #2f7f74;
+  --color-accent-hover: #256961;
+  --color-accent-soft: #e3f4f1;
+  --color-accent-ink: #1f5d55;
   --color-on-accent: #ffffff;
-  --color-focus: #4f4fcc;
+  --color-focus: #2f7f74;
 
   /* Status feedback */
   --color-danger: #c42b33;
