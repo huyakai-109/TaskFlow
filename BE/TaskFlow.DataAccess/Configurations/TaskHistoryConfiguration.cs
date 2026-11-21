@@ -30,6 +30,19 @@ namespace TaskFlow.DataAccess.Configurations
 
             builder.HasIndex(h => new { h.TaskId, h.CreatedAt, h.Id })
                 .HasDatabaseName("IX_TaskHistories_TaskId_CreatedAt_Id");
+
+            // f04-activity-feed.md migration AddTaskHistoriesFeedIndexes:
+            // the unfiltered feed, its keyset condition and its date-range
+            // filter (CreatedAt, Id); the actor filter including `system`
+            // (InnoDB indexes NULLs). The EF-generated single-column
+            // IX_TaskHistories_ActorUserId becomes redundant to the second
+            // one below - left in place, since dropping it would not be
+            // additive.
+            builder.HasIndex(h => new { h.CreatedAt, h.Id })
+                .HasDatabaseName("IX_TaskHistories_CreatedAt_Id");
+
+            builder.HasIndex(h => new { h.ActorUserId, h.CreatedAt, h.Id })
+                .HasDatabaseName("IX_TaskHistories_ActorUserId_CreatedAt_Id");
         }
     }
 }

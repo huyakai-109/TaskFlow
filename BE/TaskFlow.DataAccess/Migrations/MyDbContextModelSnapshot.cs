@@ -599,7 +599,11 @@ namespace TaskFlow.DataAccess.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ActorUserId");
+                    b.HasIndex("CreatedAt", "Id")
+                        .HasDatabaseName("IX_TaskHistories_CreatedAt_Id");
+
+                    b.HasIndex("ActorUserId", "CreatedAt", "Id")
+                        .HasDatabaseName("IX_TaskHistories_ActorUserId_CreatedAt_Id");
 
                     b.HasIndex("TaskId", "CreatedAt", "Id")
                         .HasDatabaseName("IX_TaskHistories_TaskId_CreatedAt_Id");
