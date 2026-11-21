@@ -6,6 +6,7 @@ import type { TaskPriority, TaskStatus } from '../../api/types'
 import { AssignAndMoveDialog } from '../../shared/components/AssignAndMoveDialog'
 import { MoveRefusalDialog } from '../../shared/components/MoveRefusalDialog'
 import { MoveToast } from '../../shared/components/MoveToast'
+import { PresenceStack } from '../../shared/components/PresenceStack'
 import { useAssignAndMoveTaskMutation } from '../../shared/hooks/useAssignAndMoveTaskMutation'
 import { useAssignTaskMutation } from '../../shared/hooks/useAssignTaskMutation'
 import { useAuthSession } from '../../shared/hooks/useAuthSession'
@@ -249,10 +250,13 @@ export function TaskDetailPage() {
           >
             Edit
           </button>
-          <span className="ml-auto flex items-center gap-[var(--space-1)] text-[length:var(--font-size-xs)] text-text-muted">
-            <kbd className="rounded-[5px] bg-sidebar px-[6px] py-[1px] font-mono">J</kbd>
-            <kbd className="rounded-[5px] bg-sidebar px-[6px] py-[1px] font-mono">K</kbd>
-            next / previous task
+          <span className="ml-auto flex items-center gap-[var(--space-3)]">
+            <PresenceStack scope={`task:${task.id}`} label="Viewing" />
+            <span className="flex items-center gap-[var(--space-1)] text-[length:var(--font-size-xs)] text-text-muted">
+              <kbd className="rounded-[5px] bg-sidebar px-[6px] py-[1px] font-mono">J</kbd>
+              <kbd className="rounded-[5px] bg-sidebar px-[6px] py-[1px] font-mono">K</kbd>
+              next / previous task
+            </span>
           </span>
         </div>
         {task.description !== null && task.description !== '' && (

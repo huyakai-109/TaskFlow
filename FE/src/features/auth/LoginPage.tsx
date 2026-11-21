@@ -5,6 +5,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { ApiError } from '../../api/client'
 import { describeLoginError, LOGIN_INVALID_CREDENTIAL, LOGIN_WILL_LOCK_OUT } from '../../api/errorMessages'
 import { useAuthSession } from '../../shared/hooks/useAuthSession'
+import { consumeLogoutReason } from '../../shared/lib/authSession'
 
 import { ChangeRequiredPasswordForm } from './components/ChangeRequiredPasswordForm'
 import { useLoginMutation } from './hooks/useLoginMutation'
@@ -40,6 +41,12 @@ export function LoginPage() {
   // just long enough for `ChangeRequiredPasswordForm`'s one request, then
   // cleared (never logged, never persisted).
   const [changeRequired, setChangeRequired] = useState<{ username: string; currentPassword: string } | null>(null)
+  // Item 8: a refresh failure (token refresh rejected, e.g. the account was
+  // deactivated, or any ordinary expiry) logs the user out explicitly with
+  // this one generic message — never silently, and never a message that
+  // distinguishes *why* (`authSession.ts`'s own doc comment on this field).
+  // Read-once via the lazy initializer so a later remount never repeats it.
+  const [logoutReason] = useState(() => consumeLogoutReason())
 
   const mutation = useLoginMutation()
 
@@ -119,6 +126,12 @@ export function LoginPage() {
           <h1 className="m-0 text-[length:var(--font-size-xl)] font-semibold">TaskFlow</h1>
           <p className="m-0 text-[length:var(--font-size-sm)] text-text-muted">Sign in to see the board</p>
         </div>
+
+        {serverError === null && logoutReason !== null && (
+          <p role="status" className="m-0 rounded-md border border-border bg-column p-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted">
+            {logoutReason}
+          </p>
+        )}
 
         {serverError !== null && (
           <p

@@ -16,12 +16,12 @@ import { useAuthSession } from '../../shared/hooks/useAuthSession'
 import { useBoardQuery } from '../../shared/hooks/useBoardQuery'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
 import { useOverdueTasksQuery } from '../../shared/hooks/useOverdueTasksQuery'
+import { PresenceStack } from '../../shared/components/PresenceStack'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 
 import { BoardColumn } from './components/BoardColumn'
 import { BoardListView } from './components/BoardListView'
 import { SortMenu } from './components/SortMenu'
-import { ViewingNowPlaceholder } from './components/ViewingNowPlaceholder'
 import { useColumnPagesQuery } from './hooks/useColumnPagesQuery'
 import { mergeColumnItems } from './utils/mergeColumnItems'
 
@@ -323,7 +323,7 @@ export function BoardPage() {
             </Link>
           )}
           <span aria-hidden="true" className="h-6 w-px bg-border" />
-          <ViewingNowPlaceholder />
+          <PresenceStack scope="board" />
         </div>
       </div>
 
