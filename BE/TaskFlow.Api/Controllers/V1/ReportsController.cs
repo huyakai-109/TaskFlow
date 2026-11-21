@@ -142,7 +142,7 @@ namespace TaskFlow.Api.Controllers.V1
                 }
 
                 Response.Headers.CacheControl = "no-store";
-                return File(content!, "text/csv; charset=utf-8", fileName);
+                return File(content!, $"{GlobalConstants.Files.CsvContentType}; charset=utf-8", fileName);
             }
             catch (Exception ex)
             {

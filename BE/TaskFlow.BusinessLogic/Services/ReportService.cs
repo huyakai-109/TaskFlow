@@ -89,14 +89,14 @@ namespace TaskFlow.BusinessLogic.Services
 
             var result = new ReportScorecardResDto
             {
-                Meta = BuildMeta(teamScope ? null : userId, from, to, granularity, dataAvailableSince, teamScope ? "Team" : "Member"),
+                Meta = BuildMeta(teamScope ? null : userId, from, to, granularity, dataAvailableSince, teamScope ? ReportRules.Scope.Team : ReportRules.Scope.Member),
                 Subject = subjectUser != null ? BuildUserRef(subjectUser) : null,
                 Totals = totals,
                 TeamMedian = teamMedian,
                 Buckets = bucketDtos,
             };
 
-            LogCall("GetScorecard", actorUserId, teamScope ? "team" : userId!.Value.ToString(), from, to, granularity, stopwatch);
+            LogCall("GetScorecard", actorUserId, teamScope ? ReportRules.TeamSubject : userId!.Value.ToString(), from, to, granularity, stopwatch);
             return (string.Empty, result);
         }
 
@@ -152,7 +152,7 @@ namespace TaskFlow.BusinessLogic.Services
 
             var result = new ReportTeamResDto
             {
-                Meta = BuildMeta(null, from, to, ReportGranularity.Week, dataAvailableSince, "Team"),
+                Meta = BuildMeta(null, from, to, ReportGranularity.Week, dataAvailableSince, ReportRules.Scope.Team),
                 TeamTotals = teamTotals,
                 Contributors = members.Count(m => m.Totals.Delivery.Done >= 1),
                 UnassignedOverdueMarked = unassignedOverdueMarked,
@@ -161,7 +161,7 @@ namespace TaskFlow.BusinessLogic.Services
                 Heatmap = heatmap,
             };
 
-            LogCall("GetTeam", null, "team", from, to, ReportGranularity.Week, stopwatch);
+            LogCall("GetTeam", null, ReportRules.TeamSubject, from, to, ReportGranularity.Week, stopwatch);
             return (string.Empty, result);
         }
 
@@ -242,11 +242,11 @@ namespace TaskFlow.BusinessLogic.Services
             switch (dataset)
             {
                 case ReportExportDataset.Buckets:
-                    header = BucketsCsvHeader;
+                    header = ReportCsvHeaders.Buckets;
                     rows = buckets.Select(b => BuildBucketRow(b, facts, teamScope, userId)).ToList();
                     break;
                 case ReportExportDataset.Members:
-                    header = MembersCsvHeader;
+                    header = ReportCsvHeaders.Members;
                     var roster = await BuildRosterAsync(facts, from, to);
                     var totalsStartUtc = buckets.Count > 0 ? buckets[0].MeasuredStartUtc : from.LocalStartOfDayToUtc(_timeZone);
                     var totalsEndUtc = buckets.Count > 0 ? buckets[^1].MeasuredEndUtcExclusive : to.AddDays(1).LocalStartOfDayToUtc(_timeZone);
@@ -257,7 +257,7 @@ namespace TaskFlow.BusinessLogic.Services
                         .ToList();
                     break;
                 case ReportExportDataset.Tasks:
-                    header = TasksCsvHeader;
+                    header = ReportCsvHeaders.Tasks;
                     var completions = facts
                         .Where(f => f.Completion != null && (teamScope || f.Completion!.HolderId == userId) && InLocalRange(f.Completion!.CompletedAtUtc, from, to))
                         .OrderByDescending(f => f.Completion!.CompletedAtUtc)
@@ -277,16 +277,16 @@ namespace TaskFlow.BusinessLogic.Services
             }
 
             var csvBytes = CsvBuilder.Build(header, rows);
-            var subjectName = teamScope ? "team" : (subjectUser?.UserName ?? userId!.Value.ToString());
-            var fileName = $"taskflow-report-{Sanitize(subjectName)}-{from:yyyy-MM-dd}-{to:yyyy-MM-dd}-{dataset.ToString().ToLowerInvariant()}.csv";
+            var subjectName = teamScope ? ReportRules.TeamSubject : (subjectUser?.UserName ?? userId!.Value.ToString());
+            var fileName = $"{ReportRules.ExportFileNamePrefix}-{Sanitize(subjectName)}-{from.ToString(DateTimeFormats.Date)}-{to.ToString(DateTimeFormats.Date)}-{dataset.ToString().ToLowerInvariant()}.{GlobalConstants.Files.CsvExtension}";
 
             // R17: export logs the subject/range/dataset/row count, never content.
             logger.LogInformation(
                 "Report export by {CallerId} subject={Subject} from={From} to={To} dataset={Dataset} rows={RowCount}",
-                actorUserId, teamScope ? "team" : userId!.Value.ToString(), from, to, dataset, rows.Count);
+                actorUserId, teamScope ? ReportRules.TeamSubject : userId!.Value.ToString(), from, to, dataset, rows.Count);
 
             stopwatch.Stop();
-            if (stopwatch.ElapsedMilliseconds > 2000)
+            if (stopwatch.ElapsedMilliseconds > ReportRules.SlowCallWarningMs)
             {
                 logger.LogWarning("Report export took {ElapsedMs} ms", stopwatch.ElapsedMilliseconds);
             }
@@ -686,7 +686,7 @@ namespace TaskFlow.BusinessLogic.Services
                 "Report call {Operation} caller={CallerId} scope={Subject} from={From} to={To} granularity={Granularity} elapsedMs={ElapsedMs}",
                 operation, callerId, subject, from, to, granularity, stopwatch.ElapsedMilliseconds);
 
-            if (stopwatch.ElapsedMilliseconds > 2000)
+            if (stopwatch.ElapsedMilliseconds > ReportRules.SlowCallWarningMs)
             {
                 logger.LogWarning("Report call {Operation} took {ElapsedMs} ms", operation, stopwatch.ElapsedMilliseconds);
             }
@@ -694,34 +694,11 @@ namespace TaskFlow.BusinessLogic.Services
 
         // ---- CSV ----
 
-        private static readonly string[] BucketsCsvHeader =
-        [
-            "bucket_start", "bucket_end", "is_partial", "done", "done_urgent", "done_high", "done_normal",
-            "on_time", "late", "no_due_date", "on_time_rate", "overdue_marked",
-            "cycle_median_h", "cycle_p85_h", "lead_median_h", "lead_p85_h", "review_wait_median_h", "review_wait_p85_h",
-            "submissions_decided", "sent_back", "rework_rate", "reopened_after_done",
-            "avg_in_progress", "capacity_utilization", "take_overs", "taken_from", "low_sample",
-        ];
-
-        private static readonly string[] MembersCsvHeader =
-        [
-            "user_name", "display_name", "is_active", "done", "done_urgent", "done_high", "done_normal",
-            "on_time", "late", "no_due_date", "on_time_rate", "overdue_marked",
-            "cycle_median_h", "cycle_p85_h", "lead_median_h", "lead_p85_h", "review_wait_median_h", "review_wait_p85_h",
-            "submissions_decided", "sent_back", "rework_rate", "reopened_after_done",
-            "avg_in_progress", "capacity_utilization", "take_overs", "taken_from",
-        ];
-
-        private static readonly string[] TasksCsvHeader =
-        [
-            "task_id", "title", "credited_user", "completed_local", "priority", "due_date", "on_time", "cycle_h", "lead_h",
-        ];
-
         private string[] BuildBucketRow(ReportBucket bucket, List<ReportTaskFacts> facts, bool teamScope, long? userId)
         {
             if (!bucket.HasData)
             {
-                return [bucket.Start.ToString("yyyy-MM-dd"), bucket.End.ToString("yyyy-MM-dd"), bucket.IsPartial.ToString(), .. Enumerable.Repeat(string.Empty, BucketsCsvHeader.Length - 3)];
+                return [bucket.Start.ToString(DateTimeFormats.Date), bucket.End.ToString(DateTimeFormats.Date), bucket.IsPartial.ToString(), .. Enumerable.Repeat(string.Empty, ReportCsvHeaders.Buckets.Length - 3)];
             }
 
             var m = ReportCalculator.BuildMetricSet(facts, teamScope, userId, bucket.NaturalStart, bucket.NaturalEnd, bucket.MeasuredStartUtc, bucket.MeasuredEndUtcExclusive, _limit, _timeZone, includeLoad: true);
@@ -729,12 +706,12 @@ namespace TaskFlow.BusinessLogic.Services
 
             return
             [
-                bucket.Start.ToString("yyyy-MM-dd"), bucket.End.ToString("yyyy-MM-dd"), bucket.IsPartial.ToString(),
+                bucket.Start.ToString(DateTimeFormats.Date), bucket.End.ToString(DateTimeFormats.Date), bucket.IsPartial.ToString(),
                 m.Delivery.Done.ToString(), m.Delivery.Urgent.ToString(), m.Delivery.High.ToString(), m.Delivery.Normal.ToString(),
                 m.Reliability.OnTime.ToString(), m.Reliability.Late.ToString(), m.Reliability.NoDueDate.ToString(), FormatRate(m.Reliability.OnTimeRate), m.Reliability.OverdueMarked.ToString(),
                 FormatHours(m.Speed.CycleTime.MedianSeconds), FormatHours(m.Speed.CycleTime.P85Seconds), FormatHours(m.Speed.LeadTime.MedianSeconds), FormatHours(m.Speed.LeadTime.P85Seconds), FormatHours(m.Speed.ReviewWait.MedianSeconds), FormatHours(m.Speed.ReviewWait.P85Seconds),
                 m.Quality.SubmissionsDecided.ToString(), m.Quality.SentBack.ToString(), FormatRate(m.Quality.ReworkRate), m.Quality.ReopenedAfterDone.ToString(),
-                m.Load?.AvgInProgress.ToString("0.00") ?? string.Empty, m.Load?.CapacityUtilization.ToString("0.0000") ?? string.Empty,
+                m.Load?.AvgInProgress.ToString(ReportRules.NumberFormats.AvgInProgress) ?? string.Empty, m.Load?.CapacityUtilization.ToString(ReportRules.NumberFormats.RateOrUtilization) ?? string.Empty,
                 m.Attribution.TakeOvers.ToString(), m.Attribution.TakenFrom.ToString(), lowSample.ToString(),
             ];
         }
@@ -750,7 +727,7 @@ namespace TaskFlow.BusinessLogic.Services
                 m.Reliability.OnTime.ToString(), m.Reliability.Late.ToString(), m.Reliability.NoDueDate.ToString(), FormatRate(m.Reliability.OnTimeRate), m.Reliability.OverdueMarked.ToString(),
                 FormatHours(m.Speed.CycleTime.MedianSeconds), FormatHours(m.Speed.CycleTime.P85Seconds), FormatHours(m.Speed.LeadTime.MedianSeconds), FormatHours(m.Speed.LeadTime.P85Seconds), FormatHours(m.Speed.ReviewWait.MedianSeconds), FormatHours(m.Speed.ReviewWait.P85Seconds),
                 m.Quality.SubmissionsDecided.ToString(), m.Quality.SentBack.ToString(), FormatRate(m.Quality.ReworkRate), m.Quality.ReopenedAfterDone.ToString(),
-                m.Load?.AvgInProgress.ToString("0.00") ?? string.Empty, m.Load?.CapacityUtilization.ToString("0.0000") ?? string.Empty,
+                m.Load?.AvgInProgress.ToString(ReportRules.NumberFormats.AvgInProgress) ?? string.Empty, m.Load?.CapacityUtilization.ToString(ReportRules.NumberFormats.RateOrUtilization) ?? string.Empty,
                 m.Attribution.TakeOvers.ToString(), m.Attribution.TakenFrom.ToString(),
             ];
         }
@@ -763,16 +740,16 @@ namespace TaskFlow.BusinessLogic.Services
             return
             [
                 fact.TaskId.ToString(), fact.Title, creditedName,
-                completion.CompletedAtUtc.ToTimezone(_timeZone).ToString("yyyy-MM-dd HH:mm"),
-                completion.Priority.ToString(), completion.DueDate?.ToString("yyyy-MM-dd") ?? string.Empty,
+                completion.CompletedAtUtc.ToTimezone(_timeZone).ToString(DateTimeFormats.DateTime1),
+                completion.Priority.ToString(), completion.DueDate?.ToString(DateTimeFormats.Date) ?? string.Empty,
                 (completion.OnTimeStatus == ReportOnTimeStatus.OnTime).ToString(),
                 FormatHours(completion.CycleTimeSeconds), FormatHours(completion.LeadTimeSeconds),
             ];
         }
 
-        private static string FormatHours(long? seconds) => seconds.HasValue ? Math.Round(seconds.Value / 3600.0, 1).ToString("0.0") : string.Empty;
+        private static string FormatHours(long? seconds) => seconds.HasValue ? Math.Round(seconds.Value / 3600.0, 1).ToString(ReportRules.NumberFormats.Hours) : string.Empty;
 
-        private static string FormatRate(ReportRateDto rate) => rate.Value?.ToString("0.0000") ?? string.Empty;
+        private static string FormatRate(ReportRateDto rate) => rate.Value?.ToString(ReportRules.NumberFormats.RateOrUtilization) ?? string.Empty;
 
         private static string Sanitize(string value)
         {
