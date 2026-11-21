@@ -107,6 +107,17 @@ export interface UserAdmin {
 
 export type AccountRole = 'Admin' | 'Manager' | 'Member'
 
+/** `WorkflowRes` — `GET /workflow` (f10-read-models-and-sort.md §4). Replaces the client literal `IN_PROGRESS_LIMIT` display and browser-date "today" approximations. */
+export interface Workflow {
+  maxInProgressPerAssignee: number
+  timeZone: string
+  today: string
+  overdueScan: {
+    lastFiredAt: string | null
+    nextFireAt: string | null
+  }
+}
+
 /**
  * `AllowedTransitionRes` — one legal next move for *this* caller, with the
  * transition table, permissions, holder-only (D11) and the "someone else
