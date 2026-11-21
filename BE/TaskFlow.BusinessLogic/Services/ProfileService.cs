@@ -129,9 +129,29 @@ namespace TaskFlow.BusinessLogic.Services
                 return (ProfileControllerMS.Avatar.TooLarge, null);
             }
 
-            var header = new byte[12];
-            var read = await content.ReadAsync(header.AsMemory(0, header.Length), cancellationToken);
-            if (!ImageContentSniffer.TryDetect(header[..read], out var extension, out var contentType))
+            // review-change (R2 batch): Stream.ReadAsync is not guaranteed to
+            // fill the buffer in one call - a short first read would sniff
+            // fewer header bytes than intended (e.g. accepting a 3-byte
+            // partial read as "JPEG" without ever having looked at bytes
+            // 4-12, or wrongly rejecting a genuine WebP whose 12-byte
+            // signature arrived split across reads). Filled in a loop
+            // instead, bounded by the already-validated `size` so a
+            // legitimately short file can't throw.
+            var headerLength = (int)Math.Min(12, size);
+            var header = new byte[headerLength];
+            var totalRead = 0;
+            while (totalRead < headerLength)
+            {
+                var read = await content.ReadAsync(header.AsMemory(totalRead, headerLength - totalRead), cancellationToken);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                totalRead += read;
+            }
+
+            if (!ImageContentSniffer.TryDetect(header[..totalRead], out var extension, out var contentType))
             {
                 return (ProfileControllerMS.Avatar.UnsupportedType, null);
             }
