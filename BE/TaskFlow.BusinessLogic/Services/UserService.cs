@@ -31,6 +31,8 @@ namespace TaskFlow.BusinessLogic.Services
         Task<string> RemoveAvatar(long id);
 
         Task<(string ErrorCode, string? AvatarObjectKey)> GetAvatarObjectKey(long id);
+
+        Task<List<WorkloadResDto>> GetWorkload();
     }
 
     // f02-capacity.md T4 (sign-off #6): GET /users, the assignee picker's
@@ -343,6 +345,29 @@ namespace TaskFlow.BusinessLogic.Services
             }
 
             return (string.Empty, user.AvatarObjectKey);
+        }
+
+        // f10-read-models-and-sort.md Section 5: one GROUP BY over
+        // non-deleted tasks with an assignee (F02's own capacity count has
+        // no "is this user active" condition - neither does this).
+        public async Task<List<WorkloadResDto>> GetWorkload()
+        {
+            var tasks = await unitOfWork.GetRepository<TaskItem>().QueryAll();
+
+            return await tasks
+                .Where(t => t.AssigneeId.HasValue
+                    && (t.Status == TaskWorkflowStatus.Todo
+                        || t.Status == TaskWorkflowStatus.InProgress
+                        || t.Status == TaskWorkflowStatus.Review))
+                .GroupBy(t => t.AssigneeId!.Value)
+                .Select(g => new WorkloadResDto
+                {
+                    UserId = g.Key,
+                    Todo = g.Count(t => t.Status == TaskWorkflowStatus.Todo),
+                    InProgress = g.Count(t => t.Status == TaskWorkflowStatus.InProgress),
+                    Review = g.Count(t => t.Status == TaskWorkflowStatus.Review),
+                })
+                .ToListAsync();
         }
 
         private async Task<UserAdminResDto> BuildAdminDto(User user, string? roleName = null)

@@ -9,6 +9,7 @@ namespace TaskFlow.Api.Mappers
         public ProfileMapper()
         {
             CreateMap<MeResDto, MeRes>();
+            CreateMap<MeSummaryResDto, MeSummaryRes>();
         }
     }
 }

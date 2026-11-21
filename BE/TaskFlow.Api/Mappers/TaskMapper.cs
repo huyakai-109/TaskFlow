@@ -18,6 +18,8 @@ namespace TaskFlow.Api.Mappers
             CreateMap<TaskUpdateDueDateReq, TaskUpdateDueDateReqDto>();
             CreateMap<TaskAssignReq, TaskAssignReqDto>();
             CreateMap<AllowedTransitionResDto, AllowedTransitionRes>();
+            CreateMap<LastTransitionResDto, LastTransitionRes>();
+            CreateMap<LastTransitionActorResDto, LastTransitionActorRes>();
             CreateMap<TaskDetailResDto, TaskDetailRes>()
                 .ForMember(dest => dest.Assignee, opt => opt.MapFrom(src => src.AssigneeId.HasValue
                     ? new AssigneeRes { Id = src.AssigneeId.Value, UserName = src.AssigneeUserName ?? string.Empty }

@@ -47,6 +47,30 @@ namespace TaskFlow.Api.Controllers.V1
         }
 
         [HttpGet]
+        [Route("workload")]
+        [Authorize(Policy = Permissions.Tasks.ViewTasks)]
+        [ProducesResponseType(typeof(ResultRes<List<WorkloadRes>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetWorkload()
+        {
+            var response = new ResultRes<List<WorkloadRes>>();
+
+            try
+            {
+                var workload = await userService.GetWorkload();
+
+                response.Success = true;
+                response.Result = Mapper.Map<List<WorkloadRes>>(workload);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                response.ErrorCode = UserControllerMS.Workload.Exception;
+                Logger.LogError(ex, "Get user workload failed");
+                return InternalServerError(response);
+            }
+        }
+
+        [HttpGet]
         [Route("{id:long}")]
         [Authorize(Policy = Permissions.Users.ManageUsers)]
         [ProducesResponseType(typeof(ResultRes<UserAdminRes>), StatusCodes.Status200OK)]

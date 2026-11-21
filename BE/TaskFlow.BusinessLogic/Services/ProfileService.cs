@@ -2,11 +2,13 @@ using TaskFlow.BusinessLogic.Dtos.Profile;
 using TaskFlow.BusinessLogic.Storage;
 using TaskFlow.Common.Constants;
 using TaskFlow.Common.Constants.Messages;
+using TaskFlow.Common.Enums;
 using TaskFlow.Common.Helpers;
 using TaskFlow.DataAccess.Entities;
 using TaskFlow.Repositories.UoW;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace TaskFlow.BusinessLogic.Services
 {
@@ -21,13 +23,20 @@ namespace TaskFlow.BusinessLogic.Services
         Task<(string ErrorCode, string? AvatarUrl)> PutAvatar(long userId, Stream content, long size, CancellationToken cancellationToken);
 
         Task<string> DeleteAvatar(long userId);
+
+        Task<MeSummaryResDto> GetSummary(long userId);
     }
 
     // R2-3 (f08-accounts-profile.md "Self API"), route api/v1/me: every
     // action acts on the caller's own row only - the user id always comes
     // from claims (read in the controller), never a route parameter.
-    public class ProfileService(IUnitOfWork unitOfWork, UserManager<User> userManager, IStorageService storageService) : IProfileService
+    public class ProfileService(
+        IUnitOfWork unitOfWork,
+        UserManager<User> userManager,
+        IStorageService storageService,
+        IConfiguration configuration) : IProfileService
     {
+        private readonly string _timeZone = configuration.GetSection(ConfigKeys.Workflow.TimeZone).Get<string>()!;
         public async Task<(string ErrorCode, MeResDto? Me)> GetMe(long userId)
         {
             var user = await unitOfWork.GetRepository<User>().FindById(userId);
@@ -184,6 +193,38 @@ namespace TaskFlow.BusinessLogic.Services
             await storageService.Remove(oldKey);
 
             return string.Empty;
+        }
+
+        // f10-read-models-and-sort.md Section 6: "this week" = Monday 00:00
+        // to the next Monday 00:00 in the configured zone (B7). Correct
+        // because assignment is locked in Review/Done (F01 D12) - the
+        // assignee recorded on a Done task is the one who finished it.
+        public async Task<MeSummaryResDto> GetSummary(long userId)
+        {
+            var today = DateTimeHelper.GetDtOffset().ToDateInZone(_timeZone);
+            var daysSinceMonday = ((int)today.DayOfWeek + 6) % 7;
+            var weekStart = today.AddDays(-daysSinceMonday);
+            var weekEnd = weekStart.AddDays(7);
+
+            var weekStartUtc = weekStart.LocalStartOfDayToUtc(_timeZone);
+            var weekEndUtc = weekEnd.LocalStartOfDayToUtc(_timeZone);
+
+            var tasks = await unitOfWork.GetRepository<TaskItem>().QueryAll();
+
+            var inProgress = await tasks.CountAsync(t => t.AssigneeId == userId && t.Status == TaskWorkflowStatus.InProgress);
+            var completedThisWeek = await tasks.CountAsync(t =>
+                t.AssigneeId == userId
+                && t.Status == TaskWorkflowStatus.Done
+                && t.CompletedAt >= weekStartUtc
+                && t.CompletedAt < weekEndUtc);
+
+            return new MeSummaryResDto
+            {
+                InProgress = inProgress,
+                CompletedThisWeek = completedThisWeek,
+                WeekStart = weekStart,
+                WeekEnd = weekEnd,
+            };
         }
 
         private async Task<string?> CurrentRoleName(long userId)

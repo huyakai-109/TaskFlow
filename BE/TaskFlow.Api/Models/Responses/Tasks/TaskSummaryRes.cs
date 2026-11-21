@@ -27,5 +27,27 @@ namespace TaskFlow.Api.Models.Responses.Tasks
         public bool CanTakeOver { get; set; }
 
         public bool CanAssignOthers { get; set; }
+
+        public LastTransitionRes? LastTransition { get; set; }
+    }
+
+    public class LastTransitionRes
+    {
+        public string? From { get; set; }
+
+        public string To { get; set; } = string.Empty;
+
+        public LastTransitionActorRes? Actor { get; set; }
+
+        public DateTimeOffset At { get; set; }
+    }
+
+    public class LastTransitionActorRes
+    {
+        public long Id { get; set; }
+
+        public string UserName { get; set; } = string.Empty;
+
+        public string? DisplayName { get; set; }
     }
 }

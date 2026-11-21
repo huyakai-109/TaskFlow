@@ -34,5 +34,8 @@ namespace TaskFlow.BusinessLogic.Dtos.Tasks
         public bool CanTakeOver { get; set; }
 
         public bool CanAssignOthers { get; set; }
+
+        // f10-read-models-and-sort.md Section 3, additive.
+        public LastTransitionResDto? LastTransition { get; set; }
     }
 }

@@ -19,7 +19,7 @@ namespace TaskFlow.BusinessLogic.HostedServices
         ISchedulerFactory schedulerFactory) : IHostedService
     {
         // D5 fixes the time of day; only the zone is configuration (D4).
-        private const string JobId = "OverdueScan";
+        private const string JobId = GlobalConstants.Jobs.OverdueScanJobId;
         private const string CronExpression = "0 5 0 * * ?";
 
         public async Task StartAsync(CancellationToken cancellationToken)

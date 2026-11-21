@@ -116,6 +116,21 @@ namespace TaskFlow.Common.Helpers
         }
 
         /// <summary>
+        /// The reverse of ToDateInZone: a calendar date's local midnight,
+        /// converted to UTC. Shared by /me/summary's week boundary
+        /// (f10-read-models-and-sort.md Section 6) and the Activity feed's
+        /// date-range filter (f04-activity-feed.md) - the one place either
+        /// feature turns a local calendar date into a sargable UTC bound.
+        /// </summary>
+        public static DateTimeOffset LocalStartOfDayToUtc(this DateOnly date, string timezoneName)
+        {
+            var timezone = TimeZoneInfo.FindSystemTimeZoneById(timezoneName);
+            var localMidnight = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
+            var utc = TimeZoneInfo.ConvertTimeToUtc(localMidnight, timezone);
+            return new DateTimeOffset(utc, TimeSpan.Zero);
+        }
+
+        /// <summary>
         /// Convert the Unix timestamp to a DateTime
         /// </summary>
         /// <param name="timestampObj">TimeObj</param>

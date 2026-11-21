@@ -66,5 +66,11 @@ namespace TaskFlow.Common.Constants.Messages
             public const string NotFound = "User.Avatar.NotFound";
             public const string Exception = "User.Avatar.Exception";
         }
+
+        // f10-read-models-and-sort.md Section 5.
+        public struct Workload
+        {
+            public const string Exception = "User.Workload.Exception";
+        }
     }
 }

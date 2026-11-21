@@ -38,5 +38,7 @@ namespace TaskFlow.Api.Models.Responses.Tasks
         public long CreatedBy { get; set; }
 
         public DateTimeOffset UpdatedAt { get; set; }
+
+        public LastTransitionRes? LastTransition { get; set; }
     }
 }

@@ -38,9 +38,9 @@ namespace TaskFlow.BusinessLogic.Services
 
         Task<string> Delete(long id, Guid version, long actorUserId);
 
-        Task<BoardResDto> GetBoard(long actorUserId, string[] callerPermissions);
+        Task<BoardResDto> GetBoard(long actorUserId, string[] callerPermissions, TaskSortOrder sort = TaskSortOrder.Priority);
 
-        Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, bool? isOverdue, int start, int length, long actorUserId, string[] callerPermissions);
+        Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, bool? isOverdue, long? assigneeId, int start, int length, long actorUserId, string[] callerPermissions, TaskSortOrder sort = TaskSortOrder.Priority);
     }
 
     public class TaskService(
@@ -168,7 +168,10 @@ namespace TaskFlow.BusinessLogic.Services
                 assigneeUserName = assignee?.UserName;
             }
 
-            return (string.Empty, BuildDetail(task, assigneeUserName, actorUserId, callerPermissions));
+            var detail = BuildDetail(task, assigneeUserName, actorUserId, callerPermissions);
+            detail.LastTransition = await BuildLastTransition(task);
+
+            return (string.Empty, detail);
         }
 
         // D3 + T2 validation order: existence -> version -> transition validity
@@ -801,9 +804,9 @@ namespace TaskFlow.BusinessLogic.Services
         // active columns use ApplyColumnOrder; Done uses ApplyDoneColumnOrder
         // windowed to DoneColumnPageSize before counting, so TotalItems
         // reports min(count, 20) - the [SIGN-OFF] total, not the true count.
-        public async Task<BoardResDto> GetBoard(long actorUserId, string[] callerPermissions)
+        public async Task<BoardResDto> GetBoard(long actorUserId, string[] callerPermissions, TaskSortOrder sort = TaskSortOrder.Priority)
         {
-            var board = new BoardResDto();
+            var board = new BoardResDto { Sort = sort };
 
             foreach (var status in BoardColumnOrder)
             {
@@ -821,6 +824,9 @@ namespace TaskFlow.BusinessLogic.Services
                     // the same IQueryable produces both the windowed list and
                     // min(count, 20) for TotalItems - one code path for both,
                     // not a true count computed then clamped separately.
+                    // f10-read-models-and-sort.md Section 1: Done ignores
+                    // `sort` entirely (F03 D4) - ApplyDoneColumnOrder never
+                    // takes a sort argument.
                     var windowed = ApplyDoneColumnOrder(query).Take(DoneColumnPageSize);
                     totalItems = await windowed.CountAsync();
                     pageItems = await windowed.ToListAsync();
@@ -828,7 +834,7 @@ namespace TaskFlow.BusinessLogic.Services
                 else
                 {
                     pageSize = BoardColumnPageSize;
-                    query = ApplyColumnOrder(query);
+                    query = ApplyColumnOrder(query, sort);
                     totalItems = await query.CountAsync();
                     pageItems = await query.Take(BoardColumnPageSize).ToListAsync();
                 }
@@ -853,7 +859,7 @@ namespace TaskFlow.BusinessLogic.Services
         // ApplyDoneColumnOrder window as the board and a fixed page size
         // (DoneColumnPageSize), never the caller-supplied length - there is
         // never more than 20 rows to page through.
-        public async Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, bool? isOverdue, int start, int length, long actorUserId, string[] callerPermissions)
+        public async Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, bool? isOverdue, long? assigneeId, int start, int length, long actorUserId, string[] callerPermissions, TaskSortOrder sort = TaskSortOrder.Priority)
         {
             var query = await unitOfWork.GetRepository<TaskItem>().QueryAll();
 
@@ -867,6 +873,13 @@ namespace TaskFlow.BusinessLogic.Services
                 query = query.Where(i => i.IsOverdue == isOverdue.Value);
             }
 
+            // f10-read-models-and-sort.md Section 2: composes with
+            // status/isOverdue/sort, uses IX_Tasks_IsDeleted_AssigneeId_Status.
+            if (assigneeId.HasValue)
+            {
+                query = query.Where(i => i.AssigneeId == assigneeId.Value);
+            }
+
             Pagination<TaskItem> page;
             if (status == TaskWorkflowStatus.Done)
             {
@@ -875,7 +888,7 @@ namespace TaskFlow.BusinessLogic.Services
             }
             else
             {
-                query = ApplyColumnOrder(query);
+                query = ApplyColumnOrder(query, sort);
                 page = await Pagination<TaskItem>.CreateAsync(query, start, length);
             }
 
@@ -891,22 +904,41 @@ namespace TaskFlow.BusinessLogic.Services
             };
         }
 
-        // f03-sorting.md Technical contract: the active-column ordering rule,
-        // shared by GetBoard and GetList so there is exactly one OrderBy to
-        // maintain. Expressed entirely in SQL (no in-memory sort) so AC13
-        // holds: Priority asc (D2, rank already explicit on the enum) -> "has
-        // no due date" asc, so undated sorts after dated (D3 - MySQL sorts
-        // NULL first on a plain ascending DueDate) -> DueDate asc -> CreatedAt
-        // asc -> Id asc (D3's tie-break, required for stable pagination).
-        private static IQueryable<TaskItem> ApplyColumnOrder(IQueryable<TaskItem> query)
+        // f03-sorting.md Technical contract / f10-read-models-and-sort.md
+        // Section 1: the active-column ordering rule, shared by GetBoard and
+        // GetList so there is exactly one OrderBy per sort value to
+        // maintain. Expressed entirely in SQL (no in-memory sort), one
+        // switch here - never through QueryHelper.ApplySorting, which isn't
+        // meant for a fixed enum and throws on unknown columns.
+        private static IQueryable<TaskItem> ApplyColumnOrder(IQueryable<TaskItem> query, TaskSortOrder sort) => sort switch
         {
-            return query
+            // D2 (rank already explicit on the enum) -> "has no due date" asc,
+            // so undated sorts after dated (D3 - MySQL sorts NULL first on a
+            // plain ascending DueDate) -> DueDate asc -> CreatedAt asc -> Id
+            // asc (D3's tie-break, required for stable pagination).
+            TaskSortOrder.Priority => query
                 .OrderBy(i => i.Priority)
                 .ThenBy(i => i.DueDate == null)
                 .ThenBy(i => i.DueDate)
                 .ThenBy(i => i.CreatedAt)
-                .ThenBy(i => i.Id);
-        }
+                .ThenBy(i => i.Id),
+
+            // f10 Section 1: DueDate IS NULL asc, DueDate asc, Priority asc,
+            // CreatedAt asc, Id asc.
+            TaskSortOrder.DueDate => query
+                .OrderBy(i => i.DueDate == null)
+                .ThenBy(i => i.DueDate)
+                .ThenBy(i => i.Priority)
+                .ThenBy(i => i.CreatedAt)
+                .ThenBy(i => i.Id),
+
+            // f10 Section 1: CreatedAt desc, Id desc.
+            TaskSortOrder.Newest => query
+                .OrderByDescending(i => i.CreatedAt)
+                .ThenByDescending(i => i.Id),
+
+            _ => throw new ArgumentOutOfRangeException(nameof(sort)),
+        };
 
         // f03-sorting.md D4 / Technical contract: Done's own rule -
         // CompletedAt desc (most recently completed first), Id desc as the
@@ -930,6 +962,8 @@ namespace TaskFlow.BusinessLogic.Services
                 userNames = await users.ToDictionaryAsync(u => u.Id, u => u.UserName);
             }
 
+            var lastTransitions = await BuildLastTransitionsBatch(tasks);
+
             return [.. tasks.Select(task => new TaskSummaryResDto
             {
                 Id = task.Id,
@@ -945,7 +979,90 @@ namespace TaskFlow.BusinessLogic.Services
                 AllowedTransitions = BuildAllowedTransitions(task, actorUserId, callerPermissions),
                 CanTakeOver = CanTakeOver(task, actorUserId, callerPermissions),
                 CanAssignOthers = CanAssignOthers(task, callerPermissions),
+                LastTransition = lastTransitions.GetValueOrDefault(task.Id),
             })];
+        }
+
+        // f10-read-models-and-sort.md Section 3: one batched query per page
+        // (no N+1), the latest StatusChanged/Reopened entry per task whose
+        // ToValue equals that task's current status.
+        private async Task<Dictionary<long, LastTransitionResDto?>> BuildLastTransitionsBatch(List<TaskItem> tasks)
+        {
+            var result = new Dictionary<long, LastTransitionResDto?>();
+            if (tasks.Count == 0)
+            {
+                return result;
+            }
+
+            var taskIds = tasks.Select(t => t.Id).ToList();
+            var histories = await unitOfWork.GetRepository<TaskHistory>().QueryAll();
+            var users = unitOfWork.DbContext.Set<User>().IgnoreQueryFilters().AsNoTracking();
+
+            var candidates = await (
+                from h in histories
+                where taskIds.Contains(h.TaskId) && (h.Event == TaskHistoryEvent.StatusChanged || h.Event == TaskHistoryEvent.Reopened)
+                join u in users on h.ActorUserId equals (long?)u.Id into actorJoin
+                from actor in actorJoin.DefaultIfEmpty()
+                select new LastTransitionRow
+                {
+                    TaskId = h.TaskId,
+                    FromValue = h.FromValue,
+                    ToValue = h.ToValue,
+                    CreatedAt = h.CreatedAt,
+                    Id = h.Id,
+                    ActorUserId = h.ActorUserId,
+                    ActorUserName = actor != null ? actor.UserName : null,
+                    ActorDisplayName = actor != null ? actor.DisplayName : null,
+                }).ToListAsync();
+
+            var byTask = candidates.ToLookup(c => c.TaskId);
+            foreach (var task in tasks)
+            {
+                var currentStatus = task.Status.ToString();
+                var match = byTask[task.Id]
+                    .Where(c => c.ToValue == currentStatus)
+                    .OrderByDescending(c => c.CreatedAt)
+                    .ThenByDescending(c => c.Id)
+                    .FirstOrDefault();
+
+                result[task.Id] = match == null ? null : new LastTransitionResDto
+                {
+                    From = match.FromValue,
+                    To = match.ToValue,
+                    At = match.CreatedAt,
+                    Actor = match.ActorUserId.HasValue
+                        ? new LastTransitionActorResDto { Id = match.ActorUserId.Value, UserName = match.ActorUserName ?? string.Empty, DisplayName = match.ActorDisplayName }
+                        : null,
+                };
+            }
+
+            return result;
+        }
+
+        private async Task<LastTransitionResDto?> BuildLastTransition(TaskItem task)
+        {
+            var batch = await BuildLastTransitionsBatch([task]);
+            return batch.GetValueOrDefault(task.Id);
+        }
+
+        // Join projection shape only - not returned past this service.
+        private class LastTransitionRow
+        {
+            public long TaskId { get; set; }
+
+            public string? FromValue { get; set; }
+
+            public string? ToValue { get; set; }
+
+            public DateTimeOffset CreatedAt { get; set; }
+
+            public long Id { get; set; }
+
+            public long? ActorUserId { get; set; }
+
+            public string? ActorUserName { get; set; }
+
+            public string? ActorDisplayName { get; set; }
         }
 
         private static List<AllowedTransitionResDto> BuildAllowedTransitions(TaskItem task, long actorUserId, string[] callerPermissions)

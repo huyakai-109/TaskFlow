@@ -148,6 +148,32 @@ namespace TaskFlow.Api.Controllers.V1
             }
         }
 
+        [HttpGet]
+        [Route("summary")]
+        [Authorize(Policy = Permissions.Tasks.ViewTasks)]
+        [ProducesResponseType(typeof(ResultRes<MeSummaryRes>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetSummary()
+        {
+            var response = new ResultRes<MeSummaryRes>();
+
+            try
+            {
+                var userId = this.User.Claims.GetUserId();
+
+                var summary = await profileService.GetSummary(userId);
+
+                response.Success = true;
+                response.Result = Mapper.Map<MeSummaryRes>(summary);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                response.ErrorCode = ProfileControllerMS.Summary.Exception;
+                Logger.LogError(ex, "Get own summary failed");
+                return InternalServerError(response);
+            }
+        }
+
         [HttpDelete]
         [Route("avatar")]
         [Authorize(Policy = Permissions.Tasks.ViewTasks)]

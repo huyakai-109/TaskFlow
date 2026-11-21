@@ -11,6 +11,14 @@ namespace TaskFlow.BusinessLogic.Schedulers
 
         Task<bool> ScheduleJob<T>(string id, DateTimeOffset startAt, Dictionary<string, string>? jobData = null)
             where T : IJob;
+
+        // f10-read-models-and-sort.md Section 4 (GET /workflow): a read-only
+        // companion to ScheduleJob, so a caller can report "last check"/
+        // "next check" without reaching into Quartz directly. Null/null when
+        // the trigger doesn't exist (e.g. the "Testing" host, which never
+        // schedules anything) - "last fired" is not proof of success, callers
+        // keep their own copy wording for that.
+        Task<(DateTimeOffset? LastFiredAt, DateTimeOffset? NextFireAt)> GetTriggerTimes(string id);
     }
 
     public class ScheduleService(
@@ -169,6 +177,28 @@ namespace TaskFlow.BusinessLogic.Schedulers
             {
                 logger.LogError(ex, "Schedule job error");
                 return false;
+            }
+        }
+
+        public async Task<(DateTimeOffset? LastFiredAt, DateTimeOffset? NextFireAt)> GetTriggerTimes(string id)
+        {
+            try
+            {
+                var scheduler = await schedulerFactory.GetScheduler();
+                var triggerKey = new TriggerKey($"{id}.triggerKey");
+                var trigger = await scheduler.GetTrigger(triggerKey);
+
+                if (trigger == null)
+                {
+                    return (null, null);
+                }
+
+                return (trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc());
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Get trigger times error");
+                return (null, null);
             }
         }
     }

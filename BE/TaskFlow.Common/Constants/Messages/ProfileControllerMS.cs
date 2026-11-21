@@ -31,5 +31,11 @@ namespace TaskFlow.Common.Constants.Messages
             public const string Conflict = "Profile.Avatar.Conflict";
             public const string Exception = "Profile.Avatar.Exception";
         }
+
+        // f10-read-models-and-sort.md Section 6.
+        public struct Summary
+        {
+            public const string Exception = "Profile.Summary.Exception";
+        }
     }
 }

@@ -17,4 +17,15 @@ namespace TaskFlow.Api.Models.Responses.Profile
     {
         public string AvatarUrl { get; set; } = string.Empty;
     }
+
+    public class MeSummaryRes
+    {
+        public int InProgress { get; set; }
+
+        public int CompletedThisWeek { get; set; }
+
+        public DateOnly WeekStart { get; set; }
+
+        public DateOnly WeekEnd { get; set; }
+    }
 }
