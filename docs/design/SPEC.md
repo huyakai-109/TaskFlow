@@ -253,3 +253,73 @@ Where this section disagrees with the Figma frames, the PNGs or sections 1–9 a
     - The teal sits only 22°/1.12:1 (light) and a comparable 1.38:1 (dark) from `--color-success` — audited every place success-green carries meaning in both themes (Done's filled-check icon shape, status text) and confirmed none relies on colour alone in either theme, but this is flagged, not dismissed; see the proposal doc for the suggested (unapplied) success-colour nudge.
 
 **Slice order actually run 2026-11-11:** slice 1 — ComingSoon infrastructure + Inbox + Team capacity page + Board List view + search quick-switch + keyboard shortcuts (`C`/`J`/`K`/`⌘↵`); slice 2 — Board toolbar AvatarStack + "N at capacity" pill + Team popover; slice 3 — Assign picker HAS ROOM/AT CAPACITY grouping + Done card "Approved by" line; slice 4 — Overdue "Due today" + My tasks "Sent back for rework" chip. **Second pass, same day:** Done card "Approved by" and My tasks "Sent back by" were found to be N+1 fetch patterns on closer review and reverted (reclassified B5/B6); real "Coming soon" stubs were built for all 4 genuinely-blocked B items (flag-cleared-this-week, finished-this-week, last-check, the in-progress limit display); "may be incomplete" warnings (My tasks's own established pattern) were added to Team capacity and search. Category C (Reviewer field, CapacityReached picker — both contradicting a signed-off contract) remains out of scope, untouched.
+
+## 11. Reports page (F09, added 2026-11-21 — replaces Activity, supersedes §10.15)
+
+Contract: [docs/features/f09-reports.md](../features/f09-reports.md). Decision record: [ADR 0008](../adr/0008-reports-replace-activity.md). Not drawn in Figma; built from the tokens in §2 and the shell in §3. Where this section and f09 differ, f09 wins on data, this section on presentation.
+
+### 11.1 Navigation and routes
+- Sidebar: **Reports** takes Activity's slot (same position, no counter), bar-chart stroke icon 16, visible to every role. Collapsed: tooltip "Reports".
+- Routes: `/reports` → redirects to `/reports/team` with `ViewReports`, otherwise `/reports/me`. `/reports/me` (everyone). `/reports/team` and `/reports/members/:userId` are wrapped in `RequirePermission permission="ViewReports"` — without it they render the same `NotFoundPage` as `/accounts`. `/reports/members/{own id}` redirects to `/reports/me`. `/activity` is removed (falls to `*`), Inbox precedent (open question Q5).
+- Breadcrumb: "Reports / Team", "Reports / Me", "Reports / {displayName}".
+- The page is lazy-loaded (`React.lazy`) so the chart library never enters the main chunk. Suspense fallback = the page skeleton (11.6).
+
+### 11.2 Layout (shared frame `mx-auto w-full max-w-[1680px]`, §10.10)
+Top to bottom:
+1. **Header row:** title "Reports" (xl/600) + subtitle (sm, muted) "{scope} · {from}–{to} · {granularity}". Right: **Export CSV** (secondary button, shown only with `ExportReports`; menu: Buckets · Members (team only) · Tasks).
+2. **Filter bar:** scope picker (with `ViewReports`: "Team" + members, avatar 20 + name, deactivated members suffixed "· deactivated" in muted text). Range presets segmented control: This week · Last week · This month · Last month · This quarter · Last quarter · Custom (two `<input type="date">`, `max` = `today` from `GET /workflow`). Granularity segmented control: Day · Week · Month · Quarter — Day disabled with reason "Day view is limited to 92 days" when the range is longer. The team view has no granularity control (always weekly). All filter state lives in the URL (`?from=&to=&g=`), never in storage. "Today" and the zone come from `GET /workflow`, never the browser clock.
+3. **Caveats panel** (11.5), always visible, `side-panel` background, radius 12, 13/400 `text-2`.
+4. **Scorecard:** four cards (radius 14, `card`, 1 px `border`): **Delivery** (done; Urgent/High/Normal split with `PriorityIcon`), **Speed** (cycle median, cycle p85, lead median, lead p85, review-wait median, review-wait p85 — format "2d 4h"; review wait has its own muted caption "Time in the final review pass — not counted against cycle time"), **Reliability** (on-time rate "50% · 1 of 2 on time", late, no due date, overdue marks), **Quality & load** (rework rate "33% · 2 of 6 sent back", reopened after Done, average in progress "1.7", capacity utilisation "57% of 3", take-overs taken / lost). In the member view, each number has a muted line "Team median {x}" when `teamMedian` is present. **No colour judgement** (no red/green deltas, no arrows, no "above/below" words). No composite number anywhere.
+5. **Charts** (each a `ChartFigure`, 11.4):
+   - Member view: (a) On-time vs late per bucket — stacked bar. (b) Cycle time trend — median line + p85 line; figcaption footnote "Cycle time runs start → Done and can include review wait — see Speed's review-wait figures above for the reviewer's share." (c) Member vs team median — horizontal paired bars per metric (member bar + team-median tick mark), one row per metric, never per person.
+   - Team view: (a), (b) for the pooled team. (d) **Workload heatmap** — member × week. (e) **Workload vs rework** — scatter, one point per member, x = average in progress, y = rework rate.
+6. Widths. **1440:** scorecard 4 columns; (a)|(b) 2 columns; (d) full width; (e)|(c) 2 columns; chart plot height 280. **768:** scorecard 2×2; charts 1 column, height 260. **390:** everything 1 column; presets become a `<select>`; chart height 220; the heatmap scrolls horizontally inside its own container (`role="region"`, `aria-label="Workload heatmap"`, `tabIndex=0`) — the only horizontal scroll on the page, contained; first column (names) sticky.
+
+### 11.3 Colour and encoding (tokens only, light + dark via `var()`)
+| Element | Token | Non-colour cue |
+|---|---|---|
+| On time | `--color-accent` | segment order bottom; legend + table |
+| Late | `--color-danger` | segment above on-time; legend + table |
+| No due date | `--color-meter-empty` with 1 px `--color-border-strong` outline | top segment; legend + table |
+| Median line | `--color-accent`, 2 px solid, circle markers | label "Median" at line end |
+| p85 line | `--color-priority-high`, 2 px **dashed** (4 3), square markers | label "p85" at line end |
+| Low-sample point/bar | same hue, hollow marker / 40 % fill | "few data" in tooltip and table |
+| Heatmap cell | `color-mix(in oklab, var(--color-accent) {10–90}%, var(--color-surface))`, 5 steps | the value printed in each cell; cells ≥ the limit get a 2 px `--color-danger-border` inset and "Full" in the table |
+| Scatter point | `--color-accent`; low-sample hollow | member initials as the point label at ≥ 768 |
+| Team-median tick | `--color-text` 2 px | label "Team median" |
+| Grid/axes | `--color-border` / `--color-text-muted`, 11–12 px | — |
+Teal accent vs `--color-success` is close (§10.18) — success green is **not** used in charts at all. Every encoding has a second, non-colour cue. Dark theme needs no extra code (SVG `fill`/`stroke` = `var(--color-*)`).
+
+### 11.4 `ChartFigure` (accessibility pattern, every chart)
+`<figure>` → `<figcaption>` (title 15/600 + one-sentence text summary, generated from the data, e.g. "12 of 15 finished on time (80%); 2 late; 1 had no due date."). Then the chart, with the SVG `role="img"` + `aria-label` = that summary, and Recharts' `accessibilityLayer` on (arrow keys move between buckets; the tooltip shows values). Then a **"Show table"** toggle (`aria-expanded`, `aria-controls`) revealing a real `<table>` with a `<caption>`, one row per bucket/member and every plotted number (percent and raw counts). Table rows carry a **"View tasks"** button — the guaranteed keyboard and screen-reader path to drill-down. Clicking a bar segment or point does the same with a pointer. `prefers-reduced-motion` → `isAnimationActive={false}`. The heatmap *is* a `<table>` (`<th scope="row">` names, `<th scope="col">` week labels), each cell a button "Lan, week of 2 Mar: 1.7 in progress on average".
+
+### 11.5 Caveats copy (verbatim)
+- **"Indicators, not verdicts."** Throughput and speed depend on task size, which TaskFlow doesn't record (no estimates or story points). Use these numbers to start a conversation, not to end one.
+- **Who gets credit.** A finished task counts for whoever held it when it moved to Done — not whoever approved it. If someone took a task over, the person holding it at the end gets the credit; take-overs are shown separately.
+- **Reopened work.** A reopened task stops counting as finished until it is finished again, then counts once — so earlier periods can change, including a period you've already looked at.
+- **Time.** Times are wall-clock in {timeZone}, including nights, weekends and holidays. Weeks start on Monday.
+- **Capacity.** Utilisation uses today's limit of {inProgressLimit}; if the limit changed during this period, older figures are approximate.
+- **Data available since {d MMM yyyy}.** Nothing before this date was recorded.
+- Small samples: any figure with `lowSample` shows a chip "Few data · {n}" (meta 12, `warning-surface`/`warning`) with title text "Based on only {n} — fewer than {smallSampleThreshold}; read with care." A `p85` that is null because n < threshold shows "—" with "Needs {smallSampleThreshold}+ tasks".
+
+### 11.6 States
+| State | Trigger | Shows |
+|---|---|---|
+| Loading | first fetch | skeletons: 4 scorecard cards + chart frames at final size (no layout shift) |
+| Refetch | filter change | previous data dimmed 60 % with `aria-busy`, no skeleton flash |
+| Error | `success:false` | inline card per failed query: message from `errorMessages.ts` for `errorCode`, "Try again" button; filters stay usable |
+| No history at all | `dataAvailableSince = null` | empty card "No task history recorded yet. Reports appear once tasks start moving." |
+| Range before data | every bucket `hasData:false` | "No data in this range. Data is available from {date}." + button "Start from {date}" |
+| Partially before data | some buckets `hasData:false` | those buckets hatched in charts (`--color-dashed-border` stripes) and "—" in tables |
+| Member with no activity | totals all zero / null | "No recorded activity for {name} in this period." (not an error) |
+| Partial bucket | `isPartial` | axis label suffixed "*", footnote "* partial period" |
+| Drill-down empty | 0 items | "No tasks for this selection." |
+
+### 11.7 Drill-down
+A `role="dialog"` side panel (480 w at ≥ 768, full screen at 390; `useDialogA11y`: focus in, Esc closes, focus returns to the trigger). Title "{metric label} · {name or Team} · {bucket range}". Rows: key (mono) + title (link to `/tasks/:id`; deleted tasks plain text + "deleted" marker, not linked), credited person (team scope), date (local "15 Oct, 09:30"), priority icon, due date, cycle/lead time. Offset paging "Show more" (30 per page). Scatter or heatmap name → navigates to `/reports/members/:userId`.
+
+### 11.8 CSV export
+Visible only with `ExportReports`. Fetched with the bearer token (`fetchAuthenticatedBlob` pattern), saved through an object URL with the server's filename. Busy state on the button. Errors through the same error-code copy.
+
+### 11.9 Removed with Activity
+`FE/src/features/activity/` (page, filter bar, row, hook and its test), `FE/src/api/activity.ts`, the `ActivityEntry`/cursor types in `FE/src/api/types.ts`, the three `Activity.GetList.*` entries in `FE/src/api/errorMessages.ts`, the Activity nav item, icon and breadcrumb. The Task detail "Activity" timeline (per-task F04 history) is **not** this feature and stays.
