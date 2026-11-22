@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+import { formatDateSafe } from '../utils/safeDate'
+
 const dateFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' })
 
 function ChevronIcon({ expanded }: { expanded: boolean }) {
@@ -85,7 +87,7 @@ export function CaveatsPanel({ timeZone, inProgressLimit, dataAvailableSince, sm
           </p>
           <p className="m-0">
             <strong className="font-semibold">
-              {dataAvailableSince === null ? 'No data recorded yet.' : `Data available since ${dateFormatter.format(new Date(`${dataAvailableSince}T00:00:00Z`))}.`}
+              {dataAvailableSince === null ? 'No data recorded yet.' : `Data available since ${formatDateSafe(dateFormatter, dataAvailableSince)}.`}
             </strong>{' '}
             {dataAvailableSince !== null && 'Nothing before this date was recorded.'}
           </p>

@@ -12,6 +12,7 @@ import { DrillDownDialog } from './components/DrillDownDialog'
 import { ExportMenu } from './components/ExportMenu'
 import { OnTimeStackedBarChart } from './components/OnTimeStackedBarChart'
 import { ReportFilterBar } from './components/ReportFilterBar'
+import { ReportsSkeleton } from './components/ReportsSkeleton'
 import { ScorecardGrid } from './components/ScorecardGrid'
 import type { ScorecardTeamComparison } from './components/ScorecardGrid'
 import { TeamComparisonChart } from './components/TeamComparisonChart'
@@ -92,6 +93,16 @@ export function ReportsPage() {
 
   if (isOwnIdInUrl) {
     return <Navigate to="/reports/me" replace />
+  }
+
+  // Bug fix (2026-11-22): `range.today` (`GET /workflow`) resolves
+  // asynchronously; until it does, `range.from`/`range.to` are `''` and
+  // every preset/fiscal-year/month option `ReportFilterBar` computes from
+  // them would be built on nothing. Render the skeleton instead of the
+  // filter bar — no filter bar, no formatter call, on a cold load — rather
+  // than let a downstream formatter receive an empty date.
+  if (range.today === null) {
+    return <ReportsSkeleton />
   }
 
   // At team scope both queries must resolve before the page is "ready" —

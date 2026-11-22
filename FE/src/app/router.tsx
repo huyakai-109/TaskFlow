@@ -8,6 +8,7 @@ import { RequirePermission } from './RequirePermission'
 import { AccountsPage } from '../features/accounts/AccountsPage'
 import { BoardPage } from '../features/board/BoardPage'
 import { ReportsSkeleton } from '../features/reports/components/ReportsSkeleton'
+import { ReportsErrorBoundary } from '../features/reports/ReportsErrorBoundary'
 import { LoginPage } from '../features/auth/LoginPage'
 import { MyTasksPage } from '../features/my-tasks/MyTasksPage'
 import { NotFoundPage } from '../features/not-found/NotFoundPage'
@@ -64,6 +65,7 @@ export const router = createBrowserRouter([
                 <ReportsPage />
               </Suspense>
             ),
+            errorElement: <ReportsErrorBoundary />,
           },
           {
             path: 'reports/team',
@@ -74,6 +76,7 @@ export const router = createBrowserRouter([
                 </Suspense>
               </RequirePermission>
             ),
+            errorElement: <ReportsErrorBoundary />,
           },
           {
             path: 'reports/members/:userId',
@@ -84,6 +87,7 @@ export const router = createBrowserRouter([
                 </Suspense>
               </RequirePermission>
             ),
+            errorElement: <ReportsErrorBoundary />,
           },
           { path: 'tasks/:id', element: <TaskDetailPage /> },
           { path: '*', element: <NotFoundPage /> },

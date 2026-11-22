@@ -124,6 +124,7 @@ function renderAt(path: string) {
   )
 }
 
+
 describe('ReportsPage — permission gating (Member vs Manager), per RequirePermission.test.tsx pattern', () => {
   it('Member: no scope picker, no Export button, no team-median line', () => {
     setCommonMocks({ viewReports: false, exportReports: false })
@@ -292,3 +293,39 @@ describe('ReportsPage — "% vs team" comparison (§E)', () => {
     expect(screen.getByText('Compared with the average member who delivered in this period.')).not.toBeNull()
   })
 })
+
+describe('ReportsPage — cold load, GET /workflow\'s "today" still pending (bug fix, 2026-11-22)', () => {
+  function setColdLoadMocks(viewReports: boolean) {
+    useHasPermission.mockImplementation((permission: string) => (permission === 'ViewReports' ? viewReports : permission === 'ExportReports' ? viewReports : false))
+    useAuthSession.mockReturnValue({ userId: 1 })
+    useUsersQuery.mockReturnValue({ data: [] })
+    useWorkflowQuery.mockReturnValue({ data: undefined })
+    useReportScorecardQuery.mockReturnValue({ isPending: true, isError: false, isSuccess: false, isFetching: true, data: undefined, refetch: vi.fn() })
+    useReportTeamQuery.mockReturnValue({ isPending: true, isError: false, isSuccess: false, isFetching: true, data: undefined, refetch: vi.fn() })
+  }
+
+  it('Member visiting /reports/me renders the loading skeleton and never throws', () => {
+    setColdLoadMocks(false)
+
+    expect(() => renderAt('/reports/me')).not.toThrow()
+    expect(screen.getByRole('status').textContent).toMatch(/loading report/i)
+    expect(screen.queryByLabelText('Fiscal year')).toBeNull()
+  })
+
+  it('Manager visiting /reports/team renders the loading skeleton and never throws', () => {
+    setColdLoadMocks(true)
+
+    expect(() => renderAt('/reports/team')).not.toThrow()
+    expect(screen.getByRole('status').textContent).toMatch(/loading report/i)
+    expect(screen.queryByLabelText('Fiscal year')).toBeNull()
+  })
+
+  it('Manager visiting /reports/me renders the loading skeleton and never throws', () => {
+    setColdLoadMocks(true)
+
+    expect(() => renderAt('/reports/me')).not.toThrow()
+    expect(screen.getByRole('status').textContent).toMatch(/loading report/i)
+    expect(screen.queryByLabelText('Fiscal year')).toBeNull()
+  })
+})
+

@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 
 import type { ReportTeam } from '../../../api/types'
 import { summarizeHeatmap } from '../utils/chartSummary'
+import { formatDateSafe } from '../utils/safeDate'
 
 interface WorkloadHeatmapProps {
   heatmap: ReportTeam['heatmap']
@@ -57,7 +58,7 @@ export function WorkloadHeatmap({ heatmap, members }: WorkloadHeatmapProps) {
               </th>
               {heatmap.weeks.map((week) => (
                 <th key={week.start} scope="col" className="py-[var(--space-1)] px-[var(--space-2)] text-text-muted">
-                  {weekFormatter.format(new Date(`${week.start}T00:00:00Z`))}
+                  {formatDateSafe(weekFormatter, week.start)}
                   {week.isPartial && '*'}
                 </th>
               ))}
@@ -89,8 +90,8 @@ export function WorkloadHeatmap({ heatmap, members }: WorkloadHeatmapProps) {
                           disabled={value === null}
                           aria-label={
                             value === null
-                              ? `${name}, week of ${weekFormatter.format(new Date(`${week.start}T00:00:00Z`))}: no data`
-                              : `${name}, week of ${weekFormatter.format(new Date(`${week.start}T00:00:00Z`))}: ${value} ticket${value === 1 ? '' : 's'} worked`
+                              ? `${name}, week of ${formatDateSafe(weekFormatter, week.start)}: no data`
+                              : `${name}, week of ${formatDateSafe(weekFormatter, week.start)}: ${value} ticket${value === 1 ? '' : 's'} worked`
                           }
                           className="flex h-8 w-14 items-center justify-center rounded-sm text-[length:var(--font-size-xs)] font-medium text-text disabled:cursor-default"
                           style={

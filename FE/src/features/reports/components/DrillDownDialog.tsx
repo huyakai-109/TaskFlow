@@ -8,6 +8,7 @@ import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 
 import { useReportTasksQuery } from '../hooks/useReportTasksQuery'
 import { formatDuration } from '../utils/formatDuration'
+import { formatDateSafe } from '../utils/safeDate'
 
 const dateFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
@@ -97,7 +98,7 @@ export function DrillDownDialog({ title, userId, from, to, metric, onClose }: Dr
                 <div className="flex flex-wrap items-center gap-[var(--space-2)] text-[length:var(--font-size-xs)] text-text-muted">
                   <PriorityIcon priority={item.priority} />
                   <span>{item.creditedUser?.displayName ?? item.creditedUser?.userName ?? 'Unassigned'}</span>
-                  <time dateTime={item.occurredAt}>{dateFormatter.format(new Date(item.occurredAt))}</time>
+                  <time dateTime={item.occurredAt}>{formatDateSafe(dateFormatter, item.occurredAt)}</time>
                   {item.dueDate !== null && <span>Due {item.dueDate}</span>}
                   {item.cycleTimeSeconds !== null && <span>Cycle {formatDuration(item.cycleTimeSeconds)}</span>}
                 </div>

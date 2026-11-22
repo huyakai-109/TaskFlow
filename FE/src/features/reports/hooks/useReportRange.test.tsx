@@ -103,3 +103,51 @@ describe('useReportRange — URL state (§11.2), never storage, never the browse
     expect(result.current.to).toBe('2026-06-01')
   })
 })
+
+describe('useReportRange — invalid URL query params fall back to the default range instead of crashing (bug fix, 2026-11-22)', () => {
+  const todayData = { today: '2026-11-22', timeZone: 'Asia/Ho_Chi_Minh', maxInProgressPerAssignee: 3, overdueScan: { lastFiredAt: null, nextFireAt: null } }
+
+  it('falls back when from/to are not well-formed dates', () => {
+    useWorkflowQuery.mockReturnValue({ data: todayData })
+
+    const { result } = renderHook(() => useReportRange(), { wrapper: wrapper('/reports/me?from=garbage&to=garbage') })
+
+    expect(result.current.from).not.toBe('garbage')
+    expect(result.current.to).not.toBe('garbage')
+    expect(result.current.from).not.toBe('')
+    expect(result.current.to).not.toBe('')
+  })
+
+  it('falls back when from/to describe a date that does not exist (e.g. 2026-02-30)', () => {
+    useWorkflowQuery.mockReturnValue({ data: todayData })
+
+    const { result } = renderHook(() => useReportRange(), { wrapper: wrapper('/reports/me?from=2026-02-30&to=2026-03-01') })
+
+    expect(result.current.from).not.toBe('2026-02-30')
+  })
+
+  it('falls back when from is after to', () => {
+    useWorkflowQuery.mockReturnValue({ data: todayData })
+
+    const { result } = renderHook(() => useReportRange(), { wrapper: wrapper('/reports/me?from=2026-11-01&to=2026-01-01') })
+
+    expect(result.current.from).not.toBe('2026-11-01')
+    expect(result.current.to).not.toBe('2026-01-01')
+  })
+
+  it('falls back when to is in the future relative to the server\'s today', () => {
+    useWorkflowQuery.mockReturnValue({ data: todayData })
+
+    const { result } = renderHook(() => useReportRange(), { wrapper: wrapper('/reports/me?from=2026-11-01&to=2027-01-01') })
+
+    expect(result.current.to).not.toBe('2027-01-01')
+  })
+
+  it('falls back when the range spans more than 366 days', () => {
+    useWorkflowQuery.mockReturnValue({ data: todayData })
+
+    const { result } = renderHook(() => useReportRange(), { wrapper: wrapper('/reports/me?from=2024-01-01&to=2026-11-22') })
+
+    expect(result.current.from).not.toBe('2024-01-01')
+  })
+})

@@ -1,4 +1,5 @@
 import type { ReportBucket } from '../../../api/types'
+import { formatDateSafe } from './safeDate'
 
 const dayFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })
 
@@ -9,7 +10,7 @@ const dayFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'sho
  * footnote "* partial period" shown once under the chart.
  */
 export function bucketLabel(bucket: Pick<ReportBucket, 'start' | 'end' | 'isPartial'>): string {
-  const start = dayFormatter.format(new Date(`${bucket.start}T00:00:00Z`))
-  const label = bucket.start === bucket.end ? start : `${start}–${dayFormatter.format(new Date(`${bucket.end}T00:00:00Z`))}`
+  const start = formatDateSafe(dayFormatter, bucket.start)
+  const label = bucket.start === bucket.end ? start : `${start}–${formatDateSafe(dayFormatter, bucket.end)}`
   return bucket.isPartial ? `${label}*` : label
 }

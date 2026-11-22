@@ -26,6 +26,49 @@ function addDaysIso(iso: string, days: number): string {
   return date.toISOString().slice(0, 10)
 }
 
+/** `yyyy-MM-dd` and a real calendar date (rejects e.g. `2026-02-30`, which `Date.UTC` would otherwise silently roll into March). */
+function isValidIsoDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false
+  }
+
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+}
+
+/**
+ * Bug fix (2026-11-22): a typed URL's `?from=&to=` is untrusted input — a
+ * malformed date, `from` after `to`, `to` in the future (server `today`,
+ * never the browser clock) or a span over `MAX_RANGE_DAYS` must never reach
+ * a formatter or a request; this falls back to the computed default range
+ * (the caller's `presets[DEFAULT_PRESET]`) instead of clamping bad input, so
+ * the server never sees it. Returns `null` either param is absent so the
+ * caller's own default applies.
+ */
+function validatedRangeFromParams(searchParams: URLSearchParams, today: string | null): DateRange | null {
+  const from = searchParams.get('from')
+  const to = searchParams.get('to')
+
+  if (from === null || to === null || !isValidIsoDate(from) || !isValidIsoDate(to)) {
+    return null
+  }
+
+  if (from > to) {
+    return null
+  }
+
+  if (today !== null && to > today) {
+    return null
+  }
+
+  if (rangeLengthDays({ from, to }) > MAX_RANGE_DAYS) {
+    return null
+  }
+
+  return { from, to }
+}
+
 /**
  * §B.6/B.8 (2026-11-22 brief) — the server rejects `to` after its own
  * "today" (`RangeInFuture`) and a range over 366 days (`RangeTooLarge`);
@@ -70,9 +113,10 @@ export function useReportRange(): ReportRangeState {
   const today = workflowQuery.data?.today ?? null
 
   const presets = useMemo(() => (today === null ? null : rangePresets(today)), [today])
+  const paramsRange = validatedRangeFromParams(searchParams, today)
 
-  const from = searchParams.get('from') ?? presets?.[DEFAULT_PRESET].from ?? null
-  const to = searchParams.get('to') ?? presets?.[DEFAULT_PRESET].to ?? null
+  const from = paramsRange?.from ?? presets?.[DEFAULT_PRESET].from ?? null
+  const to = paramsRange?.to ?? presets?.[DEFAULT_PRESET].to ?? null
   const granularityParam = searchParams.get('g')
   const isValidGranularity = (value: string | null): value is ReportGranularity =>
     value === 'Day' || value === 'Week' || value === 'Month' || value === 'Quarter'

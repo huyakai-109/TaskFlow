@@ -84,6 +84,18 @@ describe('ReportFilterBar — date-range popover (§B.4)', () => {
   })
 })
 
+describe('ReportFilterBar — defensive range label on a cold load (bug fix, 2026-11-22)', () => {
+  it('renders an em dash, not a thrown RangeError, when from/to/today are all empty/null (today unresolved)', () => {
+    expect(() => renderBar({ range: { from: '', to: '' }, today: null, dataAvailableSince: null, generatedAt: null })).not.toThrow()
+    expect(screen.getByRole('button', { name: '— - —' })).not.toBeNull()
+  })
+
+  it('renders an em dash for "Updated" when generatedAt is missing', () => {
+    renderBar({ generatedAt: null })
+    expect(screen.queryByText(/^Updated/)).toBeNull()
+  })
+})
+
 describe('ReportFilterBar — previous/next member arrows (§F.3)', () => {
   it('"Previous member" is disabled at the first member in the list', () => {
     renderBar({ selectedUserId: 1 })

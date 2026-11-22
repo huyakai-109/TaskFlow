@@ -6,6 +6,7 @@ import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 
 import { detectFySelection, fiscalMonthsInOrder, fiscalYearOf, fiscalYearRange, listFiscalYears } from '../utils/fiscalYear'
 import type { DateRange, RangePresetKey } from '../utils/rangePresets'
+import { formatDateSafe } from '../utils/safeDate'
 
 const PRESET_LABELS: Record<RangePresetKey, string> = {
   thisWeek: 'This week',
@@ -24,9 +25,10 @@ const controlClass =
 const dayFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' })
 const timeFormatter = new Intl.DateTimeFormat('en', { hour: '2-digit', minute: '2-digit' })
 
+/** Defensive (bug fix, 2026-11-22): `range.from`/`range.to` can be empty before `GET /workflow`'s `today` resolves — never throw, show an em dash instead. */
 function resolvedRangeLabel(range: DateRange, today: string | null): string {
-  const from = dayFormatter.format(new Date(`${range.from}T00:00:00Z`))
-  const to = range.to === today ? 'Today' : dayFormatter.format(new Date(`${range.to}T00:00:00Z`))
+  const from = formatDateSafe(dayFormatter, range.from)
+  const to = range.to !== '' && range.to === today ? 'Today' : formatDateSafe(dayFormatter, range.to)
   return `${from} - ${to}`
 }
 
@@ -333,7 +335,7 @@ export function ReportFilterBar({
 
       <div className="flex flex-wrap items-center gap-[var(--space-3)] text-[length:var(--font-size-2xs)] text-text-muted">
         {dataAvailableSince !== null && <span>Data available since {dataAvailableSince}</span>}
-        {generatedAt !== null && <span>Updated {timeFormatter.format(new Date(generatedAt))}</span>}
+        {generatedAt !== null && <span>Updated {formatDateSafe(timeFormatter, generatedAt)}</span>}
       </div>
     </div>
   )
