@@ -160,12 +160,7 @@ namespace TaskFlow.BusinessLogic.Reports
             string timeZone,
             bool includeLoad)
         {
-            bool InRange(DateTimeOffset at)
-            {
-                var localDate = at.ToDateInZone(timeZone);
-                return localDate >= rangeStart && localDate <= rangeEnd;
-            }
-
+            bool InRange(DateTimeOffset at) => IsInRange(at, rangeStart, rangeEnd, timeZone);
             bool Matches(long? holder) => teamScope || holder == holderId;
 
             var completions = allFacts
@@ -180,13 +175,167 @@ namespace TaskFlow.BusinessLogic.Reports
 
             var reopens = allFacts.SelectMany(f => f.Reopens).Where(r => Matches(r.HolderId) && InRange(r.AtUtc)).ToList();
             var overdueMarks = allFacts.SelectMany(f => f.OverdueMarks).Where(o => Matches(o.HolderId) && InRange(o.AtUtc)).ToList();
+            var takeOvers = allFacts.SelectMany(f => f.Takeovers).Count(t => (teamScope || t.ToUserId == holderId) && InRange(t.AtUtc));
+            var takenFrom = allFacts.SelectMany(f => f.Takeovers).Count(t => (teamScope || t.FromUserId == holderId) && InRange(t.AtUtc));
 
+            var metricSet = ComposeMetricSet(completions, submissions, reopens, overdueMarks, takeOvers, takenFrom);
+
+            if (includeLoad)
+            {
+                metricSet.Load = BuildLoad(allFacts, teamScope, holderId, measuredStartUtc, measuredEndUtcExclusive, limit);
+            }
+
+            return metricSet;
+        }
+
+        // Bulk form of BuildMetricSet for a per-member scan over one shared
+        // range/window (GetTeam's roster loop): groups every fact by holder
+        // once (O(tasks)), then each member reads only its own slice
+        // (O(members) on top) instead of re-scanning allFacts per member
+        // (O(members x tasks)). Output is identical, member for member, to
+        // calling BuildMetricSet(teamScope: false, holderId: id, ...) once
+        // per id in holderIds, in the same order.
+        public static List<MetricSetDto> BuildMetricSetsForRoster(
+            IReadOnlyList<ReportTaskFacts> allFacts,
+            IReadOnlyList<long> holderIds,
+            DateOnly rangeStart,
+            DateOnly rangeEnd,
+            DateTimeOffset measuredStartUtc,
+            DateTimeOffset measuredEndUtcExclusive,
+            int limit,
+            string timeZone,
+            bool includeLoad)
+        {
+            bool InRange(DateTimeOffset at) => IsInRange(at, rangeStart, rangeEnd, timeZone);
+
+            var completionsByHolder = new Dictionary<long, List<ReportCompletionFact>>();
+            var submissionsByHolder = new Dictionary<long, List<ReportSubmissionFact>>();
+            var reopensByHolder = new Dictionary<long, List<ReportPointFact>>();
+            var overdueByHolder = new Dictionary<long, List<ReportPointFact>>();
+            var takeOversByHolder = new Dictionary<long, int>();
+            var takenFromByHolder = new Dictionary<long, int>();
+            var segmentsByHolder = new Dictionary<long, List<ReportInProgressSegment>>();
+
+            foreach (var f in allFacts)
+            {
+                if (f.Completion != null && f.Completion.HolderId.HasValue && InRange(f.Completion.CompletedAtUtc))
+                {
+                    Add(completionsByHolder, f.Completion.HolderId.Value, f.Completion);
+                }
+
+                foreach (var s in f.Submissions)
+                {
+                    if (s.HolderId.HasValue && InRange(s.SubmittedAtUtc))
+                    {
+                        Add(submissionsByHolder, s.HolderId.Value, s);
+                    }
+                }
+
+                foreach (var r in f.Reopens)
+                {
+                    if (r.HolderId.HasValue && InRange(r.AtUtc))
+                    {
+                        Add(reopensByHolder, r.HolderId.Value, r);
+                    }
+                }
+
+                foreach (var o in f.OverdueMarks)
+                {
+                    if (o.HolderId.HasValue && InRange(o.AtUtc))
+                    {
+                        Add(overdueByHolder, o.HolderId.Value, o);
+                    }
+                }
+
+                foreach (var t in f.Takeovers)
+                {
+                    if (!InRange(t.AtUtc))
+                    {
+                        continue;
+                    }
+
+                    takeOversByHolder[t.ToUserId] = takeOversByHolder.GetValueOrDefault(t.ToUserId) + 1;
+                    takenFromByHolder[t.FromUserId] = takenFromByHolder.GetValueOrDefault(t.FromUserId) + 1;
+                }
+
+                if (includeLoad)
+                {
+                    foreach (var segment in f.InProgressSegments)
+                    {
+                        if (segment.HolderId.HasValue)
+                        {
+                            Add(segmentsByHolder, segment.HolderId.Value, segment);
+                        }
+                    }
+                }
+            }
+
+            var results = new List<MetricSetDto>(holderIds.Count);
+
+            foreach (var holderId in holderIds)
+            {
+                var metricSet = ComposeMetricSet(
+                    completionsByHolder.GetValueOrDefault(holderId) ?? [],
+                    submissionsByHolder.GetValueOrDefault(holderId) ?? [],
+                    reopensByHolder.GetValueOrDefault(holderId) ?? [],
+                    overdueByHolder.GetValueOrDefault(holderId) ?? [],
+                    takeOversByHolder.GetValueOrDefault(holderId),
+                    takenFromByHolder.GetValueOrDefault(holderId));
+
+                if (includeLoad)
+                {
+                    metricSet.Load = BuildLoadFromSegments(segmentsByHolder.GetValueOrDefault(holderId) ?? [], measuredStartUtc, measuredEndUtcExclusive, limit);
+                }
+
+                results.Add(metricSet);
+            }
+
+            return results;
+        }
+
+        public static ReportLoadDto BuildLoad(
+            IReadOnlyList<ReportTaskFacts> allFacts,
+            bool teamScope,
+            long? holderId,
+            DateTimeOffset measuredStartUtc,
+            DateTimeOffset measuredEndUtcExclusive,
+            int limit)
+        {
+            var segments = allFacts.SelectMany(f => f.InProgressSegments).Where(s => teamScope || s.HolderId == holderId);
+            return BuildLoadFromSegments(segments, measuredStartUtc, measuredEndUtcExclusive, limit);
+        }
+
+        private static bool IsInRange(DateTimeOffset at, DateOnly rangeStart, DateOnly rangeEnd, string timeZone)
+        {
+            var localDate = at.ToDateInZone(timeZone);
+            return localDate >= rangeStart && localDate <= rangeEnd;
+        }
+
+        private static void Add<T>(Dictionary<long, List<T>> dict, long holderId, T item)
+        {
+            if (!dict.TryGetValue(holderId, out var list))
+            {
+                list = [];
+                dict[holderId] = list;
+            }
+
+            list.Add(item);
+        }
+
+        private static MetricSetDto ComposeMetricSet(
+            List<ReportCompletionFact> completions,
+            List<ReportSubmissionFact> submissions,
+            List<ReportPointFact> reopens,
+            List<ReportPointFact> overdueMarks,
+            int takeOvers,
+            int takenFrom)
+        {
             var onTime = completions.Count(c => c.OnTimeStatus == ReportOnTimeStatus.OnTime);
             var late = completions.Count(c => c.OnTimeStatus == ReportOnTimeStatus.Late);
             var noDueDate = completions.Count(c => c.OnTimeStatus == ReportOnTimeStatus.NoDueDate);
             var sentBack = submissions.Count(s => s.Outcome == ReportSubmissionOutcome.SentBack);
 
-            var metricSet = new MetricSetDto
+            return new MetricSetDto
             {
                 Delivery = new ReportDeliveryDto
                 {
@@ -218,23 +367,14 @@ namespace TaskFlow.BusinessLogic.Reports
                 },
                 Attribution = new ReportAttributionDto
                 {
-                    TakeOvers = allFacts.SelectMany(f => f.Takeovers).Count(t => (teamScope || t.ToUserId == holderId) && InRange(t.AtUtc)),
-                    TakenFrom = allFacts.SelectMany(f => f.Takeovers).Count(t => (teamScope || t.FromUserId == holderId) && InRange(t.AtUtc)),
+                    TakeOvers = takeOvers,
+                    TakenFrom = takenFrom,
                 },
             };
-
-            if (includeLoad)
-            {
-                metricSet.Load = BuildLoad(allFacts, teamScope, holderId, measuredStartUtc, measuredEndUtcExclusive, limit);
-            }
-
-            return metricSet;
         }
 
-        public static ReportLoadDto BuildLoad(
-            IReadOnlyList<ReportTaskFacts> allFacts,
-            bool teamScope,
-            long? holderId,
+        private static ReportLoadDto BuildLoadFromSegments(
+            IEnumerable<ReportInProgressSegment> segments,
             DateTimeOffset measuredStartUtc,
             DateTimeOffset measuredEndUtcExclusive,
             int limit)
@@ -246,13 +386,8 @@ namespace TaskFlow.BusinessLogic.Reports
             }
 
             var heldSeconds = 0d;
-            foreach (var segment in allFacts.SelectMany(f => f.InProgressSegments))
+            foreach (var segment in segments)
             {
-                if (!teamScope && segment.HolderId != holderId)
-                {
-                    continue;
-                }
-
                 var overlapEnd = segment.EndUtc.HasValue && segment.EndUtc.Value < measuredEndUtcExclusive ? segment.EndUtc.Value : measuredEndUtcExclusive;
                 var overlapStart = segment.StartUtc > measuredStartUtc ? segment.StartUtc : measuredStartUtc;
                 if (overlapEnd > overlapStart)

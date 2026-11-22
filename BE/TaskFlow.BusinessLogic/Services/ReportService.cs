@@ -122,12 +122,15 @@ namespace TaskFlow.BusinessLogic.Services
 
             var roster = await BuildRosterAsync(facts, from, to);
 
+            // Roster-wide bulk form (groups facts by holder once) instead of
+            // one BuildMetricSet pass per member - O(tasks + users), not
+            // O(users x tasks). Same per-member output as calling
+            // BuildMetricSet(teamScope: false, holderId: u.Id, ...) in a loop.
+            var rosterIds = roster.Select(u => u.Id).ToList();
+            var rosterMetricSets = ReportCalculator.BuildMetricSetsForRoster(facts, rosterIds, from, to, totalsStartUtc, totalsEndUtc, _limit, _timeZone, includeLoad: anyDataInRange);
+
             var members = roster
-                .Select(u => new ReportTeamMemberDto
-                {
-                    User = BuildUserRef(u),
-                    Totals = ReportCalculator.BuildMetricSet(facts, teamScope: false, holderId: u.Id, from, to, totalsStartUtc, totalsEndUtc, _limit, _timeZone, includeLoad: anyDataInRange),
-                })
+                .Zip(rosterMetricSets, (u, totals) => new ReportTeamMemberDto { User = BuildUserRef(u), Totals = totals })
                 .OrderBy(m => m.User.DisplayName ?? m.User.UserName, StringComparer.OrdinalIgnoreCase)
                 .ThenBy(m => m.User.Id)
                 .ToList();

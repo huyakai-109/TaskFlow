@@ -349,10 +349,15 @@ namespace TaskFlow.Tests.Http
 
             // Full R11 roster (every active user, across this long-lived
             // test database - not reset between runs, unlike Tasks/
-            // TaskHistories) still includes mgr with done = 0; a single
-            // lookup by id rather than an exact roster-size count, since
-            // other test classes' users persist in Users too.
-            var mgrRow = body.Result!.Members.Single(m => m.User.Id == manager.UserId);
+            // TaskHistories) means the exact roster size is not asserted
+            // (other test classes' users persist in Users too); instead,
+            // assert this fixture's three users are all present by id.
+            var memberIds = body.Result!.Members.Select(m => m.User.Id).ToList();
+            Assert.Contains(manager.UserId, memberIds);
+            Assert.Contains(m1.UserId, memberIds);
+            Assert.Contains(m2.UserId, memberIds);
+
+            var mgrRow = body.Result.Members.Single(m => m.User.Id == manager.UserId);
             Assert.Equal(0, mgrRow.Totals.Delivery.Done);
 
             // contributors excludes mgr (done = 0): 2, never the roster size (3).
