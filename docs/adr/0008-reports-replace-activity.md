@@ -26,6 +26,7 @@ The Activity page ([f04-activity-feed.md](../features/f04-activity-feed.md)) re-
 
 - Export calls are logged with their subject and row count (caller id, `userId`/`"team"`, range, dataset, row count — never content), one layer more detail than the read endpoints, because an export is the one action that leaves the system as a downloadable file.
 - **Known simplification, accepted 2026-11-21 (terminology updated 2026-11-22 for the `ticketsWorked` rename, same substance):** R2/R5b/R7's holder and submission reconstruction walk the trail by `(CreatedAt, Id)` **position**, as specified — but the continuous per-user InProgress timeline used only for R8's `ticketsWorked` (splitting an InProgress interval at a holder change) compares by **timestamp**, not index. The two same-timestamp `AssigneeChanged` entries this could mis-order are a rare, low-stakes edge case (it only shifts which half-instant of a task's InProgress time a take-over is attributed to, never which holder gets a completion or rework credit — those are governed by the index-based rule and unaffected). Accepted rather than reworked, and recorded here so it isn't rediscovered as a defect.
+- Cycle time trend removed and fiscal-year filter added (FY starts July) on 2026-11-22 at the user's request.
 
 ## Alternatives rejected
 - **Snapshot tables filled by a nightly Quartz job:** a second source of truth, a migration and a job for figures cheap enough to compute on read at this scale; also stale by up to a day.
