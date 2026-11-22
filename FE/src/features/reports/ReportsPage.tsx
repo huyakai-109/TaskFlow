@@ -7,6 +7,7 @@ import { Button } from '../../shared/components/Button'
 import { useAuthSession } from '../../shared/hooks/useAuthSession'
 import { useHasPermission } from '../../shared/hooks/useHasPermission'
 import { useUsersQuery } from '../../shared/hooks/useUsersQuery'
+import { userLabel } from '../../shared/lib/userLabel'
 
 import { CaveatsPanel } from './components/CaveatsPanel'
 import { DrillDownDialog } from './components/DrillDownDialog'
@@ -125,7 +126,9 @@ export function ReportsPage() {
   const meta = isTeamScope ? teamQuery.data?.meta : scorecardQuery.data?.meta
   const subjectName = isTeamScope
     ? 'Team'
-    : (scorecardQuery.data?.subject?.displayName ?? scorecardQuery.data?.subject?.userName ?? 'Me')
+    : scorecardQuery.data?.subject
+      ? userLabel(scorecardQuery.data.subject)
+      : 'Me'
 
   function openDrillDown(title: string, metric: ReportTaskMetric, from: string, to: string, userId?: number) {
     setDrillDown({ title, metric, userId, from, to })

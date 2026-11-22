@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { describeErrorCode } from '../../api/errorMessages'
 import { Button } from '../../shared/components/Button'
 import { fieldErrorMap } from '../../shared/lib/fieldErrors'
+import { userLabel } from '../../shared/lib/userLabel'
 
 import { AvatarUploadCard } from './components/AvatarUploadCard'
 import { useChangeMyPasswordMutation } from './hooks/useChangeMyPasswordMutation'
@@ -116,7 +117,7 @@ export function ProfilePage() {
     <section className="mx-auto flex w-full max-w-[640px] flex-col gap-[var(--space-5)]">
       <h1 className="m-0 text-[length:var(--font-size-display)] font-semibold">Profile</h1>
 
-      <AvatarUploadCard userId={me.id} name={me.displayName ?? me.userName} avatarUrl={me.avatarUrl} />
+      <AvatarUploadCard userId={me.id} name={userLabel(me)} avatarUrl={me.avatarUrl} />
 
       <form className={sectionClass} onSubmit={handleDisplayNameSubmit}>
         <h2 className="m-0 text-[length:var(--font-size-lg)] font-semibold">Display name</h2>

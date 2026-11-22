@@ -12,6 +12,7 @@ import { useAuthSession } from '../shared/hooks/useAuthSession'
 import { useBoardQuery } from '../shared/hooks/useBoardQuery'
 import { useUsersQuery } from '../shared/hooks/useUsersQuery'
 import { isTypingTarget } from '../shared/lib/isTypingTarget'
+import { userLabel } from '../shared/lib/userLabel'
 
 function MenuIcon() {
   return (
@@ -71,7 +72,7 @@ export function Topbar({ onOpenMobileMenu, mobileMenuButtonRef }: TopbarProps) {
   const reportMember =
     reportMemberId !== undefined ? (usersQuery.data?.find((user) => user.id === Number(reportMemberId)) ?? null) : null
   const reportMemberName =
-    reportMemberId !== undefined && Number(reportMemberId) === ownUserId ? 'Me' : (reportMember?.displayName ?? reportMember?.userName ?? null)
+    reportMemberId !== undefined && Number(reportMemberId) === ownUserId ? 'Me' : (reportMember === null ? null : userLabel(reportMember))
 
   // `C` new task, scoped here (not to the Board page) so it works from any
   // page (`docs/design/SPEC.md` §3/§6 point 7, layout fix — it used to live

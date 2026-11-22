@@ -8,6 +8,7 @@ import { useAuthSession } from '../../../shared/hooks/useAuthSession'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 import { IN_PROGRESS_LIMIT, useTeamCapacity } from '../../../shared/hooks/useTeamCapacity'
 import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
+import { userLabel } from '../../../shared/lib/userLabel'
 
 interface AssigneePickerDialogProps {
   currentAssigneeId: number | null
@@ -69,12 +70,12 @@ export function AssigneePickerDialog({
   const hasRoom = appliesCapacityGrouping
     ? capacity.entries
         .filter((e) => !e.isFull && (canAssignOthers || e.user.id === userId))
-        .sort((a, b) => a.inProgressCount - b.inProgressCount || a.user.userName.localeCompare(b.user.userName))
+        .sort((a, b) => a.inProgressCount - b.inProgressCount || userLabel(a.user).localeCompare(userLabel(b.user), undefined, { sensitivity: 'base' }))
     : []
   const atCapacity = appliesCapacityGrouping
     ? capacity.entries
         .filter((e) => e.isFull && (canAssignOthers || e.user.id === userId))
-        .sort((a, b) => a.user.userName.localeCompare(b.user.userName))
+        .sort((a, b) => userLabel(a.user).localeCompare(userLabel(b.user), undefined, { sensitivity: 'base' }))
     : []
 
   useDialogA11y(closeButtonRef, onClose, isPending)
@@ -166,8 +167,8 @@ export function AssigneePickerDialog({
                   disabled={isPending}
                   onClick={() => onSelect(assignee.id)}
                 >
-                  <Avatar userId={assignee.id} name={assignee.displayName ?? assignee.userName} avatarUrl={assignee.avatarUrl} size={22} />
-                  {assignee.displayName ?? assignee.userName}
+                  <Avatar userId={assignee.id} name={userLabel(assignee)} avatarUrl={assignee.avatarUrl} size={22} />
+                  {userLabel(assignee)}
                 </button>
               </li>
             ))}
@@ -184,8 +185,8 @@ export function AssigneePickerDialog({
                   disabled={isPending}
                   onClick={() => onSelect(user.id)}
                 >
-                  <Avatar userId={user.id} name={user.displayName ?? user.userName} avatarUrl={user.avatarUrl} size={22} />
-                  {user.displayName ?? user.userName}
+                  <Avatar userId={user.id} name={userLabel(user)} avatarUrl={user.avatarUrl} size={22} />
+                  {userLabel(user)}
                   <span className="ml-auto text-[length:var(--font-size-xs)] text-text-muted">
                     {inProgressCount}/{IN_PROGRESS_LIMIT}
                   </span>
@@ -204,9 +205,9 @@ export function AssigneePickerDialog({
                 <li key={user.id} role="option" aria-selected="false" aria-disabled="true">
                   <button type="button" className={clsx(optionClass, 'gap-[var(--space-2)] opacity-60')} disabled>
                     <span className="opacity-60">
-                      <Avatar userId={user.id} name={user.displayName ?? user.userName} avatarUrl={user.avatarUrl} size={22} />
+                      <Avatar userId={user.id} name={userLabel(user)} avatarUrl={user.avatarUrl} size={22} />
                     </span>
-                    {user.displayName ?? user.userName} · can&rsquo;t take more active work
+                    {userLabel(user)} · can&rsquo;t take more active work
                     <span className="ml-auto text-[length:var(--font-size-xs)] font-semibold text-danger">Full</span>
                   </button>
                 </li>

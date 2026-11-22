@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 
 import { useTeamCapacity, IN_PROGRESS_LIMIT } from '../../shared/hooks/useTeamCapacity'
 import { useWorkflowQuery } from '../../shared/hooks/useWorkflowQuery'
+import { userLabel } from '../../shared/lib/userLabel'
 
 /**
  * `docs/design/SPEC.md` §5.2/§10 point 3 (reopened 2026-11-11): a standalone
@@ -83,9 +84,9 @@ export function TeamCapacityPage() {
                     : 'flex min-h-[72px] min-w-0 items-center gap-[var(--space-3)] rounded-card-lg border border-border bg-surface p-[var(--space-3)]'
                 }
               >
-                <Avatar userId={user.id} name={user.displayName ?? user.userName} avatarUrl={user.avatarUrl} size={32} />
+                <Avatar userId={user.id} name={userLabel(user)} avatarUrl={user.avatarUrl} size={32} />
                 <span className="flex min-w-0 flex-1 flex-col gap-[var(--space-1)]">
-                  <span className="truncate text-[length:var(--font-size-base)] font-medium">{user.displayName ?? user.userName}</span>
+                  <span className="truncate text-[length:var(--font-size-base)] font-medium">{userLabel(user)}</span>
                   <span className="flex items-center gap-[3px]" aria-hidden="true">
                     {Array.from({ length: IN_PROGRESS_LIMIT }).map((_, i) => (
                       <span

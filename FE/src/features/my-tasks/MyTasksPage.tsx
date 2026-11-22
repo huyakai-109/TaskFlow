@@ -16,6 +16,7 @@ import { useComingSoon } from '../../shared/hooks/useComingSoon'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
 import { useUsersQuery } from '../../shared/hooks/useUsersQuery'
 import { moveButtonLabel } from '../../shared/lib/moveButtonLabel'
+import { userLabel } from '../../shared/lib/userLabel'
 
 /** "Good morning"/"afternoon"/"evening" by the viewer's local clock — decorative copy only, not a server fact. */
 function greetingWord(): string {
@@ -54,10 +55,10 @@ function TaskRow({ task, disabledReason, assigneeLine, statusChip, onMove }: Tas
     <div className="group flex flex-wrap items-center gap-[var(--space-3)] rounded-card-lg border border-border bg-surface p-[var(--space-3)]">
       <PriorityIcon priority={task.priority} />
       {task.assignee !== null && (
-        <span aria-label={`Assigned to ${assigneeRoster?.displayName ?? task.assignee.userName}`}>
+        <span aria-label={`Assigned to ${userLabel(assigneeRoster ?? task.assignee)}`}>
           <Avatar
             userId={task.assignee.id}
-            name={assigneeRoster?.displayName ?? task.assignee.userName}
+            name={userLabel(assigneeRoster ?? task.assignee)}
             avatarUrl={assigneeRoster?.avatarUrl ?? null}
             size={20}
           />
@@ -197,7 +198,7 @@ export function MyTasksPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] rounded-xl border border-border bg-surface p-[var(--space-4)] shadow-card">
         <p className="m-0 text-[length:var(--font-size-greeting)] font-semibold">
-          Good {greetingWord()}{me !== null ? `, ${me.displayName ?? me.userName}` : ''}
+          Good {greetingWord()}{me !== null ? `, ${userLabel(me)}` : ''}
         </p>
         <div className="flex items-center gap-[var(--space-2)]">
           <div className="flex gap-[2px]" aria-hidden="true">
@@ -300,7 +301,7 @@ export function MyTasksPage() {
                   task={task}
                   assigneeLine={
                     task.assignee !== null
-                      ? `Assigned to ${usersQuery.data?.find((user) => user.id === task.assignee!.id)?.displayName ?? task.assignee.userName}`
+                      ? `Assigned to ${userLabel(usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? task.assignee)}`
                       : 'Unassigned'
                   }
                   onMove={handleMove}

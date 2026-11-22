@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 
 import type { ReportTeam } from '../../../api/types'
+import { userLabel } from '../../../shared/lib/userLabel'
+
 import { summarizeHeatmap } from '../utils/chartSummary'
 import { formatDateSafe } from '../utils/safeDate'
 
@@ -67,7 +69,7 @@ export function WorkloadHeatmap({ heatmap, members }: WorkloadHeatmapProps) {
           <tbody>
             {heatmap.rows.map((row) => {
               const member = members.find((m) => m.user.id === row.userId)
-              const name = member?.user.displayName ?? member?.user.userName ?? `User ${row.userId}`
+              const name = member === undefined ? `User ${row.userId}` : userLabel(member.user)
 
               return (
                 <tr key={row.userId}>

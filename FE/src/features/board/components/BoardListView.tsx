@@ -9,6 +9,7 @@ import { DueChip, OverdueChip } from '../../../shared/components/DueDateChips'
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
+import { userLabel } from '../../../shared/lib/userLabel'
 
 const cellClass = 'px-[var(--space-3)] py-[var(--space-2)] text-left align-middle'
 
@@ -99,11 +100,11 @@ export function BoardListView({ itemsByStatus, paginationByStatus, onLoadMore, i
                     <span className="inline-flex items-center gap-[var(--space-2)]">
                       <Avatar
                         userId={task.assignee.id}
-                        name={usersQuery.data?.find((user) => user.id === task.assignee!.id)?.displayName ?? task.assignee.userName}
+                        name={userLabel(usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? task.assignee)}
                         avatarUrl={usersQuery.data?.find((user) => user.id === task.assignee!.id)?.avatarUrl ?? null}
                         size={20}
                       />
-                      {usersQuery.data?.find((user) => user.id === task.assignee!.id)?.displayName ?? task.assignee.userName}
+                      {userLabel(usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? task.assignee)}
                     </span>
                   ) : (
                     <span className="text-text-muted">Unassigned</span>

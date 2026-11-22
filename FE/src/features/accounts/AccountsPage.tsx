@@ -8,6 +8,7 @@ import { Button } from '../../shared/components/Button'
 import { useAuthSession } from '../../shared/hooks/useAuthSession'
 import { useUsersQuery } from '../../shared/hooks/useUsersQuery'
 import { MoveToast } from '../../shared/components/MoveToast'
+import { userLabel } from '../../shared/lib/userLabel'
 
 import { CreateUserDialog } from './components/CreateUserDialog'
 import { TemporaryPasswordDialog } from './components/TemporaryPasswordDialog'
@@ -67,7 +68,7 @@ export function AccountsPage() {
     resetPasswordMutation.mutate(user.id, {
       onSuccess: (temporaryPassword) => {
         setPendingRowId(null)
-        setRevealed({ userName: user.displayName ?? user.userName, temporaryPassword })
+        setRevealed({ userName: userLabel(user), temporaryPassword })
       },
       onError: (error) => {
         setPendingRowId(null)
@@ -123,9 +124,9 @@ export function AccountsPage() {
                 <tr key={user.id} className="border-b border-border align-middle">
                   <td className="py-[var(--space-2)]">
                     <span className="flex items-center gap-[var(--space-2)]">
-                      <Avatar userId={user.id} name={user.displayName ?? user.userName} avatarUrl={user.avatarUrl} size={24} />
+                      <Avatar userId={user.id} name={userLabel(user)} avatarUrl={user.avatarUrl} size={24} />
                       <span className="flex flex-col">
-                        <span className="font-medium text-text">{user.displayName ?? user.userName}</span>
+                        <span className="font-medium text-text">{userLabel(user)}</span>
                         <span className="text-[length:var(--font-size-xs)] text-text-muted">@{user.userName}</span>
                       </span>
                     </span>
@@ -176,7 +177,7 @@ export function AccountsPage() {
           onClose={() => setCreateOpen(false)}
           onCreated={(created: CreatedUser) => {
             setCreateOpen(false)
-            setRevealed({ userName: created.user.displayName ?? created.user.userName, temporaryPassword: created.temporaryPassword })
+            setRevealed({ userName: userLabel(created.user), temporaryPassword: created.temporaryPassword })
           }}
         />
       )}

@@ -5,6 +5,7 @@ import type { ReportTeam } from '../../../api/types'
 import { formatRate } from '../utils/formatRate'
 import { summarizeScatter } from '../utils/chartSummary'
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion'
+import { userLabel } from '../../../shared/lib/userLabel'
 
 import { ChartFigure } from './ChartFigure'
 import { tooltipContentStyle, tooltipCursor, tooltipItemStyle, tooltipLabelStyle } from './chartTheme'
@@ -25,7 +26,7 @@ export function WorkloadReworkScatter({ members, height }: WorkloadReworkScatter
     .filter((member) => member.totals.load !== null)
     .map((member) => ({
       userId: member.user.id,
-      name: member.user.displayName ?? member.user.userName,
+      name: userLabel(member.user),
       x: member.totals.load!.ticketsWorked,
       y: member.totals.quality.reworkRate.value ?? 0,
       lowSample: member.totals.quality.reworkRate.denominator < SMALL_SAMPLE_DENOMINATOR_THRESHOLD,

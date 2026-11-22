@@ -10,6 +10,7 @@ import { chipBase, DueChip, OverdueChip } from '../../../shared/components/DueDa
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
 import { dueDateFormatter } from '../../../shared/lib/dueDate'
+import { userLabel } from '../../../shared/lib/userLabel'
 
 function LockIcon() {
   return (
@@ -121,10 +122,10 @@ export function TaskCard({ task, onMove, onTakeOver }: TaskCardProps) {
           // numeric prop (inline style, for the real-image case), which a
           // Tailwind utility class cannot override by source order alone;
           // revisit if the two-tier sizing is asked for again.
-          <span aria-label={`Assigned to ${assigneeRoster?.displayName ?? task.assignee.userName}`}>
+          <span aria-label={`Assigned to ${userLabel(assigneeRoster ?? task.assignee)}`}>
             <Avatar
               userId={task.assignee.id}
-              name={assigneeRoster?.displayName ?? task.assignee.userName}
+              name={userLabel(assigneeRoster ?? task.assignee)}
               avatarUrl={assigneeRoster?.avatarUrl ?? null}
               size={18}
             />

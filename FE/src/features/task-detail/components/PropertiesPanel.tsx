@@ -6,6 +6,7 @@ import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { useHasPermission } from '../../../shared/hooks/useHasPermission'
 import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
+import { userLabel } from '../../../shared/lib/userLabel'
 
 const dateTimeFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' })
 
@@ -82,10 +83,11 @@ export function PropertiesPanel({
   isAssigneePending,
 }: PropertiesPanelProps) {
   const usersQuery = useUsersQuery()
-  const createdByName = usersQuery.data?.find((user) => user.id === task.createdBy)?.userName ?? null
+  const createdByUser = usersQuery.data?.find((user) => user.id === task.createdBy) ?? null
+  const createdByName = createdByUser === null ? null : userLabel(createdByUser)
   const assigneeId = task.assignee?.id
   const assigneeRoster = assigneeId === undefined ? null : (usersQuery.data?.find((user) => user.id === assigneeId) ?? null)
-  const assigneeDisplayName = assigneeRoster?.displayName ?? task.assignee?.userName ?? null
+  const assigneeDisplayName = task.assignee === null ? null : userLabel(assigneeRoster ?? task.assignee)
   const canPlan = useHasPermission('PlanTasks')
   // Revision R2 (D12, A3): the assignee is locked while Review/Done for
   // every role — the picker is never opened for those statuses rather than

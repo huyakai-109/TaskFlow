@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 
 import type { UserListItem } from '../../api/types'
+import { userLabel } from '../lib/userLabel'
+
 import { useBoardQuery } from './useBoardQuery'
 import { useUsersQuery } from './useUsersQuery'
 
@@ -72,7 +74,7 @@ export function useTeamCapacity(): UseTeamCapacityResult {
           return b.inProgressCount - a.inProgressCount
         }
 
-        return a.user.userName.localeCompare(b.user.userName)
+        return userLabel(a.user).localeCompare(userLabel(b.user), undefined, { sensitivity: 'base' })
       })
   }, [usersQuery.data, boardQuery.data])
 

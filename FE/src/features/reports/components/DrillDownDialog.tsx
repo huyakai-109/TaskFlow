@@ -6,6 +6,7 @@ import type { ReportTaskMetric } from '../../../api/types'
 import { Button } from '../../../shared/components/Button'
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
+import { userLabel } from '../../../shared/lib/userLabel'
 
 import { useReportTasksQuery } from '../hooks/useReportTasksQuery'
 import { formatDuration } from '../utils/formatDuration'
@@ -98,7 +99,7 @@ export function DrillDownDialog({ title, userId, from, to, metric, onClose }: Dr
                 </div>
                 <div className="flex flex-wrap items-center gap-[var(--space-2)] text-[length:var(--font-size-xs)] text-text-muted">
                   <PriorityIcon priority={item.priority} />
-                  <span>{item.creditedUser?.displayName ?? item.creditedUser?.userName ?? 'Unassigned'}</span>
+                  <span>{item.creditedUser === null ? 'Unassigned' : userLabel(item.creditedUser)}</span>
                   <time dateTime={item.occurredAt}>{formatDateSafe(dateFormatter, item.occurredAt)}</time>
                   {item.dueDate !== null && <span>Due {item.dueDate}</span>}
                   {item.cycleTimeSeconds !== null && <span>Cycle {formatDuration(item.cycleTimeSeconds)}</span>}

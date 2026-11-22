@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 
 import type { ReportGranularity, UserListItem } from '../../../api/types'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
+import { userLabel } from '../../../shared/lib/userLabel'
 
 import { detectFySelection, fiscalMonthsInOrder, fiscalYearOf, fiscalYearRange, listFiscalYears } from '../utils/fiscalYear'
 import type { DateRange, RangePresetKey } from '../utils/rangePresets'
@@ -223,7 +224,7 @@ export function ReportFilterBar({
                 <option value="team">Team</option>
                 {members.map((member) => (
                   <option key={member.id} value={member.id}>
-                    {member.displayName ?? member.userName}
+                    {userLabel(member)}
                     {!member.isActive && ' · deactivated'}
                   </option>
                 ))}

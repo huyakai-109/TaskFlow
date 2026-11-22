@@ -2,6 +2,7 @@ import { Avatar } from './Avatar'
 import { useAuthSession } from '../hooks/useAuthSession'
 import { usePresence } from '../hooks/usePresence'
 import { useUsersQuery } from '../hooks/useUsersQuery'
+import { userLabel } from '../lib/userLabel'
 
 const MAX_SHOWN = 5
 
@@ -31,8 +32,8 @@ export function PresenceStack({ scope, label = 'Viewing now' }: PresenceStackPro
       <div className="flex items-center gap-[var(--space-2)]">
         <span className="text-[length:var(--font-size-sm)] text-text-muted">{label}</span>
         {me !== null && (
-          <span title={`${me.displayName ?? me.userName} (you)`}>
-            <Avatar userId={me.id} name={me.displayName ?? me.userName} avatarUrl={me.avatarUrl} size={28} />
+          <span title={`${userLabel(me)} (you)`}>
+            <Avatar userId={me.id} name={userLabel(me)} avatarUrl={me.avatarUrl} size={28} />
           </span>
         )}
       </div>
@@ -45,14 +46,14 @@ export function PresenceStack({ scope, label = 'Viewing now' }: PresenceStackPro
   return (
     <div className="flex items-center gap-[var(--space-2)]">
       <span className="text-[length:var(--font-size-sm)] text-text-muted">{label}</span>
-      <div className="flex items-center" aria-label={`${viewers.length} viewing: ${viewers.map((viewer) => viewer.displayName ?? viewer.userName).join(', ')}`}>
+      <div className="flex items-center" aria-label={`${viewers.length} viewing: ${viewers.map((viewer) => userLabel(viewer)).join(', ')}`}>
         {shown.map((viewer, index) => (
           <span
             key={viewer.userId}
-            title={viewer.userId === userId ? `${viewer.displayName ?? viewer.userName} (you)` : viewer.displayName ?? viewer.userName}
+            title={viewer.userId === userId ? `${userLabel(viewer)} (you)` : userLabel(viewer)}
             style={{ marginLeft: index === 0 ? 0 : -5, boxShadow: '0 0 0 2px var(--color-bg)', borderRadius: '50%' }}
           >
-            <Avatar userId={viewer.userId} name={viewer.displayName ?? viewer.userName} avatarUrl={viewer.avatarUrl} size={28} />
+            <Avatar userId={viewer.userId} name={userLabel(viewer)} avatarUrl={viewer.avatarUrl} size={28} />
           </span>
         ))}
         {overflow > 0 && (

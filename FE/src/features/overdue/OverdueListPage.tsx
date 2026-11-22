@@ -10,6 +10,7 @@ import { useComingSoon } from '../../shared/hooks/useComingSoon'
 import { useUsersQuery } from '../../shared/hooks/useUsersQuery'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 import { daysLate, dueDateFormatter, isToday, parseDueDate } from '../../shared/lib/dueDate'
+import { userLabel } from '../../shared/lib/userLabel'
 import { useOverdueTasksQuery } from '../../shared/hooks/useOverdueTasksQuery'
 
 import { useDueTodayTasksQuery } from './hooks/useDueTodayTasksQuery'
@@ -180,11 +181,11 @@ export function OverdueListPage() {
                         <span className="inline-flex items-center gap-[var(--space-2)]">
                           <Avatar
                             userId={task.assignee.id}
-                            name={usersQuery.data?.find((user) => user.id === task.assignee!.id)?.displayName ?? task.assignee.userName}
+                            name={userLabel(usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? task.assignee)}
                             avatarUrl={usersQuery.data?.find((user) => user.id === task.assignee!.id)?.avatarUrl ?? null}
                             size={20}
                           />
-                          {usersQuery.data?.find((user) => user.id === task.assignee!.id)?.displayName ?? task.assignee.userName}
+                          {userLabel(usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? task.assignee)}
                         </span>
                       ) : (
                         <span className="text-text-muted">Unassigned</span>
@@ -266,11 +267,11 @@ export function OverdueListPage() {
                         <span className="inline-flex items-center gap-[var(--space-2)]">
                           <Avatar
                             userId={task.assignee.id}
-                            name={usersQuery.data?.find((user) => user.id === task.assignee!.id)?.displayName ?? task.assignee.userName}
+                            name={userLabel(usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? task.assignee)}
                             avatarUrl={usersQuery.data?.find((user) => user.id === task.assignee!.id)?.avatarUrl ?? null}
                             size={20}
                           />
-                          {usersQuery.data?.find((user) => user.id === task.assignee!.id)?.displayName ?? task.assignee.userName}
+                          {userLabel(usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? task.assignee)}
                         </span>
                       ) : (
                         <span className="text-text-muted">Unassigned</span>

@@ -6,6 +6,7 @@ import { describeError } from '../../../api/errorMessages'
 import { Avatar } from '../../../shared/components/Avatar'
 import { MoveToast } from '../../../shared/components/MoveToast'
 import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
+import { userLabel } from '../../../shared/lib/userLabel'
 import { useMarkAllNotificationsReadMutation } from '../hooks/useMarkAllNotificationsReadMutation'
 import { useMarkNotificationReadMutation } from '../hooks/useMarkNotificationReadMutation'
 import { useNotificationsQuery } from '../hooks/useNotificationsQuery'
@@ -247,7 +248,7 @@ export function NotificationBell() {
                     {notification.actor !== null ? (
                       <Avatar
                         userId={notification.actor.id}
-                        name={usersQuery.data?.find((user) => user.id === notification.actor!.id)?.displayName ?? notification.actor.userName}
+                        name={userLabel(usersQuery.data?.find((user) => user.id === notification.actor!.id) ?? notification.actor)}
                         avatarUrl={usersQuery.data?.find((user) => user.id === notification.actor!.id)?.avatarUrl ?? null}
                         size={24}
                       />
@@ -295,7 +296,7 @@ export function NotificationBell() {
                     >
                       &ldquo;{notification.task.title}&rdquo; was sent back for rework
                       {notification.actor !== null &&
-                        ` by ${usersQuery.data?.find((user) => user.id === notification.actor!.id)?.displayName ?? notification.actor.userName}`}
+                        ` by ${userLabel(usersQuery.data?.find((user) => user.id === notification.actor!.id) ?? notification.actor)}`}
                     </Link>
                     <time dateTime={notification.createdAt} className="text-[length:var(--font-size-2xs)] text-text-muted">
                       {formatRelativeTime(notification.createdAt)}

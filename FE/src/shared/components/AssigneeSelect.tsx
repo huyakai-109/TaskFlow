@@ -1,4 +1,5 @@
 import { useUsersQuery } from '../hooks/useUsersQuery'
+import { userLabel } from '../lib/userLabel'
 
 interface AssigneeSelectProps {
   id: string
@@ -40,7 +41,7 @@ export function AssigneeSelect({ id, value, disabled = false, onChange, restrict
       {usersQuery.isError && <option disabled>Could not load the list</option>}
       {users.map((user) => (
         <option key={user.id} value={user.id}>
-          {user.userName}
+          {userLabel(user)}
         </option>
       ))}
     </select>

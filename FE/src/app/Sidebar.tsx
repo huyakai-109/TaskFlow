@@ -10,6 +10,7 @@ import { useHasPermission } from '../shared/hooks/useHasPermission'
 import { useOverdueTasksQuery } from '../shared/hooks/useOverdueTasksQuery'
 import { useUsersQuery } from '../shared/hooks/useUsersQuery'
 import { useLogout } from '../shared/hooks/useLogout'
+import { userLabel } from '../shared/lib/userLabel'
 
 function BoardIcon() {
   return (
@@ -232,13 +233,13 @@ function SidebarNav({ collapsed, onNavigate }: SidebarNavProps) {
           <NavLink to="/profile" className="group relative flex shrink-0 items-center justify-center" onClick={onNavigate}>
             <Avatar
               userId={currentUser.id}
-              name={currentUser.displayName ?? currentUser.userName}
+              name={userLabel(currentUser)}
               avatarUrl={currentUser.avatarUrl}
               size={26}
             />
             {collapsed && (
               <CollapsedTooltip>
-                {currentUser.displayName ?? currentUser.userName} · {currentUser.role}
+                {userLabel(currentUser)} · {currentUser.role}
               </CollapsedTooltip>
             )}
           </NavLink>
@@ -246,7 +247,7 @@ function SidebarNav({ collapsed, onNavigate }: SidebarNavProps) {
         {!collapsed && currentUser !== null && (
           <NavLink to="/profile" className="flex min-w-0 flex-col no-underline" onClick={onNavigate}>
             <span className="truncate text-[length:var(--font-size-base)] font-medium text-text">
-              {currentUser.displayName ?? currentUser.userName}
+              {userLabel(currentUser)}
             </span>
             <span className="text-[length:var(--font-size-xs)] text-text-muted">{currentUser.role}</span>
           </NavLink>
