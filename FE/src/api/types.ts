@@ -10,6 +10,9 @@ export type TaskStatus = 'Backlog' | 'Todo' | 'InProgress' | 'Review' | 'Done'
 
 export type TaskPriority = 'Urgent' | 'High' | 'Normal'
 
+/** `TaskSortOrder` (f10-read-models-and-sort.md §1) — `priority` is F03's own rule and the default; `Done` ignores every value server-side. */
+export type BoardSort = 'priority' | 'dueDate' | 'newest'
+
 /** The four columns that F03 orders by priority; `Done` has its own rule. */
 export const ACTIVE_STATUSES: readonly TaskStatus[] = ['Backlog', 'Todo', 'InProgress', 'Review']
 
@@ -57,12 +60,62 @@ export interface Assignee {
  * `UserRes` — `GET /users` (`docs/features/f02-capacity.md` T4), the assignee
  * picker's roster. `role` is the role's display name (`UserResDto.Role`), a
  * plain string on the wire, not an enum `JsonStringEnumConverter` controls —
- * unlike `TaskStatus`/`TaskPriority` above.
+ * unlike `TaskStatus`/`TaskPriority` above. `displayName`/`avatarUrl`/
+ * `isActive` are additive (f08-accounts-profile.md "GET /users"); a
+ * deactivated user is still listed (`isActive: false`) so historic names
+ * keep rendering.
  */
 export interface UserListItem {
   id: number
   userName: string
   role: string
+  displayName: string | null
+  avatarUrl: string | null
+  isActive: boolean
+}
+
+/** `MeRes` — `GET /me` (f08-accounts-profile.md "Self API"). */
+export interface Me {
+  id: number
+  userName: string
+  displayName: string | null
+  role: string
+  avatarUrl: string | null
+}
+
+/** `MeSummaryRes` — `GET /me/summary` (f10-read-models-and-sort.md §6). */
+export interface MeSummary {
+  inProgress: number
+  completedThisWeek: number
+  weekStart: string
+  weekEnd: string
+}
+
+/** `UserAdminRes` — admin-only user detail/list rows (f08-accounts-profile.md "Admin API"). */
+export interface UserAdmin {
+  id: number
+  userName: string
+  displayName: string | null
+  role: string
+  isActive: boolean
+  deactivatedAt: string | null
+  mustChangePassword: boolean
+  isLockedOut: boolean
+  createdAt: string
+  avatarUrl: string | null
+}
+
+export type AccountRole = 'Admin' | 'Manager' | 'Member'
+
+/** `WorkflowRes` — `GET /workflow` (f10-read-models-and-sort.md §4). Replaces the client literal `IN_PROGRESS_LIMIT` display and browser-date "today" approximations. */
+export interface Workflow {
+  maxInProgressPerAssignee: number
+  timeZone: string
+  today: string
+  overdueScan: {
+    lastFiredAt: string | null
+    nextFireAt: string | null
+  }
 }
 
 /**
@@ -167,7 +220,7 @@ export interface TaskHistoryEntry {
 /** `TaskNotificationEvent` enum — `ReturnedForRework` is the only MVP value (F01 D7). */
 export type TaskNotificationEvent = 'ReturnedForRework'
 
-/** `NotificationRes` */
+/** `NotificationRes` — R2-2 (f06-notification-history.md) adds `task`/`actor`, additive. */
 export interface TaskNotification {
   id: number
   taskId: number
@@ -175,4 +228,141 @@ export interface TaskNotification {
   isRead: boolean
   readAt: string | null
   createdAt: string
+  task: { id: number; title: string }
+  /** The user who sent the task back; `null` for a legacy row (no backfill, F06 AC8). */
+  actor: { id: number; userName: string } | null
+}
+
+/**
+ * F09 Reports (`docs/features/f09-reports.md` "Technical contract", replaces
+ * Activity). Field names and nullability mirror the contract exactly —
+ * change them only together with it.
+ */
+export type ReportGranularity = 'Day' | 'Week' | 'Month' | 'Quarter'
+
+export type ReportTaskMetric = 'Done' | 'OnTime' | 'Late' | 'NoDueDate' | 'SentBack' | 'Reopened' | 'OverdueMarked' | 'TakeOver'
+
+export type ReportExportDataset = 'Buckets' | 'Members' | 'Tasks'
+
+/** `Distribution` — median/p85 in whole seconds, `null` for p85 whenever `sampleSize < smallSampleThreshold` (R16). Never a mean. */
+export interface ReportDistribution {
+  sampleSize: number
+  medianSeconds: number | null
+  p85Seconds: number | null
+  lowSample: boolean
+}
+
+/** `Rate` — `value` 0..1 (4 dp), `null` when `denominator` is 0. */
+export interface ReportRate {
+  value: number | null
+  denominator: number
+  lowSample: boolean
+}
+
+/** `MetricSet` — one bucket's or one member's figures, every branch of the scorecard. */
+export interface ReportMetricSet {
+  delivery: {
+    done: number
+    byPriority: { urgent: number; high: number; normal: number }
+  }
+  speed: {
+    cycleTime: ReportDistribution
+    leadTime: ReportDistribution
+    reviewWait: ReportDistribution
+  }
+  reliability: {
+    onTime: number
+    late: number
+    noDueDate: number
+    onTimeRate: ReportRate
+    overdueMarked: number
+  }
+  quality: {
+    submissionsDecided: number
+    sentBack: number
+    reworkRate: ReportRate
+    reopenedAfterDone: number
+  }
+  /** `null` when the bucket's `hasData` is false. Replaces `avgInProgress`/`capacityUtilization` (2026-11-22, R8 — user decision: ticket counts, not time-weighted averages). */
+  load: { ticketsWorked: number } | null
+  attribution: { takeOvers: number; takenFrom: number }
+}
+
+/** `TeamMedian` — the per-member comparison line, `null` for team scope and for a caller without `ViewReports` (f09 Q3). No `avgInProgress`/`capacityUtilization` (2026-11-22, R8 — moot, there is nothing to average or divide by the limit any more). */
+export interface ReportTeamMedian {
+  contributors: number
+  done: number | null
+  cycleTimeMedianSeconds: number | null
+  leadTimeMedianSeconds: number | null
+  reviewWaitMedianSeconds: number | null
+  onTimeRate: number | null
+  overdueMarked: number | null
+  reworkRate: number | null
+}
+
+export interface ReportSubject {
+  id: number
+  userName: string
+  displayName: string | null
+  avatarUrl: string | null
+  isActive: boolean
+}
+
+export interface ReportMeta {
+  scope: 'Member' | 'Team'
+  userId: number | null
+  from: string
+  to: string
+  granularity: ReportGranularity
+  timeZone: string
+  weekStartsOn: 'Monday'
+  dataAvailableSince: string | null
+  generatedAt: string
+  smallSampleThreshold: number
+  inProgressLimit: number
+}
+
+export interface ReportBucket {
+  start: string
+  end: string
+  isPartial: boolean
+  hasData: boolean
+  metrics: ReportMetricSet
+}
+
+/** `ReportScorecardRes` — `GET /reports/scorecard`. */
+export interface ReportScorecard {
+  meta: ReportMeta
+  subject: ReportSubject | null
+  totals: ReportMetricSet
+  teamMedian: ReportTeamMedian | null
+  buckets: ReportBucket[]
+}
+
+/** `ReportTeamRes` — `GET /reports/team`, always weekly (R14). */
+export interface ReportTeam {
+  meta: ReportMeta
+  team: { totals: ReportMetricSet; contributors: number; unassignedOverdueMarked: number }
+  teamMedian: ReportTeamMedian
+  members: { user: ReportSubject; totals: ReportMetricSet }[]
+  heatmap: {
+    weeks: { start: string; end: string; isPartial: boolean }[]
+    /** Integer ticket counts per week, `null` = no data (2026-11-22, R8 — replaces `avgInProgress`). */
+    rows: { userId: number; ticketsWorked: (number | null)[] }[]
+  }
+}
+
+/** `ReportTaskRes` — one row in the `GET /reports/tasks` drill-down list. */
+export interface ReportTask {
+  taskId: number
+  title: string
+  isDeleted: boolean
+  metric: ReportTaskMetric
+  creditedUser: { id: number; userName: string; displayName: string | null } | null
+  occurredAt: string
+  occurredAtLocal: string
+  priority: TaskPriority
+  dueDate: string | null
+  cycleTimeSeconds: number | null
+  leadTimeSeconds: number | null
 }

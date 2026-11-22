@@ -4,8 +4,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { describeError, describeErrorCode } from '../../api/errorMessages'
 import type { TaskPriority, TaskStatus } from '../../api/types'
 import { AssignAndMoveDialog } from '../../shared/components/AssignAndMoveDialog'
+import { Button } from '../../shared/components/Button'
 import { MoveRefusalDialog } from '../../shared/components/MoveRefusalDialog'
 import { MoveToast } from '../../shared/components/MoveToast'
+import { PresenceStack } from '../../shared/components/PresenceStack'
 import { useAssignAndMoveTaskMutation } from '../../shared/hooks/useAssignAndMoveTaskMutation'
 import { useAssignTaskMutation } from '../../shared/hooks/useAssignTaskMutation'
 import { useAuthSession } from '../../shared/hooks/useAuthSession'
@@ -242,17 +244,16 @@ export function TaskDetailPage() {
       <div className="flex flex-col gap-[var(--space-3)]">
         <div className="flex flex-wrap items-center gap-[var(--space-3)]">
           <h1 className="m-0 text-[length:var(--font-size-display)] font-semibold tracking-[-0.02em]">{task.title}</h1>
-          <button
-            type="button"
-            className="min-h-9 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-3)] font-medium text-text hover:bg-accent-soft"
-            onClick={() => setEditOpen(true)}
-          >
+          <Button type="button" size="sm" onClick={() => setEditOpen(true)}>
             Edit
-          </button>
-          <span className="ml-auto flex items-center gap-[var(--space-1)] text-[length:var(--font-size-xs)] text-text-muted">
-            <kbd className="rounded-[5px] bg-sidebar px-[6px] py-[1px] font-mono">J</kbd>
-            <kbd className="rounded-[5px] bg-sidebar px-[6px] py-[1px] font-mono">K</kbd>
-            next / previous task
+          </Button>
+          <span className="ml-auto flex items-center gap-[var(--space-3)]">
+            <PresenceStack scope={`task:${task.id}`} label="Viewing" />
+            <span className="flex items-center gap-[var(--space-1)] text-[length:var(--font-size-xs)] text-text-muted">
+              <kbd className="rounded-[5px] bg-sidebar px-[6px] py-[1px] font-mono">J</kbd>
+              <kbd className="rounded-[5px] bg-sidebar px-[6px] py-[1px] font-mono">K</kbd>
+              next / previous task
+            </span>
           </span>
         </div>
         {task.description !== null && task.description !== '' && (

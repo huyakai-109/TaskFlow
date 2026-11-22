@@ -3,10 +3,13 @@ import { Link } from 'react-router-dom'
 
 import { BOARD_COLUMNS } from '../../../api/types'
 import type { PaginationRes, TaskStatus, TaskSummary } from '../../../api/types'
+import { Avatar } from '../../../shared/components/Avatar'
+import { Button } from '../../../shared/components/Button'
 import { DueChip, OverdueChip } from '../../../shared/components/DueDateChips'
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
-import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
+import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
+import { userLabel } from '../../../shared/lib/userLabel'
 
 const cellClass = 'px-[var(--space-3)] py-[var(--space-2)] text-left align-middle'
 
@@ -32,6 +35,7 @@ interface BoardListViewProps {
  * itself would show via its own "Show more".
  */
 export function BoardListView({ itemsByStatus, paginationByStatus, onLoadMore, isLoadingMore }: BoardListViewProps) {
+  const usersQuery = useUsersQuery()
   const allEmpty = BOARD_COLUMNS.every((status) => itemsByStatus[status].length === 0)
 
   if (allEmpty) {
@@ -94,17 +98,13 @@ export function BoardListView({ itemsByStatus, paginationByStatus, onLoadMore, i
                 <td className={cellClass}>
                   {task.assignee !== null ? (
                     <span className="inline-flex items-center gap-[var(--space-2)]">
-                      <span
-                        className="inline-flex size-5 shrink-0 items-center justify-center rounded-pill text-[9px] font-semibold"
-                        aria-label={`Assigned to ${task.assignee.userName}`}
-                        style={{
-                          backgroundColor: `var(--avatar-${avatarPaletteIndex(task.assignee.id)}-bg)`,
-                          color: `var(--avatar-${avatarPaletteIndex(task.assignee.id)}-ink)`,
-                        }}
-                      >
-                        {initialsOf(task.assignee.userName)}
-                      </span>
-                      {task.assignee.userName}
+                      <Avatar
+                        userId={task.assignee.id}
+                        name={userLabel(usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? task.assignee)}
+                        avatarUrl={usersQuery.data?.find((user) => user.id === task.assignee!.id)?.avatarUrl ?? null}
+                        size={20}
+                      />
+                      {userLabel(usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? task.assignee)}
                     </span>
                   ) : (
                     <span className="text-text-muted">Unassigned</span>
@@ -117,14 +117,9 @@ export function BoardListView({ itemsByStatus, paginationByStatus, onLoadMore, i
               rows.push(
                 <tr key={`${status}-more`} className="border-t border-border">
                   <td className={cellClass} colSpan={5}>
-                    <button
-                      type="button"
-                      className="min-h-8 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-3)] text-[length:var(--font-size-xs)] font-medium text-text hover:border-accent hover:bg-accent-soft hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60"
-                      onClick={() => onLoadMore(status)}
-                      disabled={isLoadingMore(status)}
-                    >
+                    <Button type="button" size="sm" loading={isLoadingMore(status)} onClick={() => onLoadMore(status)}>
                       {isLoadingMore(status) ? 'Loading…' : `Show more ${STATUS_LABELS[status]} (${items.length} of ${totalItems})`}
-                    </button>
+                    </Button>
                   </td>
                 </tr>,
               )

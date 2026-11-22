@@ -76,5 +76,31 @@ namespace TaskFlow.Api.Controllers.V1
                 return InternalServerError(response);
             }
         }
+
+        [HttpPut]
+        [Route("read-all")]
+        [Authorize(Policy = Permissions.Tasks.ViewTasks)]
+        [ProducesResponseType(typeof(ResultRes<int>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> MarkAllRead([FromBody] NotificationReadAllReq request)
+        {
+            var response = new ResultRes<int>();
+
+            try
+            {
+                var actorUserId = this.User.Claims.GetUserId();
+
+                var count = await notificationService.MarkAllRead(actorUserId, request.UpToId);
+
+                response.Success = true;
+                response.Result = count;
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                response.ErrorCode = NotificationControllerMS.MarkAllRead.Exception;
+                Logger.LogError(ex, "Mark all notifications as read failed");
+                return InternalServerError(response);
+            }
+        }
     }
 }

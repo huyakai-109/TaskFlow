@@ -134,6 +134,117 @@ namespace TaskFlow.Tests.Http
         }
 
         [Fact]
+        public async Task GetList_IncludesTaskAndActor()
+        {
+            var caller = await CreateAuthenticatedClientAsync("Member");
+            var actor = await CreateAuthenticatedClientAsync("Member");
+            var task = await SeedTaskAsync();
+            await SeedNotificationAsync(task.Id, caller.UserId, actorUserId: actor.UserId);
+
+            var response = await caller.Client.GetAsync("api/v1/notifications");
+            var body = await response.Content.ReadFromJsonAsync<PaginationResultRes<List<NotificationRes>>>(JsonOptions);
+
+            var item = Assert.Single(body!.Result!);
+            Assert.Equal(task.Id, item.Task.Id);
+            Assert.Equal(task.Title, item.Task.Title);
+            Assert.NotNull(item.Actor);
+            Assert.Equal(actor.UserId, item.Actor!.Id);
+        }
+
+        [Fact]
+        public async Task GetList_RendersNullActor_ForLegacyRowWithNoActor()
+        {
+            var caller = await CreateAuthenticatedClientAsync("Member");
+            var task = await SeedTaskAsync();
+            await SeedNotificationAsync(task.Id, caller.UserId);
+
+            var response = await caller.Client.GetAsync("api/v1/notifications");
+            var body = await response.Content.ReadFromJsonAsync<PaginationResultRes<List<NotificationRes>>>(JsonOptions);
+
+            var item = Assert.Single(body!.Result!);
+            Assert.Null(item.Actor);
+        }
+
+        [Fact]
+        public async Task MarkAllRead_MarksOnlyCallersUnreadRowsUpToId()
+        {
+            var caller = await CreateAuthenticatedClientAsync("Member");
+            var otherUser = await CreateAuthenticatedClientAsync("Member");
+            var task = await SeedTaskAsync();
+            var earlier = await SeedNotificationAsync(task.Id, caller.UserId);
+            var later = await SeedNotificationAsync(task.Id, caller.UserId);
+            var otherUsersRow = await SeedNotificationAsync(task.Id, otherUser.UserId);
+
+            var response = await caller.Client.PutAsJsonAsync("api/v1/notifications/read-all", new { upToId = earlier });
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<int>>();
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.True(body!.Success);
+            Assert.Equal(1, body.Result);
+
+            await using var context = _dbFixture.CreateContext();
+            Assert.True((await context.Set<TaskNotification>().SingleAsync(n => n.Id == earlier)).IsRead);
+            Assert.False((await context.Set<TaskNotification>().SingleAsync(n => n.Id == later)).IsRead);
+            Assert.False((await context.Set<TaskNotification>().SingleAsync(n => n.Id == otherUsersRow)).IsRead);
+        }
+
+        [Fact]
+        public async Task MarkAllRead_MarksEveryUnreadRow_WhenUpToIdOmitted()
+        {
+            var caller = await CreateAuthenticatedClientAsync("Member");
+            var task = await SeedTaskAsync();
+            var first = await SeedNotificationAsync(task.Id, caller.UserId);
+            var second = await SeedNotificationAsync(task.Id, caller.UserId);
+
+            var response = await caller.Client.PutAsJsonAsync("api/v1/notifications/read-all", new { });
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<int>>();
+
+            Assert.Equal(2, body!.Result);
+
+            await using var context = _dbFixture.CreateContext();
+            Assert.True((await context.Set<TaskNotification>().SingleAsync(n => n.Id == first)).IsRead);
+            Assert.True((await context.Set<TaskNotification>().SingleAsync(n => n.Id == second)).IsRead);
+        }
+
+        [Fact]
+        public async Task MarkAllRead_IsIdempotent_WhenCalledTwice()
+        {
+            var caller = await CreateAuthenticatedClientAsync("Member");
+            var task = await SeedTaskAsync();
+            await SeedNotificationAsync(task.Id, caller.UserId);
+
+            var first = await caller.Client.PutAsJsonAsync("api/v1/notifications/read-all", new { });
+            var firstBody = await first.Content.ReadFromJsonAsync<ResultRes<int>>();
+
+            var second = await caller.Client.PutAsJsonAsync("api/v1/notifications/read-all", new { });
+            var secondBody = await second.Content.ReadFromJsonAsync<ResultRes<int>>();
+
+            Assert.Equal(1, firstBody!.Result);
+            Assert.True(secondBody!.Success);
+            Assert.Equal(0, secondBody.Result);
+        }
+
+        [Fact]
+        public async Task MarkAllRead_ExcludesNotification_WhenItsTaskIsSoftDeleted()
+        {
+            var caller = await CreateAuthenticatedClientAsync("Member");
+            var task = await SeedTaskAsync();
+            var notificationId = await SeedNotificationAsync(task.Id, caller.UserId);
+
+            await using (var context = _dbFixture.CreateContext())
+            {
+                var row = await context.Set<TaskItem>().IgnoreQueryFilters().SingleAsync(t => t.Id == task.Id);
+                row.IsDeleted = true;
+                await context.SaveChangesAsync();
+            }
+
+            var response = await caller.Client.PutAsJsonAsync("api/v1/notifications/read-all", new { });
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<int>>();
+
+            Assert.Equal(0, body!.Result);
+        }
+
+        [Fact]
         public async Task MarkRead_Returns404_ForAnotherUsersNotification_NotForbidden()
         {
             var owner = await CreateAuthenticatedClientAsync("Member");
@@ -169,7 +280,7 @@ namespace TaskFlow.Tests.Http
             return task;
         }
 
-        private async Task<long> SeedNotificationAsync(long taskId, long recipientUserId, bool isRead = false, DateTimeOffset? createdAt = null)
+        private async Task<long> SeedNotificationAsync(long taskId, long recipientUserId, bool isRead = false, DateTimeOffset? createdAt = null, long? actorUserId = null)
         {
             await using var context = _dbFixture.CreateContext();
             var notification = new TaskNotification
@@ -179,6 +290,7 @@ namespace TaskFlow.Tests.Http
                 Event = TaskNotificationEvent.ReturnedForRework,
                 IsRead = isRead,
                 ReadAt = isRead ? DateTimeOffset.UtcNow : null,
+                ActorUserId = actorUserId,
             };
             context.Add(notification);
             await context.SaveChangesAsync();

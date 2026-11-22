@@ -9,6 +9,9 @@ namespace TaskFlow.Api.Mappers
         public UserMapper()
         {
             CreateMap<UserResDto, UserRes>();
+            CreateMap<UserAdminResDto, UserAdminRes>();
+            CreateMap<UserCreatedResDto, UserCreatedRes>();
+            CreateMap<WorkloadResDto, WorkloadRes>();
         }
     }
 }

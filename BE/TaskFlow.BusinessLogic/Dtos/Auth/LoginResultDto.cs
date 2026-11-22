@@ -17,5 +17,10 @@
         public bool WillBeLockedOut { get; set; }
 
         public bool IsLockedOut { get; set; }
+
+        // R2-3 (f08-accounts-profile.md "Auth changes"): correct password,
+        // but the account must change it before normal login works - no
+        // tokens are issued.
+        public bool PasswordChangeRequired { get; set; }
     }
 }

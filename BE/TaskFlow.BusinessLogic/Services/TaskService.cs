@@ -9,6 +9,7 @@ using TaskFlow.Repositories.UoW;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using MySqlConnector;
 
 namespace TaskFlow.BusinessLogic.Services
 {
@@ -38,9 +39,9 @@ namespace TaskFlow.BusinessLogic.Services
 
         Task<string> Delete(long id, Guid version, long actorUserId);
 
-        Task<BoardResDto> GetBoard(long actorUserId, string[] callerPermissions);
+        Task<BoardResDto> GetBoard(long actorUserId, string[] callerPermissions, TaskSortOrder sort = TaskSortOrder.Priority);
 
-        Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, bool? isOverdue, int start, int length, long actorUserId, string[] callerPermissions);
+        Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, bool? isOverdue, long? assigneeId, int start, int length, long actorUserId, string[] callerPermissions, TaskSortOrder sort = TaskSortOrder.Priority);
     }
 
     public class TaskService(
@@ -97,7 +98,7 @@ namespace TaskFlow.BusinessLogic.Services
             if (requestDto.AssigneeId.HasValue)
             {
                 var assignee = await unitOfWork.GetRepository<User>().FindById(requestDto.AssigneeId.Value);
-                if (assignee == null)
+                if (assignee == null || assignee.DeactivatedAt.HasValue)
                 {
                     return (TaskControllerMS.Create.AssigneeNotFound, null);
                 }
@@ -168,7 +169,10 @@ namespace TaskFlow.BusinessLogic.Services
                 assigneeUserName = assignee?.UserName;
             }
 
-            return (string.Empty, BuildDetail(task, assigneeUserName, actorUserId, callerPermissions));
+            var detail = BuildDetail(task, assigneeUserName, actorUserId, callerPermissions);
+            detail.LastTransition = await BuildLastTransition(task);
+
+            return (string.Empty, detail);
         }
 
         // D3 + T2 validation order: existence -> version -> transition validity
@@ -261,7 +265,7 @@ namespace TaskFlow.BusinessLogic.Services
                 var activeCount = await CountActiveInProgress(targetAssignee!.Id, task.Id);
                 if (activeCount >= _maxInProgressPerAssignee)
                 {
-                    var message = string.Format(TaskControllerMS.Templates.CapacityReached, targetAssignee.UserName, _maxInProgressPerAssignee);
+                    var message = string.Format(TaskControllerMS.Templates.CapacityReached, DisplayNameOrUserName(targetAssignee), _maxInProgressPerAssignee);
                     return (TaskControllerMS.Move.CapacityReached, null, message);
                 }
 
@@ -300,6 +304,7 @@ namespace TaskFlow.BusinessLogic.Services
                     RecipientUserId = task.AssigneeId.Value,
                     TaskId = task.Id,
                     Event = TaskNotificationEvent.ReturnedForRework,
+                    ActorUserId = actorUserId,
                 };
                 await unitOfWork.GetRepository<TaskNotification>().Add(notification);
             }
@@ -314,7 +319,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return (TaskControllerMS.Move.Conflict, null, null);
             }
-            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            catch (Exception ex) when (IsDeadlock(ex))
             {
                 // Two real concurrent writers can make InnoDB pick a deadlock
                 // victim instead of cleanly affecting 0 rows (confirmed
@@ -427,7 +432,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return (TaskControllerMS.Reopen.Conflict, null);
             }
-            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            catch (Exception ex) when (IsDeadlock(ex))
             {
                 // Same MySQL 1213 lock-upgrade deadlock Move hits under
                 // concurrent writers (ROADMAP R13); reopen inserts into
@@ -478,7 +483,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return (TaskControllerMS.Update.Conflict, null);
             }
-            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            catch (Exception ex) when (IsDeadlock(ex))
             {
                 logger.LogWarning(ex, "Update task {Id} hit a MySQL deadlock (1213); treated as Task.Update.Conflict", id);
                 return (TaskControllerMS.Update.Conflict, null);
@@ -534,7 +539,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return (TaskControllerMS.UpdatePriority.Conflict, null);
             }
-            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            catch (Exception ex) when (IsDeadlock(ex))
             {
                 logger.LogWarning(ex, "Update priority of task {Id} hit a MySQL deadlock (1213); treated as Task.UpdatePriority.Conflict", id);
                 return (TaskControllerMS.UpdatePriority.Conflict, null);
@@ -601,7 +606,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return (TaskControllerMS.UpdateDueDate.Conflict, null);
             }
-            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            catch (Exception ex) when (IsDeadlock(ex))
             {
                 logger.LogWarning(ex, "Update due date of task {Id} hit a MySQL deadlock (1213); treated as Task.UpdateDueDate.Conflict", id);
                 return (TaskControllerMS.UpdateDueDate.Conflict, null);
@@ -676,7 +681,11 @@ namespace TaskFlow.BusinessLogic.Services
             if (requestDto.AssigneeId.HasValue)
             {
                 targetAssignee = await unitOfWork.GetRepository<User>().FindById(requestDto.AssigneeId.Value);
-                if (targetAssignee == null)
+                // f08-accounts-profile.md "Tasks held by a deactivated user"
+                // (f02 R2 AC17 extension): a deactivated user can no longer
+                // be chosen as a new assignment target - existing
+                // assignments are left untouched elsewhere.
+                if (targetAssignee == null || targetAssignee.DeactivatedAt.HasValue)
                 {
                     return (TaskControllerMS.Assign.AssigneeNotFound, null, null);
                 }
@@ -702,7 +711,7 @@ namespace TaskFlow.BusinessLogic.Services
                 var activeCount = await CountActiveInProgress(targetAssignee!.Id, task.Id);
                 if (activeCount >= _maxInProgressPerAssignee)
                 {
-                    var message = string.Format(TaskControllerMS.Templates.CapacityReached, targetAssignee.UserName, _maxInProgressPerAssignee);
+                    var message = string.Format(TaskControllerMS.Templates.CapacityReached, DisplayNameOrUserName(targetAssignee), _maxInProgressPerAssignee);
                     return (TaskControllerMS.Assign.CapacityReached, null, message);
                 }
 
@@ -731,7 +740,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return (TaskControllerMS.Assign.Conflict, null, null);
             }
-            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            catch (Exception ex) when (IsDeadlock(ex))
             {
                 // Same R13 lock-upgrade deadlock Move hits (f02-capacity.md
                 // Technical contract T2): the capacity write's UPDATE Users
@@ -782,7 +791,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return TaskControllerMS.Delete.Conflict;
             }
-            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            catch (Exception ex) when (IsDeadlock(ex))
             {
                 logger.LogWarning(ex, "Delete task {Id} hit a MySQL deadlock (1213); treated as Task.Delete.Conflict", id);
                 return TaskControllerMS.Delete.Conflict;
@@ -796,9 +805,9 @@ namespace TaskFlow.BusinessLogic.Services
         // active columns use ApplyColumnOrder; Done uses ApplyDoneColumnOrder
         // windowed to DoneColumnPageSize before counting, so TotalItems
         // reports min(count, 20) - the [SIGN-OFF] total, not the true count.
-        public async Task<BoardResDto> GetBoard(long actorUserId, string[] callerPermissions)
+        public async Task<BoardResDto> GetBoard(long actorUserId, string[] callerPermissions, TaskSortOrder sort = TaskSortOrder.Priority)
         {
-            var board = new BoardResDto();
+            var board = new BoardResDto { Sort = sort };
 
             foreach (var status in BoardColumnOrder)
             {
@@ -816,6 +825,9 @@ namespace TaskFlow.BusinessLogic.Services
                     // the same IQueryable produces both the windowed list and
                     // min(count, 20) for TotalItems - one code path for both,
                     // not a true count computed then clamped separately.
+                    // f10-read-models-and-sort.md Section 1: Done ignores
+                    // `sort` entirely (F03 D4) - ApplyDoneColumnOrder never
+                    // takes a sort argument.
                     var windowed = ApplyDoneColumnOrder(query).Take(DoneColumnPageSize);
                     totalItems = await windowed.CountAsync();
                     pageItems = await windowed.ToListAsync();
@@ -823,7 +835,7 @@ namespace TaskFlow.BusinessLogic.Services
                 else
                 {
                     pageSize = BoardColumnPageSize;
-                    query = ApplyColumnOrder(query);
+                    query = ApplyColumnOrder(query, sort);
                     totalItems = await query.CountAsync();
                     pageItems = await query.Take(BoardColumnPageSize).ToListAsync();
                 }
@@ -848,7 +860,7 @@ namespace TaskFlow.BusinessLogic.Services
         // ApplyDoneColumnOrder window as the board and a fixed page size
         // (DoneColumnPageSize), never the caller-supplied length - there is
         // never more than 20 rows to page through.
-        public async Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, bool? isOverdue, int start, int length, long actorUserId, string[] callerPermissions)
+        public async Task<Pagination<TaskSummaryResDto>> GetList(TaskWorkflowStatus? status, bool? isOverdue, long? assigneeId, int start, int length, long actorUserId, string[] callerPermissions, TaskSortOrder sort = TaskSortOrder.Priority)
         {
             var query = await unitOfWork.GetRepository<TaskItem>().QueryAll();
 
@@ -862,6 +874,13 @@ namespace TaskFlow.BusinessLogic.Services
                 query = query.Where(i => i.IsOverdue == isOverdue.Value);
             }
 
+            // f10-read-models-and-sort.md Section 2: composes with
+            // status/isOverdue/sort, uses IX_Tasks_IsDeleted_AssigneeId_Status.
+            if (assigneeId.HasValue)
+            {
+                query = query.Where(i => i.AssigneeId == assigneeId.Value);
+            }
+
             Pagination<TaskItem> page;
             if (status == TaskWorkflowStatus.Done)
             {
@@ -870,7 +889,7 @@ namespace TaskFlow.BusinessLogic.Services
             }
             else
             {
-                query = ApplyColumnOrder(query);
+                query = ApplyColumnOrder(query, sort);
                 page = await Pagination<TaskItem>.CreateAsync(query, start, length);
             }
 
@@ -886,22 +905,41 @@ namespace TaskFlow.BusinessLogic.Services
             };
         }
 
-        // f03-sorting.md Technical contract: the active-column ordering rule,
-        // shared by GetBoard and GetList so there is exactly one OrderBy to
-        // maintain. Expressed entirely in SQL (no in-memory sort) so AC13
-        // holds: Priority asc (D2, rank already explicit on the enum) -> "has
-        // no due date" asc, so undated sorts after dated (D3 - MySQL sorts
-        // NULL first on a plain ascending DueDate) -> DueDate asc -> CreatedAt
-        // asc -> Id asc (D3's tie-break, required for stable pagination).
-        private static IQueryable<TaskItem> ApplyColumnOrder(IQueryable<TaskItem> query)
+        // f03-sorting.md Technical contract / f10-read-models-and-sort.md
+        // Section 1: the active-column ordering rule, shared by GetBoard and
+        // GetList so there is exactly one OrderBy per sort value to
+        // maintain. Expressed entirely in SQL (no in-memory sort), one
+        // switch here - never through QueryHelper.ApplySorting, which isn't
+        // meant for a fixed enum and throws on unknown columns.
+        private static IQueryable<TaskItem> ApplyColumnOrder(IQueryable<TaskItem> query, TaskSortOrder sort) => sort switch
         {
-            return query
+            // D2 (rank already explicit on the enum) -> "has no due date" asc,
+            // so undated sorts after dated (D3 - MySQL sorts NULL first on a
+            // plain ascending DueDate) -> DueDate asc -> CreatedAt asc -> Id
+            // asc (D3's tie-break, required for stable pagination).
+            TaskSortOrder.Priority => query
                 .OrderBy(i => i.Priority)
                 .ThenBy(i => i.DueDate == null)
                 .ThenBy(i => i.DueDate)
                 .ThenBy(i => i.CreatedAt)
-                .ThenBy(i => i.Id);
-        }
+                .ThenBy(i => i.Id),
+
+            // f10 Section 1: DueDate IS NULL asc, DueDate asc, Priority asc,
+            // CreatedAt asc, Id asc.
+            TaskSortOrder.DueDate => query
+                .OrderBy(i => i.DueDate == null)
+                .ThenBy(i => i.DueDate)
+                .ThenBy(i => i.Priority)
+                .ThenBy(i => i.CreatedAt)
+                .ThenBy(i => i.Id),
+
+            // f10 Section 1: CreatedAt desc, Id desc.
+            TaskSortOrder.Newest => query
+                .OrderByDescending(i => i.CreatedAt)
+                .ThenByDescending(i => i.Id),
+
+            _ => throw new ArgumentOutOfRangeException(nameof(sort)),
+        };
 
         // f03-sorting.md D4 / Technical contract: Done's own rule -
         // CompletedAt desc (most recently completed first), Id desc as the
@@ -925,6 +963,8 @@ namespace TaskFlow.BusinessLogic.Services
                 userNames = await users.ToDictionaryAsync(u => u.Id, u => u.UserName);
             }
 
+            var lastTransitions = await BuildLastTransitionsBatch(tasks);
+
             return [.. tasks.Select(task => new TaskSummaryResDto
             {
                 Id = task.Id,
@@ -940,7 +980,90 @@ namespace TaskFlow.BusinessLogic.Services
                 AllowedTransitions = BuildAllowedTransitions(task, actorUserId, callerPermissions),
                 CanTakeOver = CanTakeOver(task, actorUserId, callerPermissions),
                 CanAssignOthers = CanAssignOthers(task, callerPermissions),
+                LastTransition = lastTransitions.GetValueOrDefault(task.Id),
             })];
+        }
+
+        // f10-read-models-and-sort.md Section 3: one batched query per page
+        // (no N+1), the latest StatusChanged/Reopened entry per task whose
+        // ToValue equals that task's current status.
+        private async Task<Dictionary<long, LastTransitionResDto?>> BuildLastTransitionsBatch(List<TaskItem> tasks)
+        {
+            var result = new Dictionary<long, LastTransitionResDto?>();
+            if (tasks.Count == 0)
+            {
+                return result;
+            }
+
+            var taskIds = tasks.Select(t => t.Id).ToList();
+            var histories = await unitOfWork.GetRepository<TaskHistory>().QueryAll();
+            var users = unitOfWork.DbContext.Set<User>().IgnoreQueryFilters().AsNoTracking();
+
+            var candidates = await (
+                from h in histories
+                where taskIds.Contains(h.TaskId) && (h.Event == TaskHistoryEvent.StatusChanged || h.Event == TaskHistoryEvent.Reopened)
+                join u in users on h.ActorUserId equals (long?)u.Id into actorJoin
+                from actor in actorJoin.DefaultIfEmpty()
+                select new LastTransitionRow
+                {
+                    TaskId = h.TaskId,
+                    FromValue = h.FromValue,
+                    ToValue = h.ToValue,
+                    CreatedAt = h.CreatedAt,
+                    Id = h.Id,
+                    ActorUserId = h.ActorUserId,
+                    ActorUserName = actor != null ? actor.UserName : null,
+                    ActorDisplayName = actor != null ? actor.DisplayName : null,
+                }).ToListAsync();
+
+            var byTask = candidates.ToLookup(c => c.TaskId);
+            foreach (var task in tasks)
+            {
+                var currentStatus = task.Status.ToString();
+                var match = byTask[task.Id]
+                    .Where(c => c.ToValue == currentStatus)
+                    .OrderByDescending(c => c.CreatedAt)
+                    .ThenByDescending(c => c.Id)
+                    .FirstOrDefault();
+
+                result[task.Id] = match == null ? null : new LastTransitionResDto
+                {
+                    From = match.FromValue,
+                    To = match.ToValue,
+                    At = match.CreatedAt,
+                    Actor = match.ActorUserId.HasValue
+                        ? new LastTransitionActorResDto { Id = match.ActorUserId.Value, UserName = match.ActorUserName ?? string.Empty, DisplayName = match.ActorDisplayName }
+                        : null,
+                };
+            }
+
+            return result;
+        }
+
+        private async Task<LastTransitionResDto?> BuildLastTransition(TaskItem task)
+        {
+            var batch = await BuildLastTransitionsBatch([task]);
+            return batch.GetValueOrDefault(task.Id);
+        }
+
+        // Join projection shape only - not returned past this service.
+        private class LastTransitionRow
+        {
+            public long TaskId { get; set; }
+
+            public string? FromValue { get; set; }
+
+            public string? ToValue { get; set; }
+
+            public DateTimeOffset CreatedAt { get; set; }
+
+            public long Id { get; set; }
+
+            public long? ActorUserId { get; set; }
+
+            public string? ActorUserName { get; set; }
+
+            public string? ActorDisplayName { get; set; }
         }
 
         private static List<AllowedTransitionResDto> BuildAllowedTransitions(TaskItem task, long actorUserId, string[] callerPermissions)
@@ -985,9 +1108,32 @@ namespace TaskFlow.BusinessLogic.Services
             return callerPermissions.Contains(Permissions.Tasks.AssignAnyone);
         }
 
+        // f01-workflow.md T2, ROADMAP R13: retry the MySQL 1213 lock-upgrade
+        // deadlock the same way on every write path below.
+        private static bool IsDeadlock(Exception ex)
+        {
+            for (var current = ex; current != null; current = current.InnerException)
+            {
+                if (current is MySqlException { ErrorCode: MySqlErrorCode.LockDeadlock })
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private DateOnly TodayInZone()
         {
             return DateTimeHelper.GetDtOffset().ToDateInZone(_timeZone);
+        }
+
+        // User-facing messages name people by DisplayName, falling back to
+        // UserName when it is unset or blank - a changed display name must
+        // not leave a stale username in a dialog the user already saw once.
+        private static string DisplayNameOrUserName(User user)
+        {
+            return string.IsNullOrWhiteSpace(user.DisplayName) ? user.UserName : user.DisplayName;
         }
 
         private static TaskDetailResDto BuildDetail(TaskItem task, string? assigneeUserName, long actorUserId, string[] callerPermissions)

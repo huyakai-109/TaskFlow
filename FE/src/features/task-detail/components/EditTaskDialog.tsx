@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { ApiError } from '../../../api/client'
 import { describeError } from '../../../api/errorMessages'
 import type { TaskDetail } from '../../../api/types'
+import { Button } from '../../../shared/components/Button'
 import { fieldErrorMap } from '../../../shared/lib/fieldErrors'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 import { useUpdateTaskMutation } from '../hooks/useUpdateTaskMutation'
@@ -15,8 +16,6 @@ const DESCRIPTION_MAX = 4000
 const fieldClass = 'flex flex-col gap-[var(--space-1)]'
 const labelClass = 'text-[length:var(--font-size-sm)] font-medium text-text-muted'
 const fieldErrorClass = 'text-[length:var(--font-size-xs)] text-danger'
-const actionButtonClass =
-  'min-h-11 cursor-pointer rounded-md px-[var(--space-4)] disabled:cursor-not-allowed disabled:opacity-60'
 
 interface EditTaskDialogProps {
   task: TaskDetail
@@ -78,7 +77,7 @@ export function EditTaskDialog({ task, onClose, onRefused }: EditTaskDialogProps
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-[rgb(16_16_24_/_40%)] px-[var(--space-4)] py-[var(--space-6)]"
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-overlay px-[var(--space-4)] py-[var(--space-6)]"
       onClick={() => !mutation.isPending && onClose()}
     >
       <form
@@ -145,21 +144,12 @@ export function EditTaskDialog({ task, onClose, onRefused }: EditTaskDialogProps
         </div>
 
         <div className="flex gap-[var(--space-3)]">
-          <button
-            type="submit"
-            className={`${actionButtonClass} border-0 bg-accent font-semibold text-on-accent`}
-            disabled={mutation.isPending}
-          >
+          <Button type="submit" variant="primary" size="lg" loading={mutation.isPending}>
             {mutation.isPending ? 'Saving…' : 'Save'}
-          </button>
-          <button
-            type="button"
-            className={`${actionButtonClass} border border-border bg-surface font-medium text-text`}
-            onClick={onClose}
-            disabled={mutation.isPending}
-          >
+          </Button>
+          <Button type="button" size="lg" onClick={onClose} disabled={mutation.isPending}>
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
     </div>

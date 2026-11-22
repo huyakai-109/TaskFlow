@@ -3,11 +3,8 @@ using AutoMapper;
 using TaskFlow.Api.Models.Requests.Examples;
 using TaskFlow.Api.Models.Responses.Base;
 using TaskFlow.Api.Models.Responses.Examples;
-using TaskFlow.BusinessLogic.Cache;
 using TaskFlow.BusinessLogic.Dtos.Examples;
-using TaskFlow.BusinessLogic.Dtos.Storage;
 using TaskFlow.BusinessLogic.Services;
-using TaskFlow.BusinessLogic.Storage;
 using TaskFlow.Common.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,9 +16,7 @@ namespace TaskFlow.Api.Controllers.V1
     public class ExampleController(
         ILogger<ExampleController> logger,
         IMapper mapper,
-        IExampleService exampleService,
-        ICacheManager cacheManager,
-        IStorageService storageService) : BaseController(logger, mapper)
+        IExampleService exampleService) : BaseController(logger, mapper)
     {
         [HttpGet]
         [ProducesResponseType(typeof(ResultRes<ExampleNewRes?>), StatusCodes.Status200OK)]
@@ -102,27 +97,14 @@ namespace TaskFlow.Api.Controllers.V1
                 .ToArray();
         }
 
-        [HttpGet]
-        [Route("cache/test")]
-        [AllowAnonymous]
-        public async Task<IActionResult> TestCache()
-        {
-            await cacheManager.SetCachedData("Test", "test", TimeSpan.FromHours(1));
-            return Ok(await cacheManager.GetCachedData<string>("Test"));
-        }
-
-        [HttpPost]
-        [Route("minio/upload")]
-        [AllowAnonymous]
-        public async Task<IActionResult> UploadFile([FromForm] List<IFormFile> files)
-        {
-            var uploadDto = new UploadFileReqDto
-            {
-                File = files[0]
-            };
-            await storageService.Upload(uploadDto);
-
-            return Ok();
-        }
+        // f08-accounts-profile.md "Anonymous MinIO upload endpoint" (R2-3/
+        // R2-6): /example/minio/upload and /example/cache/test were
+        // AllowAnonymous scaffold routes writing into the public bucket /
+        // the distributed cache with no authentication. Neither BE nor FE
+        // product code called either route (grepped before removal) - both
+        // are removed outright rather than put behind [Authorize], per the
+        // spec's "if nothing calls it, delete the action" instruction.
+        // ExampleControllerAnonymousRoutesRemovedTests asserts both routes
+        // now 404.
     }
 }

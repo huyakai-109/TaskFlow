@@ -16,6 +16,8 @@ namespace TaskFlow.DataAccess.Configurations
             builder.Property(user => user.NormalizedUserName).HasMaxLength(256);
             builder.Property(user => user.Email).HasMaxLength(256);
             builder.Property(user => user.NormalizedEmail).HasMaxLength(256);
+            builder.Property(user => user.DisplayName).HasMaxLength(100);
+            builder.Property(user => user.AvatarObjectKey).HasMaxLength(200);
 
             builder.HasQueryFilter(e => !e.IsDeleted);
 

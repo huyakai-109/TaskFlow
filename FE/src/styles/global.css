@@ -21,6 +21,7 @@
   --color-border: var(--color-border);
   --color-border-strong: var(--color-border-strong);
   --color-text: var(--color-text);
+  --color-text-2: var(--color-text-2);
   --color-text-muted: var(--color-text-muted);
   --color-text-inverse: var(--color-text-inverse);
   --color-faint: var(--color-faint);
@@ -110,8 +111,29 @@
   box-sizing: border-box;
 }
 
+/*
+ * Bug fix (2026-11-22): `color-scheme: light dark` let Chrome pick the OS's
+ * color scheme for native form-control rendering (autofill, date pickers,
+ * selects, scrollbars) independently of the app's own theme — a light-theme
+ * page on a dark-OS got Chrome's dark-tinted autofill. This follows the
+ * exact same three-rule structure `tokens.css` already uses for every other
+ * theme value: a light default, an explicit `[data-theme='dark']` override,
+ * and `prefers-color-scheme: dark` unless `[data-theme='light']` overrides
+ * it back — so `color-scheme` always matches whichever theme actually
+ * painted the page.
+ */
 html {
-  color-scheme: light dark;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+  }
 }
 
 body {
@@ -124,22 +146,69 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1,
-h2,
-h3,
-p {
-  margin: 0;
-}
+/*
+ * Bug fix (2026-11-22): these two resets are plain author CSS, same as
+ * Tailwind's own preflight — but unlike preflight (which Tailwind itself
+ * wraps in `@layer base`), author CSS outside any `@layer` is *unlayered*,
+ * and CSS places unlayered rules ahead of every named layer regardless of
+ * selector specificity or source order. Left unlayered, `button { color:
+ * inherit }` silently beat every `@layer utilities` text-colour class
+ * (`text-on-accent`, `text-danger`, …) applied to a `<button>` — e.g. a
+ * filled accent button's `text-on-accent` label fell back to the inherited
+ * ambient text colour instead of the intended on-accent colour, which is
+ * how a "white label" button rendered dark-on-teal and under WCAG AA
+ * contrast. `@layer base` puts these two resets in the same layer Tailwind's
+ * own preflight already occupies, so a utility class (a higher layer) wins
+ * again, as the rest of the cascade already assumes.
+ */
+@layer base {
+  h1,
+  h2,
+  h3,
+  p {
+    margin: 0;
+  }
 
-button {
-  font: inherit;
-  color: inherit;
+  button {
+    font: inherit;
+    color: inherit;
+  }
 }
 
 /* A visible focus ring on keyboard navigation, never removed. */
 :focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
+}
+
+/*
+ * Bug fix (2026-11-22): Chrome paints its own autofill background/text
+ * colour, ignoring the page's — the `color-scheme` fix above stops it
+ * reaching for the *OS's* tint, but Chrome still applies a fixed internal
+ * autofill colour. The only reliable override is this trick: an inset
+ * `box-shadow` the width of the field (painted over Chrome's own
+ * background) plus `-webkit-text-fill-color` (the property Chrome's
+ * autofill respects over plain `color`), both from the same tokens every
+ * other input already uses (`--color-surface`/`--color-text`), so this
+ * tracks both themes automatically. The long `transition` delay keeps
+ * Chrome's own tint from flashing before the override paints. `:focus`
+ * stays listed so the pair never wins over `:focus-visible` above.
+ */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-text);
+  caret-color: var(--color-text);
+  box-shadow: 0 0 0 1000px var(--color-surface) inset;
+  transition:
+    background-color 600000s ease-in-out 0s,
+    color 600000s ease-in-out 0s;
 }
 
 @media (prefers-reduced-motion: reduce) {

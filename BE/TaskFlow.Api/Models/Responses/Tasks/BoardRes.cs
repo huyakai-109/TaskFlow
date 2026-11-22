@@ -6,6 +6,8 @@ namespace TaskFlow.Api.Models.Responses.Tasks
     public class BoardRes
     {
         public List<BoardColumnRes> Columns { get; set; } = [];
+
+        public TaskSortOrder Sort { get; set; }
     }
 
     public class BoardColumnRes

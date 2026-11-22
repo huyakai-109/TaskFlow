@@ -8,6 +8,7 @@ using TaskFlow.BusinessLogic.Dtos.Tasks;
 using TaskFlow.BusinessLogic.Services;
 using TaskFlow.Common.Constants;
 using TaskFlow.Common.Constants.Messages;
+using TaskFlow.Common.Enums;
 using TaskFlow.Common.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -167,7 +168,7 @@ namespace TaskFlow.Api.Controllers.V1
         [Route("board")]
         [Authorize(Policy = Permissions.Tasks.ViewTasks)]
         [ProducesResponseType(typeof(ResultRes<BoardRes>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetBoard()
+        public async Task<IActionResult> GetBoard([EnumDataType(typeof(TaskSortOrder))] TaskSortOrder sort = TaskSortOrder.Priority)
         {
             var response = new ResultRes<BoardRes>();
 
@@ -176,7 +177,7 @@ namespace TaskFlow.Api.Controllers.V1
                 var actorUserId = this.User.Claims.GetUserId();
                 var callerPermissions = this.User.Claims.GetUserRoleClaims();
 
-                var board = await taskService.GetBoard(actorUserId, callerPermissions);
+                var board = await taskService.GetBoard(actorUserId, callerPermissions, sort);
 
                 response.Success = true;
                 response.Result = Mapper.Map<BoardRes>(board);
@@ -203,7 +204,7 @@ namespace TaskFlow.Api.Controllers.V1
                 var actorUserId = this.User.Claims.GetUserId();
                 var callerPermissions = this.User.Claims.GetUserRoleClaims();
 
-                var page = await taskService.GetList(request.Status, request.IsOverdue, request.Start, request.Length, actorUserId, callerPermissions);
+                var page = await taskService.GetList(request.Status, request.IsOverdue, request.AssigneeId, request.Start, request.Length, actorUserId, callerPermissions, request.Sort);
 
                 response.Success = true;
                 response.Result = Mapper.Map<List<TaskSummaryRes>>(page.Items);

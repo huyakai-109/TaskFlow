@@ -3,11 +3,12 @@ import { useRef } from 'react'
 
 import type { TaskStatus } from '../../../api/types'
 import { describeErrorCode } from '../../../api/errorMessages'
+import { Avatar } from '../../../shared/components/Avatar'
 import { useAuthSession } from '../../../shared/hooks/useAuthSession'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 import { IN_PROGRESS_LIMIT, useTeamCapacity } from '../../../shared/hooks/useTeamCapacity'
 import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
-import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
+import { userLabel } from '../../../shared/lib/userLabel'
 
 interface AssigneePickerDialogProps {
   currentAssigneeId: number | null
@@ -69,12 +70,12 @@ export function AssigneePickerDialog({
   const hasRoom = appliesCapacityGrouping
     ? capacity.entries
         .filter((e) => !e.isFull && (canAssignOthers || e.user.id === userId))
-        .sort((a, b) => a.inProgressCount - b.inProgressCount || a.user.userName.localeCompare(b.user.userName))
+        .sort((a, b) => a.inProgressCount - b.inProgressCount || userLabel(a.user).localeCompare(userLabel(b.user), undefined, { sensitivity: 'base' }))
     : []
   const atCapacity = appliesCapacityGrouping
     ? capacity.entries
         .filter((e) => e.isFull && (canAssignOthers || e.user.id === userId))
-        .sort((a, b) => a.user.userName.localeCompare(b.user.userName))
+        .sort((a, b) => userLabel(a.user).localeCompare(userLabel(b.user), undefined, { sensitivity: 'base' }))
     : []
 
   useDialogA11y(closeButtonRef, onClose, isPending)
@@ -166,17 +167,8 @@ export function AssigneePickerDialog({
                   disabled={isPending}
                   onClick={() => onSelect(assignee.id)}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold"
-                    style={{
-                      backgroundColor: `var(--avatar-${avatarPaletteIndex(assignee.id)}-bg)`,
-                      color: `var(--avatar-${avatarPaletteIndex(assignee.id)}-ink)`,
-                    }}
-                  >
-                    {initialsOf(assignee.userName)}
-                  </span>
-                  {assignee.userName}
+                  <Avatar userId={assignee.id} name={userLabel(assignee)} avatarUrl={assignee.avatarUrl} size={22} />
+                  {userLabel(assignee)}
                 </button>
               </li>
             ))}
@@ -193,17 +185,8 @@ export function AssigneePickerDialog({
                   disabled={isPending}
                   onClick={() => onSelect(user.id)}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold"
-                    style={{
-                      backgroundColor: `var(--avatar-${avatarPaletteIndex(user.id)}-bg)`,
-                      color: `var(--avatar-${avatarPaletteIndex(user.id)}-ink)`,
-                    }}
-                  >
-                    {initialsOf(user.userName)}
-                  </span>
-                  {user.userName}
+                  <Avatar userId={user.id} name={userLabel(user)} avatarUrl={user.avatarUrl} size={22} />
+                  {userLabel(user)}
                   <span className="ml-auto text-[length:var(--font-size-xs)] text-text-muted">
                     {inProgressCount}/{IN_PROGRESS_LIMIT}
                   </span>
@@ -221,17 +204,10 @@ export function AssigneePickerDialog({
               {atCapacity.map(({ user }) => (
                 <li key={user.id} role="option" aria-selected="false" aria-disabled="true">
                   <button type="button" className={clsx(optionClass, 'gap-[var(--space-2)] opacity-60')} disabled>
-                    <span
-                      aria-hidden="true"
-                      className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold opacity-60"
-                      style={{
-                        backgroundColor: `var(--avatar-${avatarPaletteIndex(user.id)}-bg)`,
-                        color: `var(--avatar-${avatarPaletteIndex(user.id)}-ink)`,
-                      }}
-                    >
-                      {initialsOf(user.userName)}
+                    <span className="opacity-60">
+                      <Avatar userId={user.id} name={userLabel(user)} avatarUrl={user.avatarUrl} size={22} />
                     </span>
-                    {user.userName} · can&rsquo;t take more active work
+                    {userLabel(user)} · can&rsquo;t take more active work
                     <span className="ml-auto text-[length:var(--font-size-xs)] font-semibold text-danger">Full</span>
                   </button>
                 </li>

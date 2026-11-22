@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>TaskFlow — accent colour options (static preview, not a screenshot)</title>
+<style>
+  :root {
+    --bg: #fbfbfc;
+    --surface: #ffffff;
+    --border: #e3e3e8;
+    --text: #18181d;
+    --text-muted: #5e5f69;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 0 0 12px; }
+  p.note { color: var(--text-muted); margin: 0 0 24px; max-width: 760px; }
+  .columns { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 16px; align-items: start; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .card h3 { margin: 0; font-size: 13px; }
+  .swatch-row { display: flex; gap: 6px; }
+  .swatch { width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(0,0,0,.08); }
+  .btn-primary {
+    border: 0;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .link { text-decoration: underline; font-size: 13px; cursor: pointer; background: none; border: 0; padding: 0; }
+  .input-row { display: flex; flex-direction: column; gap: 4px; }
+  .input-row label { font-size: 11px; color: var(--text-muted); }
+  .input-row input {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font: inherit;
+    width: 100%;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .priority-card {
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 13px;
+    border: 1.5px solid transparent;
+  }
+  .dot-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  footer { margin-top: 32px; font-size: 12px; color: var(--text-muted); max-width: 760px; }
+</style>
+</head>
+<body>
+  <h1>Accent colour — light theme, side by side</h1>
+  <p class="note">
+    Plain static HTML, opened directly in a browser — not a screenshot, not rendered by any
+    automated tool. Each column uses the exact token values from
+    <code>docs/design/accent-color-proposal.md</code>. "Current" is today's shipped colour, shown
+    for comparison. Focus ring: click into any input and tab away to see <code>:focus-visible</code>.
+  </p>
+
+  <div class="columns" id="columns"></div>
+
+  <footer>
+    Dark theme is unchanged by this proposal — the dark tokens in <code>tokens.css</code> are a
+    separate block and are not part of any option above.
+  </footer>
+
+<script>
+const options = [
+  {
+    name: 'Current (for reference)',
+    accent: '#4f4fcc', hover: '#4343b3', soft: '#ebebfa', ink: '#3a3aa6', onAccent: '#ffffff',
+  },
+  {
+    name: 'Option 1 — desaturated purple',
+    accent: '#6366a1', hover: '#51547f', soft: '#eceefb', ink: '#474a84', onAccent: '#ffffff',
+  },
+  {
+    name: 'Option 2 — neutral blue-gray',
+    accent: '#55617a', hover: '#434c61', soft: '#eceef1', ink: '#3d4756', onAccent: '#ffffff',
+  },
+  {
+    name: 'Option 3 — soft teal',
+    accent: '#2f7f74', hover: '#256961', soft: '#e3f4f1', ink: '#1f5d55', onAccent: '#ffffff',
+  },
+]
+
+const container = document.getElementById('columns')
+
+for (const o of options) {
+  const card = document.createElement('div')
+  card.className = 'card'
+  card.style.setProperty('--focus', o.accent)
+  card.innerHTML = `
+    <h3>${o.name}</h3>
+    <div class="swatch-row">
+      <div class="swatch" style="background:${o.accent}" title="accent"></div>
+      <div class="swatch" style="background:${o.hover}" title="accent-hover"></div>
+      <div class="swatch" style="background:${o.soft}" title="accent-soft"></div>
+      <div class="swatch" style="background:${o.ink}" title="accent-ink"></div>
+    </div>
+
+    <button class="btn-primary" style="background:${o.accent}; color:${o.onAccent}">New task</button>
+
+    <button class="link" style="color:${o.ink}">Open Team capacity →</button>
+
+    <div class="input-row">
+      <label>Display name (tab to this field to see the focus ring)</label>
+      <input type="text" value="Lan Nguyen" style="outline-color:${o.accent}" onfocus="this.style.outline='2px solid ' + '${o.accent}'; this.style.outlineOffset='2px'" onblur="this.style.outline='none'">
+    </div>
+
+    <div class="nav-item" style="background:${o.soft}; color:${o.ink}">Board (active nav item)</div>
+
+    <div class="priority-card" style="border-color:${o.accent}; background:${o.soft}">Urgent (selected priority card)</div>
+
+    <div class="dot-row"><span class="dot" style="background:${o.accent}"></span> Unread notification dot</div>
+  `
+  container.appendChild(card)
+}
+</script>
+</body>
+</html>

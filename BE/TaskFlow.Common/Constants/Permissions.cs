@@ -18,6 +18,9 @@
             Tasks.ReopenTasks,
             Tasks.PlanTasks,
             Tasks.AssignAnyone,
+            Users.ManageUsers,
+            Reports.ViewReports,
+            Reports.ExportReports,
         ];
 
         /// <summary>
@@ -35,6 +38,14 @@
         public struct Reports
         {
             public const string ManageReports = "ManageReports";
+
+            // f09-reports.md R1/ADR 0008 decision 4: the scorecard/drill-down
+            // endpoints use ViewTasks (+ the service's own SelfOnly check);
+            // these two gate the team-scope and export operations. Seeded
+            // for Admin/Manager only (AddReportPermissions) - ManageReports
+            // stays dead, like Manager's unused Members.* claims (B8).
+            public const string ViewReports = "ViewReports";
+            public const string ExportReports = "ExportReports";
         }
 
         public struct Tasks
@@ -52,6 +63,15 @@
             // yourself, both Manager/Admin only.
             public const string PlanTasks = "PlanTasks";
             public const string AssignAnyone = "AssignAnyone";
+        }
+
+        // Round 2 (f08-accounts-profile.md, ADR 0006): account administration
+        // (create user, change role, deactivate/activate, reset password,
+        // remove anyone's avatar). Admin only (A4 sign-off) - never granted
+        // to Manager, despite Manager's unused legacy Members.* claims.
+        public struct Users
+        {
+            public const string ManageUsers = "ManageUsers";
         }
     }
 }

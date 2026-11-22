@@ -9,6 +9,8 @@ namespace TaskFlow.Api.Mappers
         public NotificationMapper()
         {
             CreateMap<NotificationResDto, NotificationRes>();
+            CreateMap<NotificationTaskResDto, NotificationTaskRes>();
+            CreateMap<NotificationActorResDto, NotificationActorRes>();
         }
     }
 }

@@ -10,17 +10,26 @@ import { useMarkAllNotificationsReadMutation } from './useMarkAllNotificationsRe
 import { NOTIFICATIONS_QUERY_KEY } from './useNotificationsQuery'
 import { UNREAD_NOTIFICATION_COUNT_QUERY_KEY } from './useUnreadNotificationCountQuery'
 
-const { markNotificationRead } = vi.hoisted(() => ({ markNotificationRead: vi.fn() }))
+const { markAllNotificationsRead } = vi.hoisted(() => ({ markAllNotificationsRead: vi.fn() }))
 
-vi.mock('../../../api/notifications', () => ({ markNotificationRead }))
+vi.mock('../../../api/notifications', () => ({ markAllNotificationsRead }))
 
 type NotificationsData = InfiniteData<PaginationResultRes<TaskNotification[]>>
 
 function notification(id: number, isRead = false): TaskNotification {
-  return { id, taskId: 1000 + id, event: 'ReturnedForRework', isRead, readAt: isRead ? '2026-11-01T00:00:00Z' : null, createdAt: '2026-11-01T00:00:00Z' }
+  return {
+    id,
+    taskId: 1000 + id,
+    event: 'ReturnedForRework',
+    isRead,
+    readAt: isRead ? '2026-11-01T00:00:00Z' : null,
+    createdAt: '2026-11-01T00:00:00Z',
+    task: { id: 1000 + id, title: `Task ${id}` },
+    actor: null,
+  }
 }
 
-/** Two loaded pages with a mix of read/unread rows on both, and more unread rows (ids 1-17) never loaded at all — the server's true total (23) stays above what these two pages account for. */
+/** Two loaded pages with a mix of read/unread rows, plus server-side unread rows (ids 1-17) never loaded at all — `upToId` (the newest loaded id, 40) must cover all of them anyway (F06's "newest the user has seen" contract), not just what's in the cache. */
 function twoPageCache(): NotificationsData {
   return {
     pageParams: [1, 2],
@@ -49,43 +58,40 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-describe('useMarkAllNotificationsReadMutation — across already-loaded pages', () => {
-  it('marks every loaded unread row on every page read, leaving the server-true remainder on the badge', async () => {
+describe('useMarkAllNotificationsReadMutation — one bulk request', () => {
+  it('calls the bulk endpoint exactly once with the newest loaded id, never one request per row', async () => {
     const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
     queryClient.setQueryData<NotificationsData>(NOTIFICATIONS_QUERY_KEY, twoPageCache())
-    // 23 unread server-side in total; only the 4 loaded-unread ids (40, 38, 21, 19) are passed in here —
-    // `NotificationBell` never claims the 19 still-unloaded unread rows (ids outside these two pages) as read.
     queryClient.setQueryData<number>(UNREAD_NOTIFICATION_COUNT_QUERY_KEY, 23)
-    markNotificationRead.mockResolvedValue(undefined)
+    markAllNotificationsRead.mockResolvedValue(23)
 
     const { result } = renderHook(() => useMarkAllNotificationsReadMutation(), { wrapper: createWrapper(queryClient) })
 
-    result.current.mutate([40, 38, 21, 19])
+    result.current.mutate(40)
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(markNotificationRead).toHaveBeenCalledTimes(4)
-    expect(markNotificationRead).toHaveBeenCalledWith(40)
-    expect(markNotificationRead).toHaveBeenCalledWith(19)
+    expect(markAllNotificationsRead).toHaveBeenCalledTimes(1)
+    expect(markAllNotificationsRead).toHaveBeenCalledWith(40)
 
     const cache = queryClient.getQueryData<NotificationsData>(NOTIFICATIONS_QUERY_KEY)
     expect(cache?.pages[0]?.result?.every((n) => n.isRead)).toBe(true)
     expect(cache?.pages[1]?.result?.every((n) => n.isRead)).toBe(true)
 
-    // Honest remainder: 23 total unread minus the 4 just marked, never claimed down to 0.
-    expect(queryClient.getQueryData<number>(UNREAD_NOTIFICATION_COUNT_QUERY_KEY)).toBe(19)
+    // Optimistic: the badge goes straight to 0, since `upToId` covers every unread row server-side, loaded or not.
+    expect(queryClient.getQueryData<number>(UNREAD_NOTIFICATION_COUNT_QUERY_KEY)).toBe(0)
   })
 
-  it('rolls back every optimistically-marked row across both pages, and the badge, when the batch fails', async () => {
+  it('rolls back every optimistically-marked row across both pages, and the badge, when the request fails', async () => {
     const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
     queryClient.setQueryData<NotificationsData>(NOTIFICATIONS_QUERY_KEY, twoPageCache())
     queryClient.setQueryData<number>(UNREAD_NOTIFICATION_COUNT_QUERY_KEY, 23)
-    markNotificationRead.mockRejectedValue(new ApiError(500, null, 'Server error'))
+    markAllNotificationsRead.mockRejectedValue(new ApiError(500, null, 'Server error'))
     const onRefused = vi.fn()
 
     const { result } = renderHook(() => useMarkAllNotificationsReadMutation({ onRefused }), { wrapper: createWrapper(queryClient) })
 
-    result.current.mutate([40, 38, 21, 19])
+    result.current.mutate(40)
 
     await waitFor(() => expect(onRefused).toHaveBeenCalledTimes(1))
 

@@ -4,11 +4,13 @@ import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 
 import type { TaskStatus, TaskSummary } from '../../../api/types'
+import { Avatar } from '../../../shared/components/Avatar'
 import { CardMoveAction } from '../../../shared/components/CardMoveAction'
 import { chipBase, DueChip, OverdueChip } from '../../../shared/components/DueDateChips'
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
-import { avatarPaletteIndex, initialsOf } from '../../../shared/lib/avatar'
+import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
 import { dueDateFormatter } from '../../../shared/lib/dueDate'
+import { userLabel } from '../../../shared/lib/userLabel'
 
 function LockIcon() {
   return (
@@ -49,6 +51,9 @@ interface TaskCardProps {
  */
 export function TaskCard({ task, onMove, onTakeOver }: TaskCardProps) {
   const moves = task.allowedTransitions.filter((t) => t.operation === 'Move')
+  const usersQuery = useUsersQuery()
+  const assigneeId = task.assignee?.id
+  const assigneeRoster = assigneeId === undefined ? null : (usersQuery.data?.find((user) => user.id === assigneeId) ?? null)
   const { setNodeRef, setActivatorNodeRef, listeners, attributes, transform, isDragging } = useDraggable({
     id: `task-${task.id}`,
     data: { task },
@@ -112,15 +117,18 @@ export function TaskCard({ task, onMove, onTakeOver }: TaskCardProps) {
           takeOver={task.canTakeOver ? { onSelect: () => onTakeOver(task.id, task.version) } : undefined}
         />
         {task.assignee !== null && (
-          <span
-            className="inline-flex size-4 shrink-0 items-center justify-center rounded-pill text-[9px] leading-none font-semibold @min-[170px]:size-5"
-            aria-label={`Assigned to ${task.assignee.userName}`}
-            style={{
-              backgroundColor: `var(--avatar-${avatarPaletteIndex(task.assignee.id)}-bg)`,
-              color: `var(--avatar-${avatarPaletteIndex(task.assignee.id)}-ink)`,
-            }}
-          >
-            {initialsOf(task.assignee.userName)}
+          // shortcut: fixed 18px instead of the old 16/20px container-query
+          // tiers (`size-4 @min-[170px]:size-5`) — `Avatar` sizes itself by a
+          // numeric prop (inline style, for the real-image case), which a
+          // Tailwind utility class cannot override by source order alone;
+          // revisit if the two-tier sizing is asked for again.
+          <span aria-label={`Assigned to ${userLabel(assigneeRoster ?? task.assignee)}`}>
+            <Avatar
+              userId={task.assignee.id}
+              name={userLabel(assigneeRoster ?? task.assignee)}
+              avatarUrl={assigneeRoster?.avatarUrl ?? null}
+              size={18}
+            />
           </span>
         )}
       </div>

@@ -71,6 +71,23 @@
             { Images.SvgExtension, Images.SvgContentType }
         };
 
+        // f08-accounts-profile.md "Avatars on the existing StorageService":
+        // distinct from Images.MaxSize above (the old anonymous-bucket
+        // upload path, untouched).
+        public struct Avatar
+        {
+            public const long MaxSizeBytes = 2_097_152; // 2 MiB
+        }
+
+        // f05-overdue.md T5 / f10-read-models-and-sort.md Section 4: shared
+        // between OverdueScanHostedService (schedules it) and WorkflowService
+        // (reads its trigger's last/next fire time back) so the job id is
+        // never a duplicated literal.
+        public struct Jobs
+        {
+            public const string OverdueScanJobId = "OverdueScan";
+        }
+
         public struct StorageErrorMessage
         {
             public const string BucketIsNull = "Bucket is null.";

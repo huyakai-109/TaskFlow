@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
-const actionButtonClass =
-  'min-h-11 cursor-pointer rounded-md px-[var(--space-4)] disabled:cursor-not-allowed disabled:opacity-60'
+import { Button } from '../../../shared/components/Button'
 
 interface ReopenDialogProps {
   taskTitle: string
@@ -67,7 +66,7 @@ export function ReopenDialog({ taskTitle, isPending, onCancel, onSubmit }: Reope
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-[rgb(16_16_24_/_40%)] p-[var(--space-4)]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-overlay p-[var(--space-4)]"
       onClick={() => !isPending && onCancel()}
     >
       <form
@@ -98,21 +97,12 @@ export function ReopenDialog({ taskTitle, isPending, onCancel, onSubmit }: Reope
           onChange={(event) => setReason(event.target.value)}
         />
         <div className="flex gap-[var(--space-3)]">
-          <button
-            type="submit"
-            className={`${actionButtonClass} border-0 bg-accent font-semibold text-on-accent [&:hover:not(:disabled)]:bg-accent-hover`}
-            disabled={isPending || reason.trim().length === 0}
-          >
+          <Button type="submit" variant="primary" size="lg" loading={isPending} disabled={reason.trim().length === 0}>
             {isPending ? 'Reopening…' : 'Reopen'}
-          </button>
-          <button
-            type="button"
-            className={`${actionButtonClass} border border-border bg-surface font-medium text-text`}
-            onClick={onCancel}
-            disabled={isPending}
-          >
+          </Button>
+          <Button type="button" size="lg" onClick={onCancel} disabled={isPending}>
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
     </div>

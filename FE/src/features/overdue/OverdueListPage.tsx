@@ -3,11 +3,14 @@ import { Link } from 'react-router-dom'
 
 import { describeError } from '../../api/errorMessages'
 import { ComingSoon } from '../../shared/components/ComingSoon'
-import { avatarPaletteIndex, initialsOf } from '../../shared/lib/avatar'
+import { Avatar } from '../../shared/components/Avatar'
+import { Button } from '../../shared/components/Button'
 import { PriorityIcon } from '../../shared/components/PriorityIcon'
 import { useComingSoon } from '../../shared/hooks/useComingSoon'
+import { useUsersQuery } from '../../shared/hooks/useUsersQuery'
 import { STATUS_LABELS } from '../../shared/lib/statusLabels'
 import { daysLate, dueDateFormatter, isToday, parseDueDate } from '../../shared/lib/dueDate'
+import { userLabel } from '../../shared/lib/userLabel'
 import { useOverdueTasksQuery } from '../../shared/hooks/useOverdueTasksQuery'
 
 import { useDueTodayTasksQuery } from './hooks/useDueTodayTasksQuery'
@@ -39,6 +42,7 @@ const cellClass = 'px-[var(--space-3)] py-[var(--space-3)] text-left align-middl
  * as-is, never re-sorted client-side.
  */
 export function OverdueListPage() {
+  const usersQuery = useUsersQuery()
   const query = useOverdueTasksQuery()
   const pages = query.data?.pages ?? []
   const items = pages.flatMap((page) => page.result ?? [])
@@ -97,9 +101,9 @@ export function OverdueListPage() {
           role="alert"
         >
           <p>{describeError(query.error)}</p>
-          <button type="button" onClick={() => query.refetch()}>
+          <Button type="button" onClick={() => query.refetch()}>
             Try again
-          </button>
+          </Button>
         </div>
       )}
 
@@ -175,17 +179,13 @@ export function OverdueListPage() {
                     <td className={cellClass}>
                       {task.assignee !== null ? (
                         <span className="inline-flex items-center gap-[var(--space-2)]">
-                          <span
-                            className="inline-flex size-5 shrink-0 items-center justify-center rounded-pill text-[9px] font-semibold"
-                            aria-label={`Assigned to ${task.assignee.userName}`}
-                            style={{
-                              backgroundColor: `var(--avatar-${avatarPaletteIndex(task.assignee.id)}-bg)`,
-                              color: `var(--avatar-${avatarPaletteIndex(task.assignee.id)}-ink)`,
-                            }}
-                          >
-                            {initialsOf(task.assignee.userName)}
-                          </span>
-                          {task.assignee.userName}
+                          <Avatar
+                            userId={task.assignee.id}
+                            name={userLabel(usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? task.assignee)}
+                            avatarUrl={usersQuery.data?.find((user) => user.id === task.assignee!.id)?.avatarUrl ?? null}
+                            size={20}
+                          />
+                          {userLabel(usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? task.assignee)}
                         </span>
                       ) : (
                         <span className="text-text-muted">Unassigned</span>
@@ -201,14 +201,9 @@ export function OverdueListPage() {
           </p>
 
           {hasMore && (
-            <button
-              type="button"
-              className="min-h-10 cursor-pointer self-start rounded-md border border-border bg-surface px-[var(--space-3)] text-[length:var(--font-size-sm)] font-medium text-text hover:border-accent hover:bg-accent-soft hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60"
-              onClick={() => query.fetchNextPage()}
-              disabled={query.isFetchingNextPage}
-            >
+            <Button type="button" className="self-start" loading={query.isFetchingNextPage} onClick={() => query.fetchNextPage()}>
               {query.isFetchingNextPage ? 'Loading…' : `Show more (${items.length} of ${totalItems})`}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -268,7 +263,19 @@ export function OverdueListPage() {
                     </td>
                     <td className={cellClass}>Due today, {task.dueDate !== null ? formatDueDate(task.dueDate) : ''}</td>
                     <td className={cellClass}>
-                      {task.assignee !== null ? task.assignee.userName : <span className="text-text-muted">Unassigned</span>}
+                      {task.assignee !== null ? (
+                        <span className="inline-flex items-center gap-[var(--space-2)]">
+                          <Avatar
+                            userId={task.assignee.id}
+                            name={userLabel(usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? task.assignee)}
+                            avatarUrl={usersQuery.data?.find((user) => user.id === task.assignee!.id)?.avatarUrl ?? null}
+                            size={20}
+                          />
+                          {userLabel(usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? task.assignee)}
+                        </span>
+                      ) : (
+                        <span className="text-text-muted">Unassigned</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -278,16 +285,16 @@ export function OverdueListPage() {
         )}
 
         {dueTodayHasMoreToScan && (
-          <button
+          <Button
             type="button"
-            className="min-h-10 cursor-pointer self-start rounded-md border border-border bg-surface px-[var(--space-3)] text-[length:var(--font-size-sm)] font-medium text-text hover:border-accent hover:bg-accent-soft hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60"
+            className="self-start"
+            loading={dueTodayQuery.isFetchingNextPage}
             onClick={() => dueTodayQuery.fetchNextPage()}
-            disabled={dueTodayQuery.isFetchingNextPage}
           >
             {dueTodayQuery.isFetchingNextPage
               ? 'Checking…'
               : `Check more non-overdue tasks for "due today" (checked ${nonOverdueScanned.length} of ${nonOverdueTotal})`}
-          </button>
+          </Button>
         )}
       </div>
 

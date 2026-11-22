@@ -5,6 +5,9 @@ namespace TaskFlow.BusinessLogic.Dtos.Tasks
     public class BoardResDto
     {
         public List<BoardColumnResDto> Columns { get; set; } = [];
+
+        // f10-read-models-and-sort.md Section 1, additive echo.
+        public TaskSortOrder Sort { get; set; }
     }
 
     // F01 ships CreatedAt asc, Id asc and 50 items per column; F03 changes

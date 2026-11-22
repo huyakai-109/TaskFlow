@@ -1,9 +1,9 @@
-import { ComingSoon } from '../../shared/components/ComingSoon'
-import { useComingSoon } from '../../shared/hooks/useComingSoon'
+import { Avatar } from '../../shared/components/Avatar'
 import { Link } from 'react-router-dom'
 
-import { avatarPaletteIndex, initialsOf } from '../../shared/lib/avatar'
-import { IN_PROGRESS_LIMIT, useTeamCapacity } from '../../shared/hooks/useTeamCapacity'
+import { useTeamCapacity, IN_PROGRESS_LIMIT } from '../../shared/hooks/useTeamCapacity'
+import { useWorkflowQuery } from '../../shared/hooks/useWorkflowQuery'
+import { userLabel } from '../../shared/lib/userLabel'
 
 /**
  * `docs/design/SPEC.md` §5.2/§10 point 3 (reopened 2026-11-11): a standalone
@@ -12,15 +12,16 @@ import { IN_PROGRESS_LIMIT, useTeamCapacity } from '../../shared/hooks/useTeamCa
  * summary line. The popover itself (anchored under the Board toolbar's
  * avatar stack) is not built this session — `docs/design/COMING-SOON.md` A9.
  *
- * The header's "max —" (`docs/design/COMING-SOON.md` B4) is a real "Coming
- * soon" stub: the configured in-progress limit isn't exposed by any
- * endpoint, so this shows `—` rather than the `IN_PROGRESS_LIMIT` constant
- * the rows below still use internally (an already-approved, flagged
- * assumption for sorting/grouping — unchanged by this stub).
+ * The header's "max N" used to be a "Coming soon" stub (`docs/design/
+ * COMING-SOON.md` B4, "max —") because no endpoint exposed the configured
+ * limit — `GET /workflow` (f10-read-models-and-sort.md §4) now does, so this
+ * reads the real value instead of a literal. `useTeamCapacity`'s own
+ * per-row grouping/meter still uses its separately-flagged `IN_PROGRESS_LIMIT`
+ * assumption (unchanged by this fix — see that hook's own doc comment).
  */
 export function TeamCapacityPage() {
   const capacity = useTeamCapacity()
-  const comingSoon = useComingSoon('Reading the configured limit from the server is coming soon.')
+  const workflowQuery = useWorkflowQuery()
 
   return (
     // No hard `max-w` (layout fix, 2026-11-12 again, "pages use the full
@@ -33,14 +34,7 @@ export function TeamCapacityPage() {
         <h1 className="m-0 text-[length:var(--font-size-xl)] font-semibold">Team capacity</h1>
         <p className="m-0 mt-[var(--space-1)] text-[length:var(--font-size-sm)] text-text-muted">
           In progress · max{' '}
-          <button
-            type="button"
-            aria-disabled="true"
-            className="cursor-pointer border-0 bg-transparent p-0 text-inherit underline decoration-dashed [font:inherit]"
-            onClick={() => comingSoon.show()}
-          >
-            —
-          </button>
+          {workflowQuery.isError ? '—' : (workflowQuery.data?.maxInProgressPerAssignee ?? '…')}
         </p>
       </div>
 
@@ -90,17 +84,9 @@ export function TeamCapacityPage() {
                     : 'flex min-h-[72px] min-w-0 items-center gap-[var(--space-3)] rounded-card-lg border border-border bg-surface p-[var(--space-3)]'
                 }
               >
-                <span
-                  className="flex size-[32px] shrink-0 items-center justify-center rounded-pill text-[12px] font-semibold"
-                  style={{
-                    backgroundColor: `var(--avatar-${avatarPaletteIndex(user.id)}-bg)`,
-                    color: `var(--avatar-${avatarPaletteIndex(user.id)}-ink)`,
-                  }}
-                >
-                  {initialsOf(user.userName)}
-                </span>
+                <Avatar userId={user.id} name={userLabel(user)} avatarUrl={user.avatarUrl} size={32} />
                 <span className="flex min-w-0 flex-1 flex-col gap-[var(--space-1)]">
-                  <span className="truncate text-[length:var(--font-size-base)] font-medium">{user.userName}</span>
+                  <span className="truncate text-[length:var(--font-size-base)] font-medium">{userLabel(user)}</span>
                   <span className="flex items-center gap-[3px]" aria-hidden="true">
                     {Array.from({ length: IN_PROGRESS_LIMIT }).map((_, i) => (
                       <span
@@ -132,8 +118,6 @@ export function TeamCapacityPage() {
           </ul>
         </>
       )}
-
-      {comingSoon.message !== null && <ComingSoon message={comingSoon.message} onDismiss={comingSoon.hide} />}
     </section>
   )
 }

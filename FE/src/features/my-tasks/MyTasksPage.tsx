@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 
 import { describeError, describeErrorCode } from '../../api/errorMessages'
 import type { TaskStatus, TaskSummary } from '../../api/types'
+import { Avatar } from '../../shared/components/Avatar'
+import { Button } from '../../shared/components/Button'
 import { CardMoveAction } from '../../shared/components/CardMoveAction'
 import { ComingSoon } from '../../shared/components/ComingSoon'
 import { chipBase, DueChip, OverdueChip } from '../../shared/components/DueDateChips'
@@ -13,8 +15,8 @@ import { useBoardQuery } from '../../shared/hooks/useBoardQuery'
 import { useComingSoon } from '../../shared/hooks/useComingSoon'
 import { useMoveTaskMutation } from '../../shared/hooks/useMoveTaskMutation'
 import { useUsersQuery } from '../../shared/hooks/useUsersQuery'
-import { avatarPaletteIndex, initialsOf } from '../../shared/lib/avatar'
 import { moveButtonLabel } from '../../shared/lib/moveButtonLabel'
+import { userLabel } from '../../shared/lib/userLabel'
 
 /** "Good morning"/"afternoon"/"evening" by the viewer's local clock — decorative copy only, not a server fact. */
 function greetingWord(): string {
@@ -26,7 +28,6 @@ function greetingWord(): string {
 
 interface TaskRowProps {
   task: TaskSummary
-  primary?: boolean
   /** Set only for a Todo→InProgress "Start" row while the viewer is already at 3 in progress — disables the button and shows why (SPEC §5.8's "Frees up when one of your 3 moves to Review."), a client-side hint only; the server stays the real enforcer. */
   disabledReason?: string
   /** "Assigned to <name>" line, shown under the due chip — only the two Review sections need it; the other groups already carry an avatar bubble and are always the viewer's own task. */
@@ -36,27 +37,31 @@ interface TaskRowProps {
   onMove: (taskId: number, toStatus: TaskStatus, version: string, taskTitle: string) => void
 }
 
-function TaskRow({ task, primary = false, disabledReason, assigneeLine, statusChip, onMove }: TaskRowProps) {
+function TaskRow({ task, disabledReason, assigneeLine, statusChip, onMove }: TaskRowProps) {
   // F01 D10: never re-derive the transition table — only read `allowedTransitions`.
-  // One legal move keeps the existing wide primary/secondary button; more than
-  // one reuses the Board card's own menu (`CardMoveAction`, moved to
-  // `shared/components/` for this second use) instead of a second popover.
+  // One legal move keeps the existing wide secondary button — every row
+  // action sharing a label renders identically, never emphasised by row
+  // position (bug fix, 2026-11-22: the first In progress row alone used to
+  // render `primary`/filled while the identical-label rows below it stayed
+  // secondary); more than one legal move reuses the Board card's own menu
+  // (`CardMoveAction`, moved to `shared/components/` for this second use)
+  // instead of a second popover.
   const moves = task.allowedTransitions.filter((t) => t.operation === 'Move')
   const disabled = disabledReason !== undefined
+  const usersQuery = useUsersQuery()
+  const assigneeRoster = task.assignee === null ? null : (usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? null)
 
   return (
     <div className="group flex flex-wrap items-center gap-[var(--space-3)] rounded-card-lg border border-border bg-surface p-[var(--space-3)]">
       <PriorityIcon priority={task.priority} />
       {task.assignee !== null && (
-        <span
-          aria-label={`Assigned to ${task.assignee.userName}`}
-          className="inline-flex size-5 shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] font-semibold"
-          style={{
-            backgroundColor: `var(--avatar-${avatarPaletteIndex(task.assignee.id)}-bg)`,
-            color: `var(--avatar-${avatarPaletteIndex(task.assignee.id)}-ink)`,
-          }}
-        >
-          {initialsOf(task.assignee.userName)}
+        <span aria-label={`Assigned to ${userLabel(assigneeRoster ?? task.assignee)}`}>
+          <Avatar
+            userId={task.assignee.id}
+            name={userLabel(assigneeRoster ?? task.assignee)}
+            avatarUrl={assigneeRoster?.avatarUrl ?? null}
+            size={20}
+          />
         </span>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
@@ -82,19 +87,14 @@ function TaskRow({ task, primary = false, disabledReason, assigneeLine, statusCh
         />
       ) : moves.length === 1 ? (
         <div className="flex flex-col items-end gap-[2px]">
-          <button
+          <Button
             type="button"
             disabled={disabled}
             title={disabledReason}
-            className={
-              primary
-                ? 'min-h-10 cursor-pointer rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60'
-                : 'min-h-10 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-4)] font-medium text-text hover:bg-column disabled:cursor-not-allowed disabled:opacity-60'
-            }
             onClick={() => onMove(task.id, moves[0].status, task.version, task.title)}
           >
             {moveButtonLabel(task.status, moves[0])}
-          </button>
+          </Button>
           {disabledReason !== undefined && (
             <span className="max-w-[200px] text-right text-[length:var(--font-size-2xs)] text-text-muted">{disabledReason}</span>
           )}
@@ -149,9 +149,9 @@ export function MyTasksPage() {
         role="alert"
       >
         <p>{describeError(boardQuery.error)}</p>
-        <button type="button" onClick={() => boardQuery.refetch()}>
+        <Button type="button" onClick={() => boardQuery.refetch()}>
           Try again
-        </button>
+        </Button>
       </div>
     )
   }
@@ -198,7 +198,7 @@ export function MyTasksPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)] rounded-xl border border-border bg-surface p-[var(--space-4)] shadow-card">
         <p className="m-0 text-[length:var(--font-size-greeting)] font-semibold">
-          Good {greetingWord()}{me !== null ? `, ${me.userName}` : ''}
+          Good {greetingWord()}{me !== null ? `, ${userLabel(me)}` : ''}
         </p>
         <div className="flex items-center gap-[var(--space-2)]">
           <div className="flex gap-[2px]" aria-hidden="true">
@@ -234,9 +234,7 @@ export function MyTasksPage() {
             Nothing in progress.
           </p>
         ) : (
-          inProgress.map((task, index) => (
-            <TaskRow key={task.id} task={task} primary={index === 0} onMove={handleMove} />
-          ))
+          inProgress.map((task) => <TaskRow key={task.id} task={task} onMove={handleMove} />)
         )}
       </div>
 
@@ -297,17 +295,15 @@ export function MyTasksPage() {
             </p>
           ) : (
             <>
-              {/*
-               * No `primary` row here — the page's one "obvious, solid"
-               * action stays In progress's first row (pre-existing); Up next
-               * and both Review sections are all secondary, same as before
-               * (button-style consistency pass, this task).
-               */}
               {reviewForYouVisible.map((task) => (
                 <TaskRow
                   key={task.id}
                   task={task}
-                  assigneeLine={task.assignee !== null ? `Assigned to ${task.assignee.userName}` : 'Unassigned'}
+                  assigneeLine={
+                    task.assignee !== null
+                      ? `Assigned to ${userLabel(usersQuery.data?.find((user) => user.id === task.assignee!.id) ?? task.assignee)}`
+                      : 'Unassigned'
+                  }
                   onMove={handleMove}
                 />
               ))}
@@ -346,14 +342,9 @@ export function MyTasksPage() {
 
       <div className="flex items-center justify-between gap-[var(--space-3)] rounded-card-lg border border-border bg-surface p-[var(--space-3)] text-[length:var(--font-size-sm)] text-text-muted">
         <span>— tasks finished this week</span>
-        <button
-          type="button"
-          aria-disabled="true"
-          className="min-h-9 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-3)] font-medium text-text hover:bg-column"
-          onClick={() => comingSoon.show()}
-        >
+        <Button type="button" size="sm" aria-disabled="true" onClick={() => comingSoon.show()}>
           Show
-        </button>
+        </Button>
       </div>
 
       {toastMessage !== null && <MoveToast message={toastMessage} onDismiss={() => setToastMessage(null)} />}

@@ -36,6 +36,9 @@ namespace TaskFlow.Api.Configurations
             collection.AddScoped<ITaskOverdueScanService, TaskOverdueScanService>();
             collection.AddScoped<INotificationService, NotificationService>();
             collection.AddScoped<IUserService, UserService>();
+            collection.AddScoped<IProfileService, ProfileService>();
+            collection.AddScoped<IWorkflowService, WorkflowService>();
+            collection.AddScoped<IReportService, ReportService>();
         }
     }
 }

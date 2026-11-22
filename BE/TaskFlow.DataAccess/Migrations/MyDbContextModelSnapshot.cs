@@ -336,6 +336,39 @@ namespace TaskFlow.DataAccess.Migrations
                         },
                         new
                         {
+                            Id = 15,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "ManageUsers",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 1L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 16,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "ViewReports",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 1L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 17,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "ExportReports",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 1L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
                             Id = 1001,
                             ClaimType = "RolePolicy",
                             ClaimValue = "ViewMembers",
@@ -490,6 +523,28 @@ namespace TaskFlow.DataAccess.Migrations
                         },
                         new
                         {
+                            Id = 1015,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "ViewReports",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 3L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
+                            Id = 1016,
+                            ClaimType = "RolePolicy",
+                            ClaimValue = "ExportReports",
+                            CreatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedBy = 1L,
+                            RoleId = 3L,
+                            UpdatedAt = new DateTimeOffset(new DateTime(2024, 7, 12, 0, 0, 0, 0, DateTimeKind.Unspecified).AddTicks(8363), new TimeSpan(0, 0, 0, 0, 0)),
+                            UpdatedBy = 1L
+                        },
+                        new
+                        {
                             Id = 2001,
                             ClaimType = "RolePolicy",
                             ClaimValue = "ViewTasks",
@@ -588,7 +643,11 @@ namespace TaskFlow.DataAccess.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ActorUserId");
+                    b.HasIndex("CreatedAt", "Id")
+                        .HasDatabaseName("IX_TaskHistories_CreatedAt_Id");
+
+                    b.HasIndex("ActorUserId", "CreatedAt", "Id")
+                        .HasDatabaseName("IX_TaskHistories_ActorUserId_CreatedAt_Id");
 
                     b.HasIndex("TaskId", "CreatedAt", "Id")
                         .HasDatabaseName("IX_TaskHistories_TaskId_CreatedAt_Id");
@@ -677,6 +736,9 @@ namespace TaskFlow.DataAccess.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -706,9 +768,12 @@ namespace TaskFlow.DataAccess.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("RecipientUserId");
+                    b.HasIndex("ActorUserId");
 
                     b.HasIndex("TaskId");
+
+                    b.HasIndex("RecipientUserId", "IsRead", "CreatedAt", "Id")
+                        .HasDatabaseName("IX_TaskNotifications_RecipientUserId_IsRead_CreatedAt_Id");
 
                     b.ToTable("TaskNotifications");
                 });
@@ -724,6 +789,10 @@ namespace TaskFlow.DataAccess.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
 
+                    b.Property<string>("AvatarObjectKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("longtext");
@@ -733,6 +802,13 @@ namespace TaskFlow.DataAccess.Migrations
 
                     b.Property<long>("CreatedBy")
                         .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("DeactivatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
@@ -749,6 +825,9 @@ namespace TaskFlow.DataAccess.Migrations
 
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
@@ -807,6 +886,7 @@ namespace TaskFlow.DataAccess.Migrations
                             EmailConfirmed = true,
                             IsDeleted = false,
                             LockoutEnabled = true,
+                            MustChangePassword = false,
                             NormalizedEmail = "ADMIN@IMT-SOFT.COM",
                             NormalizedUserName = "ADMIN",
                             PasswordHash = "AQAAAAEAACcQAAAAEELKNErj+EBVy3yZwAI32HSAQILEj5UAOooOEHTMPYU/yp0E28xNH1BjU/SEBw8kuA==",
@@ -1010,6 +1090,11 @@ namespace TaskFlow.DataAccess.Migrations
 
             modelBuilder.Entity("TaskFlow.DataAccess.Entities.TaskNotification", b =>
                 {
+                    b.HasOne("TaskFlow.DataAccess.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("TaskFlow.DataAccess.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("RecipientUserId")

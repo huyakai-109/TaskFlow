@@ -21,8 +21,18 @@ namespace TaskFlow.DataAccess.Configurations
                 .HasForeignKey(n => n.TaskId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // No index beyond EF's automatic FK indexes: the contract names
-            // none for this table, and the inbox read query lands in slice 1.3.
+            // R2-2 (f06-notification-history.md "Data"): the actor who sent
+            // the task back. No navigation property, same reasoning as above.
+            builder
+                .HasOne<Entities.User>()
+                .WithMany()
+                .HasForeignKey(n => n.ActorUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // R2-2: supports the bell's own list/count query (RecipientUserId
+            // + IsRead filter, CreatedAt/Id order).
+            builder.HasIndex(n => new { n.RecipientUserId, n.IsRead, n.CreatedAt, n.Id })
+                .HasDatabaseName("IX_TaskNotifications_RecipientUserId_IsRead_CreatedAt_Id");
         }
     }
 }

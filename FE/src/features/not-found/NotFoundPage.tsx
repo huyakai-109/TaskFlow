@@ -15,9 +15,15 @@ export function NotFoundPage() {
       <p className="m-0 max-w-[480px] text-[length:var(--font-size-md)] text-text-muted">
         The page you&rsquo;re looking for doesn&rsquo;t exist or has moved.
       </p>
+      {/*
+       * A navigation link, not an action — stays an `<a>` (`frontend.md` §8
+       * "`a` for navigation"), not the shared `Button` (native `<button>`
+       * only). Classes match `Button`'s `primary`/`sm` output by hand so it
+       * still looks identical to every other primary action.
+       */}
       <Link
         to="/board"
-        className="mt-[var(--space-2)] inline-flex min-h-9 cursor-pointer items-center gap-[var(--space-2)] rounded-control-lg border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent no-underline hover:bg-accent-hover"
+        className="mt-[var(--space-2)] inline-flex min-h-9 cursor-pointer items-center justify-center gap-[var(--space-2)] rounded-md border-0 bg-accent px-[var(--space-3)] text-[length:var(--font-size-sm)] font-semibold text-on-accent no-underline hover:bg-accent-hover"
       >
         Back to board
       </Link>

@@ -95,6 +95,36 @@ namespace TaskFlow.Tests.Http
         }
 
         [Fact]
+        public async Task Assign_Refuses_WhenTargetAlreadyAtCapacity_NamesTargetByDisplayName_WhenSet()
+        {
+            // Bug fix: the capacity message must follow a changed display
+            // name, not keep showing the (stale) username.
+            var mover = await CreateAuthenticatedClientAsync("Manager");
+            var a = await CreateAuthenticatedClientAsync("Member");
+            var b = await CreateAuthenticatedClientAsync("Member");
+            var task = await CreateInProgressTaskAsync(mover.Client, a);
+            for (var i = 0; i < 3; i++)
+            {
+                await CreateInProgressTaskAsync(mover.Client, b);
+            }
+
+            const string displayName = "Renamed Member";
+            await using (var context = _dbFixture.CreateContext())
+            {
+                var bUser = await context.Set<User>().SingleAsync(u => u.Id == b.UserId);
+                bUser.DisplayName = displayName;
+                await context.SaveChangesAsync();
+            }
+
+            var response = await mover.Client.PutAsJsonAsync($"api/v1/tasks/{task.Id}/assignee", new { assigneeId = b.UserId, version = task.Version });
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal(TaskControllerMS.Assign.CapacityReached, body!.ErrorCode);
+            Assert.Equal($"{displayName} already has 3 tasks in progress, which is the limit.", body.Error);
+        }
+
+        [Fact]
         public async Task Assign_Allows_WhenTargetHasTwoActive_AndOldAssigneeDropsByOne()
         {
             // AC8

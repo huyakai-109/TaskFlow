@@ -3,12 +3,14 @@ import { useRef } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import { NavLink } from 'react-router-dom'
 
+import { Avatar } from '../shared/components/Avatar'
 import { useAuthSession } from '../shared/hooks/useAuthSession'
 import { useDialogA11y } from '../shared/hooks/useDialogA11y'
+import { useHasPermission } from '../shared/hooks/useHasPermission'
 import { useOverdueTasksQuery } from '../shared/hooks/useOverdueTasksQuery'
 import { useUsersQuery } from '../shared/hooks/useUsersQuery'
 import { useLogout } from '../shared/hooks/useLogout'
-import { avatarPaletteIndex, initialsOf } from '../shared/lib/avatar'
+import { userLabel } from '../shared/lib/userLabel'
 
 function BoardIcon() {
   return (
@@ -28,12 +30,31 @@ function MyTasksIcon() {
   )
 }
 
+function ReportsIcon() {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 2v11a1 1 0 0 0 1 1h11" />
+      <path d="M4.5 11V7M8 11V4.5M11.5 11v-5" />
+    </svg>
+  )
+}
+
 function TeamCapacityIcon() {
   return (
     <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="5.5" cy="5" r="2" />
       <circle cx="11" cy="6" r="1.6" />
       <path d="M1.5 13c0-2.5 1.8-3.8 4-3.8s4 1.3 4 3.8M9.8 9.6c1.7.1 3.2 1.3 3.2 3.4" />
+    </svg>
+  )
+}
+
+function AccountsIcon() {
+  return (
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="6" cy="5" r="2" />
+      <path d="M1.5 13.5c0-2.5 1.8-4 4.5-4s4.5 1.5 4.5 4" />
+      <path d="M11 3.5v3M9.5 5h3" />
     </svg>
   )
 }
@@ -133,6 +154,12 @@ function SidebarNav({ collapsed, onNavigate }: SidebarNavProps) {
   const { userId } = useAuthSession()
   const overdueTasksQuery = useOverdueTasksQuery()
   const usersQuery = useUsersQuery()
+  // Item 5 (Account administration): fully hidden from the sidebar for
+  // anyone without `ManageUsers` — gated on the permission embedded in the
+  // token (`useHasPermission`), never a role-name string. Presentation
+  // only; `RequirePermission` (router) and the server's own policy are the
+  // real boundary.
+  const canManageUsers = useHasPermission('ManageUsers')
 
   const overdueCount = overdueTasksQuery.data?.pages.at(-1)?.pagination?.totalItems ?? 0
   const currentUser = usersQuery.data?.find((user) => user.id === userId) ?? null
@@ -150,11 +177,32 @@ function SidebarNav({ collapsed, onNavigate }: SidebarNavProps) {
           {!collapsed && 'Board'}
           {collapsed && <CollapsedTooltip>Board</CollapsedTooltip>}
         </NavLink>
+        {/*
+         * Reports takes Activity's slot (same position, no counter) —
+         * `docs/design/SPEC.md` §11.1/ADR 0008: Activity added no insight
+         * over the per-task history already on Task detail; Reports reads
+         * the same F04 trail but turns it into per-member performance
+         * figures. Visible to every role (`ViewReports` only changes what
+         * `/reports` redirects to and whether the scope picker/Export show,
+         * not whether the nav item itself renders).
+         */}
+        <NavLink to="/reports" className={navLinkClass(collapsed)} onClick={onNavigate}>
+          <ReportsIcon />
+          {!collapsed && 'Reports'}
+          {collapsed && <CollapsedTooltip>Reports</CollapsedTooltip>}
+        </NavLink>
         <NavLink to="/team-capacity" className={navLinkClass(collapsed)} onClick={onNavigate}>
           <TeamCapacityIcon />
           {!collapsed && 'Team capacity'}
           {collapsed && <CollapsedTooltip>Team capacity</CollapsedTooltip>}
         </NavLink>
+        {canManageUsers && (
+          <NavLink to="/accounts" className={navLinkClass(collapsed)} onClick={onNavigate}>
+            <AccountsIcon />
+            {!collapsed && 'Accounts'}
+            {collapsed && <CollapsedTooltip>Accounts</CollapsedTooltip>}
+          </NavLink>
+        )}
       </nav>
 
       <div className="flex flex-col gap-[2px]">
@@ -182,26 +230,27 @@ function SidebarNav({ collapsed, onNavigate }: SidebarNavProps) {
         )}
       >
         {currentUser !== null && (
-          <span
-            className="group relative flex size-[26px] shrink-0 items-center justify-center rounded-pill text-[length:var(--font-size-2xs)] leading-none font-semibold"
-            style={{
-              backgroundColor: `var(--avatar-${avatarPaletteIndex(currentUser.id)}-bg)`,
-              color: `var(--avatar-${avatarPaletteIndex(currentUser.id)}-ink)`,
-            }}
-          >
-            {initialsOf(currentUser.userName)}
+          <NavLink to="/profile" className="group relative flex shrink-0 items-center justify-center" onClick={onNavigate}>
+            <Avatar
+              userId={currentUser.id}
+              name={userLabel(currentUser)}
+              avatarUrl={currentUser.avatarUrl}
+              size={26}
+            />
             {collapsed && (
               <CollapsedTooltip>
-                {currentUser.userName} · {currentUser.role}
+                {userLabel(currentUser)} · {currentUser.role}
               </CollapsedTooltip>
             )}
-          </span>
+          </NavLink>
         )}
         {!collapsed && currentUser !== null && (
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate text-[length:var(--font-size-base)] font-medium">{currentUser.userName}</span>
+          <NavLink to="/profile" className="flex min-w-0 flex-col no-underline" onClick={onNavigate}>
+            <span className="truncate text-[length:var(--font-size-base)] font-medium text-text">
+              {userLabel(currentUser)}
+            </span>
             <span className="text-[length:var(--font-size-xs)] text-text-muted">{currentUser.role}</span>
-          </span>
+          </NavLink>
         )}
         <button
           type="button"

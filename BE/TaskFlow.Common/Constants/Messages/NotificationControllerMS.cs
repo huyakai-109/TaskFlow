@@ -14,5 +14,10 @@ namespace TaskFlow.Common.Constants.Messages
             public const string NotFound = "Notification.MarkRead.NotFound";
             public const string Exception = "Notification.MarkRead.Exception";
         }
+
+        public struct MarkAllRead
+        {
+            public const string Exception = "Notification.MarkAllRead.Exception";
+        }
     }
 }

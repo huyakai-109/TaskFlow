@@ -81,6 +81,28 @@
           { "patterns": ["**/board/**", "**/task-detail/**", "**/notifications/**", "**/overdue/**", "**/inbox/**", "**/auth/**", "**/app/**"] }
         ]
       }
+    },
+    {
+      // F09 Reports (replaces Activity) — same rule, features compose only in app/.
+      "files": ["src/features/reports/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              "**/board/**",
+              "**/task-detail/**",
+              "**/notifications/**",
+              "**/overdue/**",
+              "**/inbox/**",
+              "**/team-capacity/**",
+              "**/auth/**",
+              "**/accounts/**",
+              "**/app/**"
+            ]
+          }
+        ]
+      }
     }
   ]
 }

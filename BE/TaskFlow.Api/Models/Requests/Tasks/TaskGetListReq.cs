@@ -15,6 +15,13 @@ namespace TaskFlow.Api.Models.Requests.Tasks
         // f05-overdue.md T8: optional, absent = no filter.
         public bool? IsOverdue { get; set; }
 
+        // f10-read-models-and-sort.md Section 2: composes with status/
+        // isOverdue/sort; My tasks uses this instead of board-cache filtering.
+        public long? AssigneeId { get; set; }
+
+        [EnumDataType(typeof(TaskSortOrder))]
+        public TaskSortOrder Sort { get; set; } = TaskSortOrder.Priority;
+
         public int Start { get; set; } = GlobalConstants.PageConfig.Start;
 
         public int Length { get; set; } = GlobalConstants.PageConfig.Length;

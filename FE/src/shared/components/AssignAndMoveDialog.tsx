@@ -5,6 +5,8 @@ import { useAuthSession } from '../hooks/useAuthSession'
 import { useDialogA11y } from '../hooks/useDialogA11y'
 import { IN_PROGRESS_LIMIT, useTeamCapacity } from '../hooks/useTeamCapacity'
 
+import { Button } from './Button'
+
 function PersonIcon() {
   return (
     <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -112,22 +114,12 @@ export function AssignAndMoveDialog({
         )}
 
         <div className="flex items-center justify-end gap-[var(--space-3)]">
-          <button
-            type="button"
-            className="min-h-11 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-4)] font-medium text-text disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={onClose}
-            disabled={isPending}
-          >
+          <Button type="button" size="lg" onClick={onClose} disabled={isPending}>
             Cancel
-          </button>
-          <button
-            type="button"
-            className="min-h-11 cursor-pointer rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isPending}
-            onClick={onConfirm}
-          >
+          </Button>
+          <Button type="button" variant="primary" size="lg" loading={isPending} onClick={onConfirm}>
             {isPending ? 'Starting…' : 'Take it and start'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
