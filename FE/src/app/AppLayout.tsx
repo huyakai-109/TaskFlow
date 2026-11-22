@@ -13,6 +13,20 @@ import { useSidebarCollapse } from './useSidebarCollapse'
  * `position: static` and scrolled off with the page at narrow viewport
  * heights). Below 601px the sidebar becomes a drawer instead of stacking
  * above the page (`Sidebar.tsx`).
+ *
+ * `relative` on this root (live /reports/team check: the document scrolled
+ * ~584px beyond the shell, `scrollHeight` 1439 vs `innerHeight` 855): any
+ * `position: absolute` descendant — found cause was a `<caption
+ * class="sr-only">` inside a `ChartFigure`/heatmap data table — positions
+ * against the nearest positioned ancestor, or the initial containing block
+ * if there is none. Without `relative` here, `overflow-hidden` on this same
+ * element does not clip such a descendant at all (clipping only applies to
+ * the box the overflow is set on once there is something to contain it
+ * against); `relative` makes this the containing block so every existing
+ * and future off-screen/absolute element in the tree stays invisible and
+ * non-scrolling, without touching each one individually. The caption stays
+ * in the accessibility tree (`sr-only` hides visually, not from assistive
+ * tech) — this is a layout fix, not an accessibility one.
  */
 export function AppLayout() {
   const [collapsed, setCollapsed] = useSidebarCollapse()
@@ -20,7 +34,7 @@ export function AppLayout() {
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null)
 
   return (
-    <div className="flex h-dvh overflow-hidden">
+    <div className="relative flex h-dvh overflow-hidden">
       <Sidebar
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed((value) => !value)}
