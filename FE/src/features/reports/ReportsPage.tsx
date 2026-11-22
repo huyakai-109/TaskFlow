@@ -231,10 +231,13 @@ export function ReportsPage() {
 
           <WorkloadHeatmap heatmap={teamQuery.data.heatmap} members={teamQuery.data.members} inProgressLimit={teamQuery.data.meta.inProgressLimit} />
 
-          <div className="grid grid-cols-1 gap-[var(--space-3)] min-[1440px]:grid-cols-2">
-            <WorkloadReworkScatter members={teamQuery.data.members} height={280} />
-            <MemberVsTeamChart totals={teamQuery.data.team.totals} teamMedian={teamQuery.data.teamMedian} height={280} />
-          </div>
+          {/*
+           * §11.2 point 5 lists (c) "You vs team median" for the member view
+           * only ("Team view: (a), (b) for the pooled team. (d) Workload
+           * heatmap (e) Workload vs rework") — a team has no single "you" to
+           * compare, so this chart never renders on the team scope.
+           */}
+          <WorkloadReworkScatter members={teamQuery.data.members} height={280} />
         </>
       )}
       </div>

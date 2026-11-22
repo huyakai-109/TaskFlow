@@ -8,6 +8,7 @@ import { useReducedMotion } from '../../../shared/hooks/useReducedMotion'
 import type { MemberVsTeamRow } from '../utils/chartSummary'
 
 import { ChartFigure } from './ChartFigure'
+import { tooltipContentStyle, tooltipCursor, tooltipItemStyle, tooltipLabelStyle } from './chartTheme'
 
 interface MemberVsTeamChartProps {
   totals: ReportMetricSet
@@ -65,7 +66,7 @@ export function MemberVsTeamChart({ totals, teamMedian, height }: MemberVsTeamCh
             <CartesianGrid stroke="var(--color-border)" horizontal={false} />
             <XAxis type="number" stroke="var(--color-text-muted)" fontSize={11} />
             <YAxis type="category" dataKey="label" stroke="var(--color-text-muted)" fontSize={11} width={110} />
-            <Tooltip />
+            <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} cursor={tooltipCursor} />
             <Bar dataKey="memberValue" name="You" isAnimationActive={!reducedMotion}>
               {rows.map((row) => (
                 <Cell key={row.label} fill="var(--color-accent)" />

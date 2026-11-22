@@ -7,6 +7,7 @@ import { summarizeScatter } from '../utils/chartSummary'
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion'
 
 import { ChartFigure } from './ChartFigure'
+import { tooltipContentStyle, tooltipCursor, tooltipItemStyle, tooltipLabelStyle } from './chartTheme'
 
 interface WorkloadReworkScatterProps {
   members: ReportTeam['members']
@@ -42,9 +43,23 @@ export function WorkloadReworkScatter({ members, height }: WorkloadReworkScatter
           <ScatterChart accessibilityLayer margin={{ left: 8, bottom: 8 }}>
             <CartesianGrid stroke="var(--color-border)" />
             <XAxis type="number" dataKey="x" name="Avg in progress" stroke="var(--color-text-muted)" fontSize={11} />
-            <YAxis type="number" dataKey="y" name="Rework rate" stroke="var(--color-text-muted)" fontSize={11} tickFormatter={(v: number) => formatRate(v)} />
+            <YAxis
+              type="number"
+              dataKey="y"
+              name="Rework rate"
+              stroke="var(--color-text-muted)"
+              fontSize={11}
+              domain={[0, 1]}
+              tickFormatter={(v: number) => formatRate(v)}
+            />
             <ZAxis range={[80, 80]} />
-            <Tooltip formatter={(value, name) => (name === 'Rework rate' ? formatRate(Number(value)) : (value as number))} />
+            <Tooltip
+              formatter={(value, name) => (name === 'Rework rate' ? formatRate(Number(value)) : (value as number))}
+              contentStyle={tooltipContentStyle}
+              labelStyle={tooltipLabelStyle}
+              itemStyle={tooltipItemStyle}
+              cursor={tooltipCursor}
+            />
             <Scatter
               data={rows}
               isAnimationActive={!reducedMotion}

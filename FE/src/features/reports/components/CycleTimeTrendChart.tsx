@@ -1,4 +1,4 @@
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { CartesianGrid, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import type { ReportBucket } from '../../../api/types'
 import { bucketLabel } from '../utils/bucketLabel'
@@ -7,6 +7,8 @@ import { formatDuration } from '../utils/formatDuration'
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion'
 
 import { ChartFigure } from './ChartFigure'
+import { tooltipContentStyle, tooltipCursor, tooltipItemStyle, tooltipLabelStyle } from './chartTheme'
+import { NO_DATA_HATCH_FILL, NoDataHatchPattern } from './noDataHatch'
 
 interface CycleTimeTrendChartProps {
   buckets: ReportBucket[]
@@ -47,10 +49,23 @@ export function CycleTimeTrendChart({ buckets, height }: CycleTimeTrendChartProp
         chart={
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={rows} accessibilityLayer>
+              <NoDataHatchPattern />
               <CartesianGrid stroke="var(--color-border)" vertical={false} />
               <XAxis dataKey="label" stroke="var(--color-text-muted)" fontSize={11} />
               <YAxis stroke="var(--color-text-muted)" fontSize={11} unit="h" />
-              <Tooltip formatter={(value) => `${Number(value).toFixed(1)}h`} />
+              <Tooltip
+                formatter={(value) => `${Number(value).toFixed(1)}h`}
+                contentStyle={tooltipContentStyle}
+                labelStyle={tooltipLabelStyle}
+                itemStyle={tooltipItemStyle}
+                cursor={tooltipCursor}
+              />
+              {/* §11.6 "Partially before data" — a hatched band for each bucket with no data, instead of silently skipping it. */}
+              {rows
+                .filter((row) => !row.bucket.hasData)
+                .map((row) => (
+                  <ReferenceArea key={row.bucket.start} x1={row.label} x2={row.label} fill={NO_DATA_HATCH_FILL} fillOpacity={1} stroke="none" ifOverflow="visible" />
+                ))}
               <Line
                 type="monotone"
                 dataKey="medianHours"

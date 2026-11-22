@@ -6,6 +6,8 @@ import { summarizeOnTimeVsLate } from '../utils/chartSummary'
 import { useReducedMotion } from '../../../shared/hooks/useReducedMotion'
 
 import { ChartFigure } from './ChartFigure'
+import { tooltipContentStyle, tooltipCursor, tooltipItemStyle, tooltipLabelStyle } from './chartTheme'
+import { NO_DATA_HATCH_FILL, NoDataHatchPattern } from './noDataHatch'
 
 interface OnTimeStackedBarChartProps {
   buckets: ReportBucket[]
@@ -23,6 +25,9 @@ export function OnTimeStackedBarChart({ buckets, height, onViewTasks }: OnTimeSt
     onTime: bucket.hasData ? bucket.metrics.reliability.onTime : 0,
     late: bucket.hasData ? bucket.metrics.reliability.late : 0,
     noDueDate: bucket.hasData ? bucket.metrics.reliability.noDueDate : 0,
+    // §11.6 "Partially before data" — a nominal marker height, hatched,
+    // standing in for a bucket that has no data at all (never a real zero).
+    noData: bucket.hasData ? 0 : 1,
   }))
 
   const totals = rows.reduce(
@@ -40,10 +45,11 @@ export function OnTimeStackedBarChart({ buckets, height, onViewTasks }: OnTimeSt
       chart={
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} accessibilityLayer>
+            <NoDataHatchPattern />
             <CartesianGrid stroke="var(--color-border)" vertical={false} />
             <XAxis dataKey="label" stroke="var(--color-text-muted)" fontSize={11} />
             <YAxis stroke="var(--color-text-muted)" fontSize={11} allowDecimals={false} />
-            <Tooltip />
+            <Tooltip contentStyle={tooltipContentStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} cursor={tooltipCursor} />
             <Bar dataKey="onTime" name="On time" stackId="a" fill="var(--color-accent)" isAnimationActive={!reducedMotion} />
             <Bar dataKey="late" name="Late" stackId="a" fill="var(--color-danger)" isAnimationActive={!reducedMotion} />
             <Bar
@@ -55,6 +61,7 @@ export function OnTimeStackedBarChart({ buckets, height, onViewTasks }: OnTimeSt
               strokeWidth={1}
               isAnimationActive={!reducedMotion}
             />
+            <Bar dataKey="noData" name="No data" stackId="a" fill={NO_DATA_HATCH_FILL} stroke="var(--color-dashed-border)" isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       }
