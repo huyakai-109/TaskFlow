@@ -217,33 +217,6 @@ export interface TaskHistoryEntry {
   message: string
 }
 
-/** `CursorPageRes` — ADR 0007 (keyset paging), `GET /activity` only; no total count, just `hasMore`. */
-export interface CursorPage {
-  nextCursor: string | null
-  hasMore: boolean
-  pageSize: number
-}
-
-/** `CursorResultRes<T>` — a second paging envelope next to `PaginationResultRes<T>`, scoped to append-only newest-first streams (ADR 0007). */
-export interface CursorResultRes<T> extends ResultRes<T> {
-  page?: CursorPage | null
-}
-
-/** `ActivityRes` (`docs/features/f04-activity-feed.md` "Technical contract") — one cross-task history row, newest first. */
-export interface ActivityEntry {
-  id: number
-  event: TaskHistoryEvent
-  task: { id: number; title: string; isDeleted: boolean }
-  actorUserId: number | null
-  actorName: string | null
-  fromValue: string | null
-  toValue: string | null
-  reason: string | null
-  occurredAt: string
-  occurredAtLocal: string
-  message: string
-}
-
 /** `TaskNotificationEvent` enum — `ReturnedForRework` is the only MVP value (F01 D7). */
 export type TaskNotificationEvent = 'ReturnedForRework'
 
@@ -258,4 +231,139 @@ export interface TaskNotification {
   task: { id: number; title: string }
   /** The user who sent the task back; `null` for a legacy row (no backfill, F06 AC8). */
   actor: { id: number; userName: string } | null
+}
+
+/**
+ * F09 Reports (`docs/features/f09-reports.md` "Technical contract", replaces
+ * Activity). Field names and nullability mirror the contract exactly —
+ * change them only together with it.
+ */
+export type ReportGranularity = 'Day' | 'Week' | 'Month' | 'Quarter'
+
+export type ReportTaskMetric = 'Done' | 'OnTime' | 'Late' | 'NoDueDate' | 'SentBack' | 'Reopened' | 'OverdueMarked' | 'TakeOver'
+
+export type ReportExportDataset = 'Buckets' | 'Members' | 'Tasks'
+
+/** `Distribution` — median/p85 in whole seconds, `null` for p85 whenever `sampleSize < smallSampleThreshold` (R16). Never a mean. */
+export interface ReportDistribution {
+  sampleSize: number
+  medianSeconds: number | null
+  p85Seconds: number | null
+  lowSample: boolean
+}
+
+/** `Rate` — `value` 0..1 (4 dp), `null` when `denominator` is 0. */
+export interface ReportRate {
+  value: number | null
+  denominator: number
+  lowSample: boolean
+}
+
+/** `MetricSet` — one bucket's or one member's figures, every branch of the scorecard. */
+export interface ReportMetricSet {
+  delivery: {
+    done: number
+    byPriority: { urgent: number; high: number; normal: number }
+  }
+  speed: {
+    cycleTime: ReportDistribution
+    leadTime: ReportDistribution
+    reviewWait: ReportDistribution
+  }
+  reliability: {
+    onTime: number
+    late: number
+    noDueDate: number
+    onTimeRate: ReportRate
+    overdueMarked: number
+  }
+  quality: {
+    submissionsDecided: number
+    sentBack: number
+    reworkRate: ReportRate
+    reopenedAfterDone: number
+  }
+  /** `null` when the bucket's `hasData` is false. */
+  load: { avgInProgress: number; capacityUtilization: number } | null
+  attribution: { takeOvers: number; takenFrom: number }
+}
+
+/** `TeamMedian` — the per-member comparison line, `null` for team scope and for a caller without `ViewReports` (f09 Q3). */
+export interface ReportTeamMedian {
+  contributors: number
+  done: number | null
+  cycleTimeMedianSeconds: number | null
+  leadTimeMedianSeconds: number | null
+  reviewWaitMedianSeconds: number | null
+  onTimeRate: number | null
+  overdueMarked: number | null
+  reworkRate: number | null
+  avgInProgress: number | null
+  capacityUtilization: number | null
+}
+
+export interface ReportSubject {
+  id: number
+  userName: string
+  displayName: string | null
+  avatarUrl: string | null
+  isActive: boolean
+}
+
+export interface ReportMeta {
+  scope: 'Member' | 'Team'
+  userId: number | null
+  from: string
+  to: string
+  granularity: ReportGranularity
+  timeZone: string
+  weekStartsOn: 'Monday'
+  dataAvailableSince: string | null
+  generatedAt: string
+  smallSampleThreshold: number
+  inProgressLimit: number
+}
+
+export interface ReportBucket {
+  start: string
+  end: string
+  isPartial: boolean
+  hasData: boolean
+  metrics: ReportMetricSet
+}
+
+/** `ReportScorecardRes` — `GET /reports/scorecard`. */
+export interface ReportScorecard {
+  meta: ReportMeta
+  subject: ReportSubject | null
+  totals: ReportMetricSet
+  teamMedian: ReportTeamMedian | null
+  buckets: ReportBucket[]
+}
+
+/** `ReportTeamRes` — `GET /reports/team`, always weekly (R14). */
+export interface ReportTeam {
+  meta: ReportMeta
+  team: { totals: ReportMetricSet; contributors: number; unassignedOverdueMarked: number }
+  teamMedian: ReportTeamMedian
+  members: { user: ReportSubject; totals: ReportMetricSet }[]
+  heatmap: {
+    weeks: { start: string; end: string; isPartial: boolean }[]
+    rows: { userId: number; avgInProgress: (number | null)[] }[]
+  }
+}
+
+/** `ReportTaskRes` — one row in the `GET /reports/tasks` drill-down list. */
+export interface ReportTask {
+  taskId: number
+  title: string
+  isDeleted: boolean
+  metric: ReportTaskMetric
+  creditedUser: { id: number; userName: string; displayName: string | null } | null
+  occurredAt: string
+  occurredAtLocal: string
+  priority: TaskPriority
+  dueDate: string | null
+  cycleTimeSeconds: number | null
+  leadTimeSeconds: number | null
 }

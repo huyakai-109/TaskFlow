@@ -7,7 +7,9 @@ import { NewTaskDialog } from '../features/board/components/NewTaskDialog'
 import { BoardSearch } from '../features/board/components/BoardSearch'
 import { NotificationBell } from '../features/notifications/components/NotificationBell'
 import { ThemeToggle } from '../shared/components/ThemeToggle'
+import { useAuthSession } from '../shared/hooks/useAuthSession'
 import { useBoardQuery } from '../shared/hooks/useBoardQuery'
+import { useUsersQuery } from '../shared/hooks/useUsersQuery'
 import { isTypingTarget } from '../shared/lib/isTypingTarget'
 
 function MenuIcon() {
@@ -27,12 +29,19 @@ interface Crumb {
 function crumbFor(pathname: string): Crumb {
   if (pathname === '/board') return { parent: null, current: 'Board' }
   if (pathname === '/my-tasks') return { parent: null, current: 'My tasks' }
-  if (pathname === '/activity') return { parent: null, current: 'Activity' }
   if (pathname === '/team-capacity') return { parent: null, current: 'Team capacity' }
   if (pathname === '/profile') return { parent: null, current: 'Profile' }
   if (pathname === '/accounts') return { parent: null, current: 'Accounts' }
   if (pathname === '/overdue') return { parent: 'Views', current: 'Overdue' }
   return { parent: null, current: 'TaskFlow' }
+}
+
+/** §11.1 — "Reports / Team", "Reports / Me", "Reports / {displayName}". */
+function reportsCrumb(pathname: string, memberName: string | null): Crumb | null {
+  if (pathname === '/reports/team') return { parent: 'Reports', current: 'Team' }
+  if (pathname === '/reports/me') return { parent: 'Reports', current: 'Me' }
+  if (pathname.startsWith('/reports/members/')) return { parent: 'Reports', current: memberName ?? '…' }
+  return null
 }
 
 interface TopbarProps {
@@ -53,8 +62,15 @@ export function Topbar({ onOpenMobileMenu, mobileMenuButtonRef }: TopbarProps) {
   const params = useParams<{ id: string }>()
   const [createOpen, setCreateOpen] = useState(false)
   const boardQuery = useBoardQuery()
+  const { userId: reportMemberId } = useParams<{ userId: string }>()
+  const { userId: ownUserId } = useAuthSession()
+  const usersQuery = useUsersQuery()
 
   const isTaskDetail = location.pathname.startsWith('/tasks/')
+  const reportMember =
+    reportMemberId !== undefined ? (usersQuery.data?.find((user) => user.id === Number(reportMemberId)) ?? null) : null
+  const reportMemberName =
+    reportMemberId !== undefined && Number(reportMemberId) === ownUserId ? 'Me' : (reportMember?.displayName ?? reportMember?.userName ?? null)
 
   // `C` new task, scoped here (not to the Board page) so it works from any
   // page (`docs/design/SPEC.md` §3/§6 point 7, layout fix — it used to live
@@ -84,7 +100,7 @@ export function Topbar({ onOpenMobileMenu, mobileMenuButtonRef }: TopbarProps) {
     return column?.pagination !== null && column !== undefined && column.items.length < (column.pagination?.totalItems ?? 0)
   })
 
-  const crumb = crumbFor(location.pathname)
+  const crumb = reportsCrumb(location.pathname, reportMemberName) ?? crumbFor(location.pathname)
 
   return (
     <header className="flex min-h-[57px] items-center gap-[var(--space-3)] border-b border-border bg-surface px-[var(--space-5)] py-[var(--space-2)] max-[600px]:px-[var(--space-4)]">

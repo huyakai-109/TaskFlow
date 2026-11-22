@@ -29,10 +29,11 @@ function MyTasksIcon() {
   )
 }
 
-function ActivityFeedIcon() {
+function ReportsIcon() {
   return (
     <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 8h2.5l1.5-4 3 8 1.5-4H14" />
+      <path d="M2 2v11a1 1 0 0 0 1 1h11" />
+      <path d="M4.5 11V7M8 11V4.5M11.5 11v-5" />
     </svg>
   )
 }
@@ -176,14 +177,18 @@ function SidebarNav({ collapsed, onNavigate }: SidebarNavProps) {
           {collapsed && <CollapsedTooltip>Board</CollapsedTooltip>}
         </NavLink>
         {/*
-         * Activity takes the "Inbox" slot (removed 2026-11-13, replacement
-         * undecided until now — `docs/design/SPEC.md` §3/§10 point 15): a
-         * read-only, shared feed, no unread/counter badge of any kind.
+         * Reports takes Activity's slot (same position, no counter) —
+         * `docs/design/SPEC.md` §11.1/ADR 0008: Activity added no insight
+         * over the per-task history already on Task detail; Reports reads
+         * the same F04 trail but turns it into per-member performance
+         * figures. Visible to every role (`ViewReports` only changes what
+         * `/reports` redirects to and whether the scope picker/Export show,
+         * not whether the nav item itself renders).
          */}
-        <NavLink to="/activity" className={navLinkClass(collapsed)} onClick={onNavigate}>
-          <ActivityFeedIcon />
-          {!collapsed && 'Activity'}
-          {collapsed && <CollapsedTooltip>Activity</CollapsedTooltip>}
+        <NavLink to="/reports" className={navLinkClass(collapsed)} onClick={onNavigate}>
+          <ReportsIcon />
+          {!collapsed && 'Reports'}
+          {collapsed && <CollapsedTooltip>Reports</CollapsedTooltip>}
         </NavLink>
         <NavLink to="/team-capacity" className={navLinkClass(collapsed)} onClick={onNavigate}>
           <TeamCapacityIcon />
