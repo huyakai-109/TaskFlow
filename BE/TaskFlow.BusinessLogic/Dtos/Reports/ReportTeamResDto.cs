@@ -35,6 +35,7 @@ namespace TaskFlow.BusinessLogic.Dtos.Reports
     {
         public long UserId { get; set; }
 
-        public List<double?> AvgInProgress { get; set; } = [];
+        // null = no data for that week (f09-reports.md R8/R15).
+        public List<int?> TicketsWorked { get; set; } = [];
     }
 }

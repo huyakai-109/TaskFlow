@@ -16,7 +16,6 @@ namespace TaskFlow.Tests.Reports
     public class ReportCalculatorBenchmarkTests
     {
         private const string Zone = "Asia/Ho_Chi_Minh";
-        private const int Limit = 3;
         private const int UserCount = 50;
         private const int TaskCount = 5000;
 
@@ -38,12 +37,12 @@ namespace TaskFlow.Tests.Reports
             var stopwatch = Stopwatch.StartNew();
 
             // Team totals (teamScope: true), mirroring GetTeam.
-            var teamTotals = ReportCalculator.BuildMetricSet(facts, teamScope: true, holderId: null, rangeStart, rangeEnd, measuredStartUtc, measuredEndUtcExclusive, Limit, Zone, includeLoad: true);
+            var teamTotals = ReportCalculator.BuildMetricSet(facts, teamScope: true, holderId: null, rangeStart, rangeEnd, measuredStartUtc, measuredEndUtcExclusive, Zone, includeLoad: true);
 
             // One bulk pass for every roster member, mirroring GetTeam's
             // members loop - this is the call BuildMetricSetsForRoster
             // replaces a per-member BuildMetricSet loop with.
-            var memberMetricSets = ReportCalculator.BuildMetricSetsForRoster(facts, holderIds, rangeStart, rangeEnd, measuredStartUtc, measuredEndUtcExclusive, Limit, Zone, includeLoad: true);
+            var memberMetricSets = ReportCalculator.BuildMetricSetsForRoster(facts, holderIds, rangeStart, rangeEnd, measuredStartUtc, measuredEndUtcExclusive, Zone, includeLoad: true);
 
             stopwatch.Stop();
 

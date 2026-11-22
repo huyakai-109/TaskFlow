@@ -375,29 +375,31 @@ namespace TaskFlow.Tests.Http
             Assert.Equal(2, m2Row.Totals.Delivery.Done);
         }
 
-        // ---- R8: team Load is the mean of the listed members' values,
-        // never pooled like every other TeamTotals field (R12 is the pooled
-        // rule; R8 explicitly carves Load out of it) ----
+        // ---- R8 (2026-11-22 contract change): team ticketsWorked is a
+        // pooled distinct-task count, like every other TeamTotals field
+        // (R12) - no mean-of-members exception any more. A task handed over
+        // mid-range counts for both holders at member scope, but once at
+        // team scope, so the member sum can exceed the team total. ----
 
         [Fact]
-        public async Task GetTeam_Load_IsMeanOfMembersAvgInProgress_NotPooledSum()
+        public async Task GetTeam_TicketsWorked_PooledDistinctCount_HandoverCountsOnceAtTeamScope()
         {
             var manager = await CreateUserAndLoginAsync("Manager");
             var m1 = await CreateUserAndLoginAsync("Member", displayName: "M1");
             var m2 = await CreateUserAndLoginAsync("Member", displayName: "M2");
 
-            // m1: InProgress for the whole measured week (2026-03-02 00:00
-            // local .. 2026-03-09 00:00 local, still open) -> avgInProgress 1.0.
+            // Task A: held by m1 for the whole week - counts once for m1.
             var taskA = await SeedTaskAsync("Task A", assigneeId: m1.UserId, dueDate: null);
             await SeedHistoryAsync(taskA.Id, TaskHistoryEvent.Created, Local(2026, 3, 1, 8, 0));
             await SeedHistoryAsync(taskA.Id, TaskHistoryEvent.StatusChanged, Local(2026, 3, 2, 0, 0), "Todo", "InProgress");
 
-            // m2: InProgress for exactly half the week (84 of 168 hours) ->
-            // avgInProgress 0.5.
-            var taskB = await SeedTaskAsync("Task B", assigneeId: m2.UserId, dueDate: null);
+            // Task B: handed over from m1 to m2 mid-week - counts for both
+            // m1 and m2 (R8), but once at team scope.
+            var taskB = await SeedTaskAsync("Task B", assigneeId: m1.UserId, dueDate: null);
             await SeedHistoryAsync(taskB.Id, TaskHistoryEvent.Created, Local(2026, 3, 1, 8, 0));
             await SeedHistoryAsync(taskB.Id, TaskHistoryEvent.StatusChanged, Local(2026, 3, 2, 0, 0), "Todo", "InProgress");
-            await SeedHistoryAsync(taskB.Id, TaskHistoryEvent.StatusChanged, Local(2026, 3, 5, 12, 0), "InProgress", "Review");
+            await SeedHistoryAsync(taskB.Id, TaskHistoryEvent.AssigneeChanged, Local(2026, 3, 4, 9, 0), m1.UserId.ToString(), m2.UserId.ToString(), m2.UserId);
+            await SeedHistoryAsync(taskB.Id, TaskHistoryEvent.StatusChanged, Local(2026, 3, 6, 12, 0), "InProgress", "Review");
 
             var response = await manager.Client.GetAsync("api/v1/reports/team?from=2026-03-02&to=2026-03-08");
             var body = await response.Content.ReadFromJsonAsync<ResultRes<ReportTeamRes>>(JsonOptions);
@@ -406,21 +408,45 @@ namespace TaskFlow.Tests.Http
 
             var m1Row = body.Result!.Members.Single(m => m.User.Id == m1.UserId);
             var m2Row = body.Result.Members.Single(m => m.User.Id == m2.UserId);
-            Assert.Equal(1.0, m1Row.Totals.Load!.AvgInProgress);
-            Assert.Equal(0.5, m2Row.Totals.Load!.AvgInProgress);
+            Assert.Equal(2, m1Row.Totals.Load!.TicketsWorked); // Task A, Task B
+            Assert.Equal(1, m2Row.Totals.Load!.TicketsWorked); // Task B
 
-            // Team value = mean of the listed members' own values (R8). The
-            // roster (R11, every active user) is not reset between test
-            // classes (Users persists, unlike Tasks/TaskHistories - AC22
-            // precedent), so the roster size is not asserted; instead, the
-            // expected mean is computed from the full Members list the
-            // response itself returned, over the same values the test just
-            // asserted for m1 and m2. A pooled/summed team value (the
-            // regression this test guards against) would not satisfy this -
-            // it would equal the sum, not the mean, of those same values.
-            var expectedMean = body.Result.Members.Average(m => m.Totals.Load!.AvgInProgress);
-            Assert.Equal(Math.Round(expectedMean, 2), body.Result.Team.Totals.Load!.AvgInProgress);
-            Assert.Equal(Math.Round(expectedMean / body.Result.Meta.InProgressLimit, 4), body.Result.Team.Totals.Load!.CapacityUtilization);
+            // Team scope pools across holders - Task B counts once, not
+            // twice, so the team total (2: Task A, Task B) is less than the
+            // member sum (2 + 1 = 3).
+            Assert.Equal(2, body.Result.Team.Totals.Load!.TicketsWorked);
+            Assert.True(m1Row.Totals.Load!.TicketsWorked + m2Row.Totals.Load!.TicketsWorked > body.Result.Team.Totals.Load!.TicketsWorked);
+        }
+
+        // ---- Heatmap: a week entirely before dataAvailableSince has no
+        // data, so its ticketsWorked cell is null, not zero ----
+
+        [Fact]
+        public async Task GetTeam_Heatmap_NoDataWeek_ReturnsNullTicketsWorked()
+        {
+            var manager = await CreateUserAndLoginAsync("Manager");
+            var m1 = await CreateUserAndLoginAsync("Member", displayName: "Heatmap M1");
+
+            // Earliest history row in the (reset) TaskHistories table is in
+            // week 2 (03-09), so week 1 (03-02..03-08) is entirely before
+            // dataAvailableSince.
+            var task = await SeedTaskAsync("Week 2 task", assigneeId: m1.UserId, dueDate: null);
+            await SeedHistoryAsync(task.Id, TaskHistoryEvent.Created, Local(2026, 3, 9, 8, 0));
+            await SeedHistoryAsync(task.Id, TaskHistoryEvent.StatusChanged, Local(2026, 3, 9, 9, 0), "Todo", "InProgress");
+
+            var response = await manager.Client.GetAsync("api/v1/reports/team?from=2026-03-02&to=2026-03-15");
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<ReportTeamRes>>(JsonOptions);
+
+            Assert.True(response.IsSuccessStatusCode && body!.Success, body?.Error);
+
+            var weekIndex1 = body.Result!.Heatmap.Weeks.FindIndex(w => w.Start == new DateOnly(2026, 3, 2));
+            var weekIndex2 = body.Result.Heatmap.Weeks.FindIndex(w => w.Start == new DateOnly(2026, 3, 9));
+            Assert.False(body.Result.Heatmap.Weeks[weekIndex1].HasData);
+            Assert.True(body.Result.Heatmap.Weeks[weekIndex2].HasData);
+
+            var m1Row = body.Result.Heatmap.Rows.Single(r => r.UserId == m1.UserId);
+            Assert.Null(m1Row.TicketsWorked[weekIndex1]);
+            Assert.Equal(1, m1Row.TicketsWorked[weekIndex2]);
         }
 
         // ---- AC19: export ----

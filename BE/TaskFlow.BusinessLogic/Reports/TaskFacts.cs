@@ -102,6 +102,8 @@ namespace TaskFlow.BusinessLogic.Reports
 
     public class ReportInProgressSegment
     {
+        public long TaskId { get; set; }
+
         public long? HolderId { get; set; }
 
         public DateTimeOffset StartUtc { get; set; }

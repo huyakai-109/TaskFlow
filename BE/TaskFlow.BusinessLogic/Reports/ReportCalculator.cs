@@ -42,7 +42,7 @@ namespace TaskFlow.BusinessLogic.Reports
                     }
                     else if (entry.FromValue == nameof(TaskWorkflowStatus.InProgress) && inProgressStart.HasValue)
                     {
-                        AddInProgressSegments(facts.InProgressSegments, assigneeChanges, task.AssigneeId, inProgressStart.Value, entry.CreatedAt);
+                        AddInProgressSegments(facts.InProgressSegments, assigneeChanges, task.TaskId, task.AssigneeId, inProgressStart.Value, entry.CreatedAt);
                         inProgressStart = null;
                     }
 
@@ -107,7 +107,7 @@ namespace TaskFlow.BusinessLogic.Reports
                 // the caller's measured window, which never extends past "now").
                 var deletedEntry = history.LastOrDefault(h => h.Event == TaskHistoryEvent.Deleted);
                 DateTimeOffset? end = deletedEntry != null && deletedEntry.CreatedAt >= inProgressStart.Value ? deletedEntry.CreatedAt : null;
-                AddInProgressSegments(facts.InProgressSegments, assigneeChanges, task.AssigneeId, inProgressStart.Value, end);
+                AddInProgressSegments(facts.InProgressSegments, assigneeChanges, task.TaskId, task.AssigneeId, inProgressStart.Value, end);
             }
 
             if (lastDoneIndex.HasValue)
@@ -156,7 +156,6 @@ namespace TaskFlow.BusinessLogic.Reports
             DateOnly rangeEnd,
             DateTimeOffset measuredStartUtc,
             DateTimeOffset measuredEndUtcExclusive,
-            int limit,
             string timeZone,
             bool includeLoad)
         {
@@ -182,7 +181,7 @@ namespace TaskFlow.BusinessLogic.Reports
 
             if (includeLoad)
             {
-                metricSet.Load = BuildLoad(allFacts, teamScope, holderId, measuredStartUtc, measuredEndUtcExclusive, limit);
+                metricSet.Load = BuildLoad(allFacts, teamScope, holderId, measuredStartUtc, measuredEndUtcExclusive);
             }
 
             return metricSet;
@@ -202,7 +201,6 @@ namespace TaskFlow.BusinessLogic.Reports
             DateOnly rangeEnd,
             DateTimeOffset measuredStartUtc,
             DateTimeOffset measuredEndUtcExclusive,
-            int limit,
             string timeZone,
             bool includeLoad)
         {
@@ -284,7 +282,7 @@ namespace TaskFlow.BusinessLogic.Reports
 
                 if (includeLoad)
                 {
-                    metricSet.Load = BuildLoadFromSegments(segmentsByHolder.GetValueOrDefault(holderId) ?? [], measuredStartUtc, measuredEndUtcExclusive, limit);
+                    metricSet.Load = BuildLoadFromSegments(segmentsByHolder.GetValueOrDefault(holderId) ?? [], measuredStartUtc, measuredEndUtcExclusive);
                 }
 
                 results.Add(metricSet);
@@ -298,11 +296,10 @@ namespace TaskFlow.BusinessLogic.Reports
             bool teamScope,
             long? holderId,
             DateTimeOffset measuredStartUtc,
-            DateTimeOffset measuredEndUtcExclusive,
-            int limit)
+            DateTimeOffset measuredEndUtcExclusive)
         {
             var segments = allFacts.SelectMany(f => f.InProgressSegments).Where(s => teamScope || s.HolderId == holderId);
-            return BuildLoadFromSegments(segments, measuredStartUtc, measuredEndUtcExclusive, limit);
+            return BuildLoadFromSegments(segments, measuredStartUtc, measuredEndUtcExclusive);
         }
 
         private static bool IsInRange(DateTimeOffset at, DateOnly rangeStart, DateOnly rangeEnd, string timeZone)
@@ -373,36 +370,37 @@ namespace TaskFlow.BusinessLogic.Reports
             };
         }
 
+        // f09-reports.md R8 (2026-11-22 contract change): ticketsWorked =
+        // count of DISTINCT tasks whose InProgress segment overlaps the
+        // bucket's measured window at all - no longer a time-weighted
+        // average. A task held twice by the same holder inside the window
+        // (e.g. reopened and re-worked) still counts once; a task handed
+        // over mid-window counts once for each holder because this is
+        // called once per holder's own segment list (team scope pools every
+        // holder's segments into one list first, so a handover there still
+        // yields one distinct task id).
         private static ReportLoadDto BuildLoadFromSegments(
             IEnumerable<ReportInProgressSegment> segments,
             DateTimeOffset measuredStartUtc,
-            DateTimeOffset measuredEndUtcExclusive,
-            int limit)
+            DateTimeOffset measuredEndUtcExclusive)
         {
-            var windowSeconds = (measuredEndUtcExclusive - measuredStartUtc).TotalSeconds;
-            if (windowSeconds <= 0)
+            if (measuredEndUtcExclusive <= measuredStartUtc)
             {
-                return new ReportLoadDto { AvgInProgress = 0, CapacityUtilization = 0 };
+                return new ReportLoadDto { TicketsWorked = 0 };
             }
 
-            var heldSeconds = 0d;
+            var ticketIds = new HashSet<long>();
             foreach (var segment in segments)
             {
                 var overlapEnd = segment.EndUtc.HasValue && segment.EndUtc.Value < measuredEndUtcExclusive ? segment.EndUtc.Value : measuredEndUtcExclusive;
                 var overlapStart = segment.StartUtc > measuredStartUtc ? segment.StartUtc : measuredStartUtc;
                 if (overlapEnd > overlapStart)
                 {
-                    heldSeconds += (overlapEnd - overlapStart).TotalSeconds;
+                    ticketIds.Add(segment.TaskId);
                 }
             }
 
-            var rawAverage = heldSeconds / windowSeconds;
-
-            return new ReportLoadDto
-            {
-                AvgInProgress = Math.Round(rawAverage, 2),
-                CapacityUtilization = limit > 0 ? Math.Round(rawAverage / limit, 4) : 0,
-            };
+            return new ReportLoadDto { TicketsWorked = ticketIds.Count };
         }
 
         // ---- Holder / priority / due-date reconstruction (R2, R4, R6) ----
@@ -466,6 +464,7 @@ namespace TaskFlow.BusinessLogic.Reports
         private static void AddInProgressSegments(
             List<ReportInProgressSegment> target,
             List<ReportHistoryEntryInput> assigneeChanges,
+            long taskId,
             long? currentAssigneeId,
             DateTimeOffset start,
             DateTimeOffset? end)
@@ -480,12 +479,12 @@ namespace TaskFlow.BusinessLogic.Reports
 
             foreach (var change in boundaries)
             {
-                target.Add(new ReportInProgressSegment { HolderId = currentHolder, StartUtc = segmentStart, EndUtc = change.CreatedAt });
+                target.Add(new ReportInProgressSegment { TaskId = taskId, HolderId = currentHolder, StartUtc = segmentStart, EndUtc = change.CreatedAt });
                 currentHolder = ParseLong(change.ToValue);
                 segmentStart = change.CreatedAt;
             }
 
-            target.Add(new ReportInProgressSegment { HolderId = currentHolder, StartUtc = segmentStart, EndUtc = end });
+            target.Add(new ReportInProgressSegment { TaskId = taskId, HolderId = currentHolder, StartUtc = segmentStart, EndUtc = end });
         }
 
         private static long? HolderJustBefore(DateTimeOffset at, List<ReportHistoryEntryInput> assigneeChanges, long? currentAssigneeId)

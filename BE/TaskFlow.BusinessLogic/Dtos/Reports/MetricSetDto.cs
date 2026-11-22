@@ -62,11 +62,11 @@ namespace TaskFlow.BusinessLogic.Dtos.Reports
         public int ReopenedAfterDone { get; set; }
     }
 
+    // 2026-11-22: replaces the time-weighted avgInProgress/capacityUtilization
+    // averages with a ticket count (f09-reports.md R8).
     public class ReportLoadDto
     {
-        public double AvgInProgress { get; set; }
-
-        public double CapacityUtilization { get; set; }
+        public int TicketsWorked { get; set; }
     }
 
     public class ReportAttributionDto
@@ -113,9 +113,5 @@ namespace TaskFlow.BusinessLogic.Dtos.Reports
         public double? OverdueMarked { get; set; }
 
         public double? ReworkRate { get; set; }
-
-        public double? AvgInProgress { get; set; }
-
-        public double? CapacityUtilization { get; set; }
     }
 }

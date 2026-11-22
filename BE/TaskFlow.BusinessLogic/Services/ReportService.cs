@@ -68,7 +68,7 @@ namespace TaskFlow.BusinessLogic.Services
             var totalsEndUtc = buckets.Count > 0 ? buckets[^1].MeasuredEndUtcExclusive : to.AddDays(1).LocalStartOfDayToUtc(_timeZone);
             var anyDataInRange = buckets.Any(b => b.HasData);
 
-            var totals = ReportCalculator.BuildMetricSet(facts, teamScope, userId, from, to, totalsStartUtc, totalsEndUtc, _limit, _timeZone, includeLoad: anyDataInRange);
+            var totals = ReportCalculator.BuildMetricSet(facts, teamScope, userId, from, to, totalsStartUtc, totalsEndUtc, _timeZone, includeLoad: anyDataInRange);
 
             var bucketDtos = buckets.Select(b => new ReportBucketDto
             {
@@ -77,7 +77,7 @@ namespace TaskFlow.BusinessLogic.Services
                 IsPartial = b.IsPartial,
                 HasData = b.HasData,
                 Metrics = b.HasData
-                    ? ReportCalculator.BuildMetricSet(facts, teamScope, userId, b.NaturalStart, b.NaturalEnd, b.MeasuredStartUtc, b.MeasuredEndUtcExclusive, _limit, _timeZone, includeLoad: true)
+                    ? ReportCalculator.BuildMetricSet(facts, teamScope, userId, b.NaturalStart, b.NaturalEnd, b.MeasuredStartUtc, b.MeasuredEndUtcExclusive, _timeZone, includeLoad: true)
                     : null,
             }).ToList();
 
@@ -118,7 +118,7 @@ namespace TaskFlow.BusinessLogic.Services
             var totalsEndUtc = buckets.Count > 0 ? buckets[^1].MeasuredEndUtcExclusive : to.AddDays(1).LocalStartOfDayToUtc(_timeZone);
             var anyDataInRange = buckets.Any(b => b.HasData);
 
-            var teamTotals = ReportCalculator.BuildMetricSet(facts, teamScope: true, holderId: null, from, to, totalsStartUtc, totalsEndUtc, _limit, _timeZone, includeLoad: anyDataInRange);
+            var teamTotals = ReportCalculator.BuildMetricSet(facts, teamScope: true, holderId: null, from, to, totalsStartUtc, totalsEndUtc, _timeZone, includeLoad: anyDataInRange);
 
             var roster = await BuildRosterAsync(facts, from, to);
 
@@ -127,7 +127,7 @@ namespace TaskFlow.BusinessLogic.Services
             // O(users x tasks). Same per-member output as calling
             // BuildMetricSet(teamScope: false, holderId: u.Id, ...) in a loop.
             var rosterIds = roster.Select(u => u.Id).ToList();
-            var rosterMetricSets = ReportCalculator.BuildMetricSetsForRoster(facts, rosterIds, from, to, totalsStartUtc, totalsEndUtc, _limit, _timeZone, includeLoad: anyDataInRange);
+            var rosterMetricSets = ReportCalculator.BuildMetricSetsForRoster(facts, rosterIds, from, to, totalsStartUtc, totalsEndUtc, _timeZone, includeLoad: anyDataInRange);
 
             var members = roster
                 .Zip(rosterMetricSets, (u, totals) => new ReportTeamMemberDto { User = BuildUserRef(u), Totals = totals })
@@ -135,12 +135,11 @@ namespace TaskFlow.BusinessLogic.Services
                 .ThenBy(m => m.User.Id)
                 .ToList();
 
-            // R8: team Load is the mean of the listed members' own values -
-            // never pooled like every other TeamTotals field (R12). Overrides
-            // the BuildMetricSet(teamScope: true, ...) load above, which pools
-            // every member's InProgress time into one shared window and would
-            // report the sum of the team's concurrent load, not its average.
-            teamTotals.Load = BuildTeamLoad(members, _limit);
+            // R8 (2026-11-22): ticketsWorked is a distinct-task count, so
+            // team scope is pooled like every other TeamTotals field (R12) -
+            // no mean-of-members override needed here any more (the
+            // BuildMetricSet(teamScope: true, ...) call above already
+            // produced the right value).
 
             var unassignedOverdueMarked = facts.SelectMany(f => f.OverdueMarks)
                 .Count(o => o.HolderId == null && InLocalRange(o.AtUtc, from, to));
@@ -154,8 +153,8 @@ namespace TaskFlow.BusinessLogic.Services
                 Rows = members.Select(m => new ReportHeatmapRowDto
                 {
                     UserId = m.User.Id,
-                    AvgInProgress = heatmapWeeks.Select(w => w.HasData
-                        ? (double?)ReportCalculator.BuildLoad(facts, teamScope: false, m.User.Id, w.MeasuredStartUtc, w.MeasuredEndUtcExclusive, _limit).AvgInProgress
+                    TicketsWorked = heatmapWeeks.Select(w => w.HasData
+                        ? (int?)ReportCalculator.BuildLoad(facts, teamScope: false, m.User.Id, w.MeasuredStartUtc, w.MeasuredEndUtcExclusive).TicketsWorked
                         : null).ToList(),
                 }).ToList(),
             };
@@ -499,31 +498,12 @@ namespace TaskFlow.BusinessLogic.Services
         private async Task<ReportTeamMedianDto> BuildTeamMedian(List<ReportTaskFacts> facts, DateOnly from, DateOnly to, DateTimeOffset startUtc, DateTimeOffset endUtc)
         {
             var roster = await BuildRosterAsync(facts, from, to);
-            var members = roster.Select(u => ReportCalculator.BuildMetricSet(facts, teamScope: false, u.Id, from, to, startUtc, endUtc, _limit, _timeZone, includeLoad: true)).ToList();
+            var members = roster.Select(u => ReportCalculator.BuildMetricSet(facts, teamScope: false, u.Id, from, to, startUtc, endUtc, _timeZone, includeLoad: true)).ToList();
             return BuildTeamMedianFromMetricSets(members);
         }
 
         private static ReportTeamMedianDto BuildTeamMedianFromMembers(List<ReportTeamMemberDto> members) =>
             BuildTeamMedianFromMetricSets(members.Select(m => m.Totals).ToList());
-
-        // R8: `avgInProgress` = mean of the listed members' values; capacityUtilization
-        // follows from that mean (limit is the same for every member, so this
-        // is equivalent to averaging each member's own utilization).
-        private static ReportLoadDto? BuildTeamLoad(List<ReportTeamMemberDto> members, int limit)
-        {
-            var memberLoads = members.Select(m => m.Totals.Load).Where(l => l != null).Select(l => l!.AvgInProgress).ToList();
-            if (memberLoads.Count == 0)
-            {
-                return null;
-            }
-
-            var mean = memberLoads.Average();
-            return new ReportLoadDto
-            {
-                AvgInProgress = Math.Round(mean, 2),
-                CapacityUtilization = limit > 0 ? Math.Round(mean / limit, 4) : 0,
-            };
-        }
 
         private static ReportTeamMedianDto BuildTeamMedianFromMetricSets(List<MetricSetDto> members)
         {
@@ -548,8 +528,6 @@ namespace TaskFlow.BusinessLogic.Services
                 OnTimeRate = NonZeroMedian(members.Where(m => m.Reliability.OnTimeRate.Value.HasValue).Select(m => m.Reliability.OnTimeRate.Value!.Value)),
                 OverdueMarked = NonZeroMedian(members.Select(m => (double)m.Reliability.OverdueMarked)),
                 ReworkRate = NonZeroMedian(members.Where(m => m.Quality.ReworkRate.Value.HasValue).Select(m => m.Quality.ReworkRate.Value!.Value)),
-                AvgInProgress = NonZeroMedian(members.Where(m => m.Load != null).Select(m => m.Load!.AvgInProgress)),
-                CapacityUtilization = NonZeroMedian(members.Where(m => m.Load != null).Select(m => m.Load!.CapacityUtilization)),
             };
         }
 
@@ -733,7 +711,7 @@ namespace TaskFlow.BusinessLogic.Services
                 return [bucket.Start.ToString(DateTimeFormats.Date), bucket.End.ToString(DateTimeFormats.Date), bucket.IsPartial.ToString(), .. Enumerable.Repeat(string.Empty, ReportCsvHeaders.Buckets.Length - 3)];
             }
 
-            var m = ReportCalculator.BuildMetricSet(facts, teamScope, userId, bucket.NaturalStart, bucket.NaturalEnd, bucket.MeasuredStartUtc, bucket.MeasuredEndUtcExclusive, _limit, _timeZone, includeLoad: true);
+            var m = ReportCalculator.BuildMetricSet(facts, teamScope, userId, bucket.NaturalStart, bucket.NaturalEnd, bucket.MeasuredStartUtc, bucket.MeasuredEndUtcExclusive, _timeZone, includeLoad: true);
             var lowSample = m.Speed.CycleTime.LowSample || m.Reliability.OnTimeRate.LowSample || m.Quality.ReworkRate.LowSample;
 
             return
@@ -743,14 +721,14 @@ namespace TaskFlow.BusinessLogic.Services
                 m.Reliability.OnTime.ToString(), m.Reliability.Late.ToString(), m.Reliability.NoDueDate.ToString(), FormatRate(m.Reliability.OnTimeRate), m.Reliability.OverdueMarked.ToString(),
                 FormatHours(m.Speed.CycleTime.MedianSeconds), FormatHours(m.Speed.CycleTime.P85Seconds), FormatHours(m.Speed.LeadTime.MedianSeconds), FormatHours(m.Speed.LeadTime.P85Seconds), FormatHours(m.Speed.ReviewWait.MedianSeconds), FormatHours(m.Speed.ReviewWait.P85Seconds),
                 m.Quality.SubmissionsDecided.ToString(), m.Quality.SentBack.ToString(), FormatRate(m.Quality.ReworkRate), m.Quality.ReopenedAfterDone.ToString(),
-                m.Load?.AvgInProgress.ToString(ReportRules.NumberFormats.AvgInProgress) ?? string.Empty, m.Load?.CapacityUtilization.ToString(ReportRules.NumberFormats.RateOrUtilization) ?? string.Empty,
+                m.Load?.TicketsWorked.ToString() ?? string.Empty,
                 m.Attribution.TakeOvers.ToString(), m.Attribution.TakenFrom.ToString(), lowSample.ToString(),
             ];
         }
 
         private string[] BuildMemberRow(User user, List<ReportTaskFacts> facts, DateOnly from, DateOnly to, DateTimeOffset startUtc, DateTimeOffset endUtc)
         {
-            var m = ReportCalculator.BuildMetricSet(facts, teamScope: false, user.Id, from, to, startUtc, endUtc, _limit, _timeZone, includeLoad: true);
+            var m = ReportCalculator.BuildMetricSet(facts, teamScope: false, user.Id, from, to, startUtc, endUtc, _timeZone, includeLoad: true);
 
             return
             [
@@ -759,7 +737,7 @@ namespace TaskFlow.BusinessLogic.Services
                 m.Reliability.OnTime.ToString(), m.Reliability.Late.ToString(), m.Reliability.NoDueDate.ToString(), FormatRate(m.Reliability.OnTimeRate), m.Reliability.OverdueMarked.ToString(),
                 FormatHours(m.Speed.CycleTime.MedianSeconds), FormatHours(m.Speed.CycleTime.P85Seconds), FormatHours(m.Speed.LeadTime.MedianSeconds), FormatHours(m.Speed.LeadTime.P85Seconds), FormatHours(m.Speed.ReviewWait.MedianSeconds), FormatHours(m.Speed.ReviewWait.P85Seconds),
                 m.Quality.SubmissionsDecided.ToString(), m.Quality.SentBack.ToString(), FormatRate(m.Quality.ReworkRate), m.Quality.ReopenedAfterDone.ToString(),
-                m.Load?.AvgInProgress.ToString(ReportRules.NumberFormats.AvgInProgress) ?? string.Empty, m.Load?.CapacityUtilization.ToString(ReportRules.NumberFormats.RateOrUtilization) ?? string.Empty,
+                m.Load?.TicketsWorked.ToString() ?? string.Empty,
                 m.Attribution.TakeOvers.ToString(), m.Attribution.TakenFrom.ToString(),
             ];
         }

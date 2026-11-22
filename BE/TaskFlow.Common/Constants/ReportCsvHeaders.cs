@@ -10,7 +10,7 @@ namespace TaskFlow.Common.Constants
             "on_time", "late", "no_due_date", "on_time_rate", "overdue_marked",
             "cycle_median_h", "cycle_p85_h", "lead_median_h", "lead_p85_h", "review_wait_median_h", "review_wait_p85_h",
             "submissions_decided", "sent_back", "rework_rate", "reopened_after_done",
-            "avg_in_progress", "capacity_utilization", "take_overs", "taken_from", "low_sample",
+            "tickets_worked", "take_overs", "taken_from", "low_sample",
         ];
 
         public static readonly string[] Members =
@@ -19,7 +19,7 @@ namespace TaskFlow.Common.Constants
             "on_time", "late", "no_due_date", "on_time_rate", "overdue_marked",
             "cycle_median_h", "cycle_p85_h", "lead_median_h", "lead_p85_h", "review_wait_median_h", "review_wait_p85_h",
             "submissions_decided", "sent_back", "rework_rate", "reopened_after_done",
-            "avg_in_progress", "capacity_utilization", "take_overs", "taken_from",
+            "tickets_worked", "take_overs", "taken_from",
         ];
 
         public static readonly string[] Tasks =

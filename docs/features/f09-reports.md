@@ -34,7 +34,7 @@ Out: any composite score, ranking, sorting members by a metric, targets/threshol
 
 **R7 Quality.** A *submission* is a `StatusChanged InProgress→Review` entry **only** — a `Reopened` entry is never a submission, so it cannot also feed `reworkRate`'s `sentBack`; it is counted exactly once, in `reopenedAfterDone`, never twice. A submission's *outcome* is the next entry that leaves Review: `→InProgress` = sent back, `→Done` = accepted, none yet = pending (excluded). A `Reopened`→`Review→InProgress` round trip that happens between two submissions (e.g. a reopen-then-sent-back-again cycle with no intervening `InProgress→Review`) has no submission to attach to and is ignored by `reworkRate` — it is still captured by `reopenedAfterDone`. `reworkRate = sentBack / (sentBack + accepted)` over submissions in the bucket (bucketed by submission time, credited to `holder` at the submission). `reopenedAfterDone` = `Reopened` entries credited to `holder`.
 
-**R8 Load.** `avgInProgress` = time-weighted mean number of tasks the user holds in `InProgress` over the bucket's measured window `[max(bucketStart, dataAvailableSince), min(bucketEnd, now))`. A task is InProgress from a `→InProgress` entry until the next `StatusChanged` out of InProgress or `Deleted`. Holder changes inside the interval split it. `capacityUtilization = avgInProgress / Workflow:MaxInProgressPerAssignee` (current value — gap G1). Team value = mean of the listed members' values.
+**R8 Load (replaced 2026-11-22 — user decision: ticket counts, not time-weighted averages).** `ticketsWorked` = the count of DISTINCT tasks the holder held in `InProgress` for any time within the bucket's measured window `[max(bucketStart, dataAvailableSince), min(bucketEnd, now))` — any overlap counts, however brief. A task is InProgress from a `→InProgress` entry until the next `StatusChanged` out of InProgress or `Deleted`. Holder changes inside the interval split it, and a task handed over mid-window counts for **both** holders (same split used for the former `avgInProgress`). Totals (the whole requested range) = distinct tasks across the range — a task worked across two buckets counts once in each bucket and once in the totals, never twice in the totals. Team scope = distinct tasks across all holders in the window, pooled like every other `TeamTotals` field (R12) — no per-member mean. Because a handed-over task is credited to both of its holders but only once at team scope, **the members' `ticketsWorked` values can sum to more than the team total**; this is expected, not a bug, and the client should not reconcile them. `avgInProgress`/`capacityUtilization` and gap G1 (capacity utilisation) no longer apply.
 
 **R9 Take-overs.** `AssigneeChanged` where `ActorUserId = ToValue`, `FromValue` not null and `≠ ToValue`. Gives `takeOvers` to `ToValue` and `takenFrom` to `FromValue`, bucketed by the entry.
 
@@ -58,7 +58,7 @@ Out: any composite score, ranking, sorting members by a metric, targets/threshol
 
 | # | Metric | Gap | Treatment |
 |---|---|---|---|
-| G1 | Capacity utilisation | The limit is configuration only; its past values are not stored | Divide by the current value. Caveat shown. Exact only if the limit never changed in the range |
+| G1 | Capacity utilisation | **Moot since 2026-11-22** — `capacityUtilization` was removed with `avgInProgress` (R8); Load is now a ticket count with nothing to divide by the limit. `inProgressLimit` stays in `meta` for reference only | — |
 | G2 | Throughput / speed fairness | No task size, points or estimate | Caveat "indicator, not verdict". Not fixable without a new field (out of scope) |
 | G3 | Cycle / lead time | No working calendar, pause or blocked state; time waiting in Review for a reviewer used to count against the holder's cycle time | **Addressed:** a separate `reviewWait` metric (R5b) isolates the final review pass from cycle time. The working-calendar/pause gap remains — cycle, lead and review-wait are all wall-clock; caveat stays |
 | G4 | Per-member averages around joining/leaving | `DeactivatedAt` is current state only (no activation history); joining = `Users.CreatedAt` | Averages use the full bucket; caveat "joined or left mid-period" |
@@ -84,7 +84,7 @@ AC4 (speed) m1 cycle times {48 h, 69 h, 100 h} → `medianSeconds = 248 400` (69
 AC5 (reliability) m1 `onTime 1` (T1, done 03-04 ≤ due 03-04), `late 1` (T2), `noDueDate 1` (T6). `onTimeRate.value = 0.5`, `denominator 2`, `lowSample true`.
 AC6 (overdue) m1 `overdueMarked = 1` (T7). Team `unassignedOverdueMarked = 1` (T8), not credited to anyone.
 AC7 (rework, corrected 2026-11-21 — a `Reopened` entry is never a submission, R7) m1 submissions (only `InProgress→Review` entries): T1 `→Review` 03-03 10:00 → `Done` = accepted. T2 `→Review` 03-03 12:00 → `Review→InProgress` 03-03 15:00 = sent back; T2 `→Review` 03-04 12:00 → `Done` = accepted. T6 `→Review` 03-04 09:00 → `Done` 03-05 09:00 = accepted (its `Reopened`/`Review→InProgress` round trip at 03-06 is **not** a submission or an outcome of one — it only increments `reopenedAfterDone`); T6 `→Review` 03-07 09:00 → `Done` 03-07 15:00 = accepted. → `sentBack 1`, `submissionsDecided 5`, `reworkRate 0.2`, `lowSample false` (n = 5, not `< 5`). `reopenedAfterDone` for m1 is unchanged at `1` (T6's `Reopened` entry, R3's known-property caveat applies: this bucket's `done` and the rework figures above already reflect T6 counting once, at 03-07).
-AC8 (load) Day bucket 2026-03-02, m1: T1 14 h + T2 12 h + T3 15 h = 41 h / 24 h → `avgInProgress 1.71`, `capacityUtilization 0.5694`.
+AC8 (load, replaced 2026-11-22 — ticket count, not a time-weighted average) Day bucket 2026-03-02, m1: InProgress segments overlapping that day are T1 (03-02 10:00 → 03-03 10:00), T2's first segment (03-02 12:00 → 03-03 12:00) and T3's m1 segment (03-02 09:00 → 03-03 09:00, before the 03-03 09:00 handover to m2) — 3 distinct tasks → `ticketsWorked 3`. Handover case, day bucket 2026-03-03: T3's m1 segment (03-02 09:00 → 03-03 09:00) and m2 segment (03-03 09:00 → 03-04 09:00) both overlap this day, so T3 counts for **both** m1 (alongside T1, T2, T6, all overlapping → `ticketsWorked 4`) and m2 (alone → `ticketsWorked 1`); team scope for the same day counts T3 once (pooled with T1, T2, T6 → `ticketsWorked 4`), so the members' sum (4 + 1 = 5) exceeds the team total (4) by exactly the handed-over task.
 AC9 (bucket edge) m2, 03-02..03-15, Week: T4 (03-08 23:30 local = 16:30Z) is in week 03-02. T5 (03-09 00:10 local = 03-08 17:10Z) is in week 03-09.
 AC10 (partial) Range 03-04..03-10, Week → 2 buckets `[03-04..03-08, isPartial]`, `[03-09..03-10, isPartial]`.
 AC11 (since) Empty `TaskHistories` → `dataAvailableSince null`, every bucket `hasData false`, metrics null, success. A range starting before the first entry → earlier buckets `hasData false`, the bucket containing it `isPartial`.
@@ -135,12 +135,12 @@ Validation order (service): range (`InvalidRange` → `RangeInFuture` → `Range
   "speed":       { "cycleTime": Distribution, "leadTime": Distribution, "reviewWait": Distribution },
   "reliability": { "onTime": 1, "late": 1, "noDueDate": 1, "onTimeRate": Rate, "overdueMarked": 1 },
   "quality":     { "submissionsDecided": 6, "sentBack": 2, "reworkRate": Rate, "reopenedAfterDone": 1 },
-  "load":        { "avgInProgress": 1.71, "capacityUtilization": 0.5694 },   // null when hasData=false
+  "load":        { "ticketsWorked": 3 },   // null when hasData=false (2026-11-22: replaces avgInProgress/capacityUtilization - R8)
   "attribution": { "takeOvers": 0, "takenFrom": 1 } }
 // Distribution { "sampleSize": 3, "medianSeconds": 248400, "p85Seconds": null, "lowSample": true }
 // Rate         { "value": 0.5, "denominator": 2, "lowSample": true }   // value 0..1, 4 dp; null when denominator 0
 // TeamMedian   { "contributors": 6, "done": 4, "cycleTimeMedianSeconds": …, "leadTimeMedianSeconds": …, "reviewWaitMedianSeconds": …,
-//                "onTimeRate": …, "overdueMarked": …, "reworkRate": …, "avgInProgress": …, "capacityUtilization": … }
+//                "onTimeRate": …, "overdueMarked": …, "reworkRate": … }   // no avgInProgress/capacityUtilization (2026-11-22, R8)
 
 // ReportTeamRes
 { "meta": { …as above, "granularity": "Week" },
@@ -148,7 +148,7 @@ Validation order (service): range (`InvalidRange` → `RangeInFuture` → `Range
   "teamMedian": TeamMedian,
   "members": [ { "user": { "id", "userName", "displayName", "avatarUrl", "isActive" }, "totals": MetricSet } ],  // R11 order
   "heatmap": { "weeks": [ { "start", "end", "isPartial" } ],
-               "rows": [ { "userId": 12, "avgInProgress": [1.71, null, …] } ] } }  // same order as members; null = no data
+               "rows": [ { "userId": 12, "ticketsWorked": [3, null, …] } ] } }  // same order as members; null = no data for that week (2026-11-22, R8)
 
 // ReportTaskRes
 { "taskId": 7, "title": "…", "isDeleted": false, "metric": "Late",
@@ -158,9 +158,9 @@ Validation order (service): range (`InvalidRange` → `RangeInFuture` → `Range
   "cycleTimeSeconds": 248400 | null, "leadTimeSeconds": 262800 | null }
 ```
 
-Rounding: seconds truncated to whole numbers; rates to 4 dp; `avgInProgress` to 2 dp; utilisation computed from the unrounded average, to 4 dp.
+Rounding: seconds truncated to whole numbers; rates to 4 dp. `ticketsWorked` is an integer count (2026-11-22, R8 — no rounding).
 
-CSV datasets — **Buckets**: `bucket_start,bucket_end,is_partial,done,done_urgent,done_high,done_normal,on_time,late,no_due_date,on_time_rate,overdue_marked,cycle_median_h,cycle_p85_h,lead_median_h,lead_p85_h,review_wait_median_h,review_wait_p85_h,submissions_decided,sent_back,rework_rate,reopened_after_done,avg_in_progress,capacity_utilization,take_overs,taken_from,low_sample`. **Members**: `user_name,display_name,is_active` + the totals columns. **Tasks**: one row per counted completion (`task_id,title,credited_user,completed_local,priority,due_date,on_time,cycle_h,lead_h`). Hours to 1 dp. Filename `taskflow-report-{team|userName}-{from}-{to}-{dataset}.csv` (sanitised to `[A-Za-z0-9._-]`). Cap 10 000 data rows.
+CSV datasets — **Buckets**: `bucket_start,bucket_end,is_partial,done,done_urgent,done_high,done_normal,on_time,late,no_due_date,on_time_rate,overdue_marked,cycle_median_h,cycle_p85_h,lead_median_h,lead_p85_h,review_wait_median_h,review_wait_p85_h,submissions_decided,sent_back,rework_rate,reopened_after_done,tickets_worked,take_overs,taken_from,low_sample`. **Members**: `user_name,display_name,is_active` + the totals columns (same tail: `…,reopened_after_done,tickets_worked,take_overs,taken_from`). **Tasks**: one row per counted completion (`task_id,title,credited_user,completed_local,priority,due_date,on_time,cycle_h,lead_h`). Hours to 1 dp. Filename `taskflow-report-{team|userName}-{from}-{to}-{dataset}.csv` (sanitised to `[A-Za-z0-9._-]`). Cap 10 000 data rows. (2026-11-22: `avg_in_progress`/`capacity_utilization` columns replaced by `tickets_worked`, R8.)
 
 ### Error codes (`BE/TaskFlow.Common/Constants/Messages/ReportControllerMS.cs`, all 400 except Exception = 500)
 

@@ -68,9 +68,7 @@ namespace TaskFlow.Api.Models.Responses.Reports
 
     public class ReportLoadRes
     {
-        public double AvgInProgress { get; set; }
-
-        public double CapacityUtilization { get; set; }
+        public int TicketsWorked { get; set; }
     }
 
     public class ReportAttributionRes
@@ -117,9 +115,5 @@ namespace TaskFlow.Api.Models.Responses.Reports
         public double? OverdueMarked { get; set; }
 
         public double? ReworkRate { get; set; }
-
-        public double? AvgInProgress { get; set; }
-
-        public double? CapacityUtilization { get; set; }
     }
 }

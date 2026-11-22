@@ -14,7 +14,6 @@ namespace TaskFlow.Tests.Reports
         private const long M1 = 101;
         private const long M2 = 102;
         private const long Mgr = 103;
-        private const int Limit = 3;
 
         // ---- ReportStatistics ----
 
@@ -196,7 +195,7 @@ namespace TaskFlow.Tests.Reports
                 [facts], teamScope: false, holderId: M1,
                 rangeStart: new DateOnly(2026, 3, 2), rangeEnd: new DateOnly(2026, 3, 8),
                 measuredStartUtc: Local(2026, 3, 2, 0, 0), measuredEndUtcExclusive: Local(2026, 3, 9, 0, 0),
-                limit: Limit, timeZone: Zone, includeLoad: false);
+                timeZone: Zone, includeLoad: false);
 
             Assert.Equal(0, metricSet.Quality.SentBack);
             Assert.Equal(1, metricSet.Quality.ReopenedAfterDone);
@@ -312,6 +311,19 @@ namespace TaskFlow.Tests.Reports
             Assert.Equal(1, m1.Quality.ReopenedAfterDone);
         }
 
+        // AC8 (replaced 2026-11-22: ticketsWorked is a distinct-task count,
+        // not a time-weighted average). Day bucket 2026-03-02 local
+        // (00:00..24:00). Hand derivation from fixture F's InProgress
+        // segments overlapping that window:
+        // - T1: InProgress 03-02 10:00 -> 03-03 10:00 (holder m1) - overlaps.
+        // - T2: two m1 segments, 03-02 12:00 -> 03-03 12:00 and
+        //   03-03 15:00 -> 03-04 12:00 - the first overlaps, the second
+        //   starts after the day ends, so T2 is still counted once (from
+        //   the first segment).
+        // - T3: m1 03-02 09:00 -> 03-03 09:00 (then handed to m2) - overlaps.
+        // - T6: m1 03-03 11:00 -> 03-04 09:00 and 03-06 10:00 -> 03-07 09:00
+        //   - both start after the day ends (03-03 00:00), no overlap.
+        // Distinct m1 tasks overlapping 03-02: {T1, T2, T3} -> 3.
         [Fact]
         public void FixtureF_AC8_Load_DayBucket()
         {
@@ -324,10 +336,130 @@ namespace TaskFlow.Tests.Reports
                 facts, teamScope: false, holderId: M1,
                 rangeStart: new DateOnly(2026, 3, 2), rangeEnd: new DateOnly(2026, 3, 2),
                 measuredStartUtc: dayStart, measuredEndUtcExclusive: dayEnd,
-                limit: Limit, timeZone: Zone, includeLoad: true);
+                timeZone: Zone, includeLoad: true);
 
-            Assert.Equal(1.71, m1.Load!.AvgInProgress);
-            Assert.Equal(0.5694, m1.Load.CapacityUtilization);
+            Assert.Equal(3, m1.Load!.TicketsWorked);
+        }
+
+        // Handover case (R8: "a task handed over mid-bucket counts for BOTH
+        // holders"). Day bucket 2026-03-03 local - T3's handover from m1 to
+        // m2 happens at 03-03 09:00, squarely inside this day:
+        // - T3 m1 segment 03-02 09:00 -> 03-03 09:00 overlaps [03-03 00:00,
+        //   03-03 09:00) -> counted for m1.
+        // - T3 m2 segment 03-03 09:00 -> 03-04 09:00 overlaps [03-03 09:00,
+        //   03-04 00:00) -> counted for m2.
+        // Also in this window: T1 (03-02 10:00 -> 03-03 10:00, overlaps
+        // 03-03 00:00-10:00), T2's first m1 segment (03-02 12:00 -> 03-03
+        // 12:00, overlaps 03-03 00:00-12:00), T6's first m1 segment (03-03
+        // 11:00 -> 03-04 09:00, overlaps). m1 distinct: {T1, T2, T3, T6} -> 4.
+        // m2 distinct: {T3} -> 1. Team (distinct across both holders): {T1,
+        // T2, T3, T6} -> 4 (T3 is one task, not two, at team scope), so the
+        // member sum (4 + 1 = 5) exceeds the team total (4) by exactly the
+        // one handed-over task - the documented "sum can exceed team total"
+        // property.
+        [Fact]
+        public void FixtureF_LoadHandover_CountsForBothHolders_DayBucket()
+        {
+            var facts = BuildFixtureFacts();
+
+            var dayStart = Local(2026, 3, 3, 0, 0);
+            var dayEnd = Local(2026, 3, 4, 0, 0);
+
+            var m1 = ReportCalculator.BuildMetricSet(
+                facts, teamScope: false, holderId: M1,
+                rangeStart: new DateOnly(2026, 3, 3), rangeEnd: new DateOnly(2026, 3, 3),
+                measuredStartUtc: dayStart, measuredEndUtcExclusive: dayEnd,
+                timeZone: Zone, includeLoad: true);
+            var m2 = ReportCalculator.BuildMetricSet(
+                facts, teamScope: false, holderId: M2,
+                rangeStart: new DateOnly(2026, 3, 3), rangeEnd: new DateOnly(2026, 3, 3),
+                measuredStartUtc: dayStart, measuredEndUtcExclusive: dayEnd,
+                timeZone: Zone, includeLoad: true);
+            var team = ReportCalculator.BuildMetricSet(
+                facts, teamScope: true, holderId: null,
+                rangeStart: new DateOnly(2026, 3, 3), rangeEnd: new DateOnly(2026, 3, 3),
+                measuredStartUtc: dayStart, measuredEndUtcExclusive: dayEnd,
+                timeZone: Zone, includeLoad: true);
+
+            Assert.Equal(4, m1.Load!.TicketsWorked);
+            Assert.Equal(1, m2.Load!.TicketsWorked);
+            Assert.Equal(4, team.Load!.TicketsWorked);
+            Assert.True(m1.Load.TicketsWorked + m2.Load.TicketsWorked > team.Load.TicketsWorked);
+        }
+
+        // ---- Calculator-level ticketsWorked tests (2026-11-22) ----
+
+        [Fact]
+        public void TicketsWorked_SpanningTwoBuckets_CountsOnceInEachBucketAndOnceInTotals()
+        {
+            // One continuous InProgress interval crossing a day boundary:
+            // 03-02 20:00 -> 03-03 04:00.
+            var task = BuildTask(950, M1, TaskWorkflowStatus.InProgress, null,
+                H(1, TaskHistoryEvent.Created, Local(2026, 3, 2, 8, 0)),
+                H(2, TaskHistoryEvent.StatusChanged, Local(2026, 3, 2, 20, 0), "Todo", "InProgress"));
+            var facts = ReportCalculator.ExtractFacts(task, Zone);
+
+            var day1 = ReportCalculator.BuildMetricSet(
+                [facts], teamScope: false, holderId: M1,
+                rangeStart: new DateOnly(2026, 3, 2), rangeEnd: new DateOnly(2026, 3, 2),
+                measuredStartUtc: Local(2026, 3, 2, 0, 0), measuredEndUtcExclusive: Local(2026, 3, 3, 0, 0),
+                timeZone: Zone, includeLoad: true);
+            var day2 = ReportCalculator.BuildMetricSet(
+                [facts], teamScope: false, holderId: M1,
+                rangeStart: new DateOnly(2026, 3, 3), rangeEnd: new DateOnly(2026, 3, 3),
+                measuredStartUtc: Local(2026, 3, 3, 0, 0), measuredEndUtcExclusive: Local(2026, 3, 4, 0, 0),
+                timeZone: Zone, includeLoad: true);
+            var totals = ReportCalculator.BuildMetricSet(
+                [facts], teamScope: false, holderId: M1,
+                rangeStart: new DateOnly(2026, 3, 2), rangeEnd: new DateOnly(2026, 3, 3),
+                measuredStartUtc: Local(2026, 3, 2, 0, 0), measuredEndUtcExclusive: Local(2026, 3, 4, 0, 0),
+                timeZone: Zone, includeLoad: true);
+
+            Assert.Equal(1, day1.Load!.TicketsWorked);
+            Assert.Equal(1, day2.Load!.TicketsWorked);
+            Assert.Equal(1, totals.Load!.TicketsWorked);
+        }
+
+        [Fact]
+        public void TicketsWorked_TaskNeverEnteredInProgress_CountsZero()
+        {
+            var facts = ReportCalculator.ExtractFacts(BuildFixtureT7(), Zone);
+
+            var m1 = ReportCalculator.BuildMetricSet(
+                [facts], teamScope: false, holderId: M1,
+                rangeStart: new DateOnly(2026, 3, 2), rangeEnd: new DateOnly(2026, 3, 8),
+                measuredStartUtc: Local(2026, 3, 2, 0, 0), measuredEndUtcExclusive: Local(2026, 3, 9, 0, 0),
+                timeZone: Zone, includeLoad: true);
+
+            Assert.Equal(0, m1.Load!.TicketsWorked);
+        }
+
+        [Fact]
+        public void TicketsWorked_DeletedTask_IntervalEndsAtDeleted_NotCountedAfter()
+        {
+            var deletedAt = Local(2026, 3, 3, 12, 0);
+            var task = BuildTask(951, M1, TaskWorkflowStatus.InProgress, null, isDeleted: true,
+                history:
+                [
+                    H(1, TaskHistoryEvent.Created, Local(2026, 3, 1, 9, 0)),
+                    H(2, TaskHistoryEvent.StatusChanged, Local(2026, 3, 2, 10, 0), "Todo", "InProgress"),
+                    H(3, TaskHistoryEvent.Deleted, deletedAt),
+                ]);
+            var facts = ReportCalculator.ExtractFacts(task, Zone);
+
+            var beforeDeleted = ReportCalculator.BuildMetricSet(
+                [facts], teamScope: false, holderId: M1,
+                rangeStart: new DateOnly(2026, 3, 2), rangeEnd: new DateOnly(2026, 3, 3),
+                measuredStartUtc: Local(2026, 3, 2, 0, 0), measuredEndUtcExclusive: Local(2026, 3, 3, 12, 0),
+                timeZone: Zone, includeLoad: true);
+            var afterDeleted = ReportCalculator.BuildMetricSet(
+                [facts], teamScope: false, holderId: M1,
+                rangeStart: new DateOnly(2026, 3, 3), rangeEnd: new DateOnly(2026, 3, 4),
+                measuredStartUtc: Local(2026, 3, 3, 12, 0), measuredEndUtcExclusive: Local(2026, 3, 4, 0, 0),
+                timeZone: Zone, includeLoad: true);
+
+            Assert.Equal(1, beforeDeleted.Load!.TicketsWorked);
+            Assert.Equal(0, afterDeleted.Load!.TicketsWorked);
         }
 
         [Fact]
@@ -409,7 +541,7 @@ namespace TaskFlow.Tests.Reports
                 facts, teamScope: false, holderId: holderId,
                 rangeStart: new DateOnly(2026, 3, 2), rangeEnd: new DateOnly(2026, 3, 8),
                 measuredStartUtc: Local(2026, 3, 2, 0, 0), measuredEndUtcExclusive: Local(2026, 3, 9, 0, 0),
-                limit: Limit, timeZone: Zone, includeLoad: false);
+                timeZone: Zone, includeLoad: false);
             return result;
         }
 

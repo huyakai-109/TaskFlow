@@ -33,10 +33,9 @@ namespace TaskFlow.Common.Constants
         public const string ExportFileNamePrefix = "taskflow-report";
 
         // CSV cell rounding (f09-reports.md "Rounding"): seconds truncated
-        // upstream, avgInProgress 2dp, rates/utilization 4dp, hours 1dp.
+        // upstream, rates 4dp, hours 1dp.
         public struct NumberFormats
         {
-            public const string AvgInProgress = "0.00";
             public const string RateOrUtilization = "0.0000";
             public const string Hours = "0.0";
         }
