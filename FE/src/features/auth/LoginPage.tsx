@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 
 import { ApiError } from '../../api/client'
 import { describeLoginError, LOGIN_INVALID_CREDENTIAL, LOGIN_WILL_LOCK_OUT } from '../../api/errorMessages'
@@ -20,17 +20,12 @@ const labelClass = 'text-[length:var(--font-size-sm)] font-medium text-text-mute
 const inputClass =
   'min-h-10 rounded-md border border-border bg-surface px-[var(--space-3)] text-text [font:inherit] disabled:cursor-not-allowed disabled:opacity-60 focus:outline-2 focus:outline-offset-2 focus:outline-focus'
 
-interface LocationState {
-  from?: string
-}
-
 /**
  * The login screen (`docs/features/f01-login.md` AC1–5, AC12). Layout is a
  * new design call built entirely from existing tokens and `NewTaskDialog`'s
  * form patterns — `docs/design/SPEC.md` lists login under "Not designed yet."
  */
 export function LoginPage() {
-  const location = useLocation()
   const { status } = useAuthSession()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -51,12 +46,11 @@ export function LoginPage() {
 
   const mutation = useLoginMutation()
 
-  // AC1: already authenticated (e.g. back button after login) — go straight
-  // to the originally requested path, replacing history so it doesn't bounce
-  // back here.
+  // Already authenticated (e.g. back button after login): always land on the
+  // board, never the originally requested path, replacing history so it
+  // doesn't bounce back here.
   if (status === 'authenticated') {
-    const from = (location.state as LocationState | null)?.from ?? '/board'
-    return <Navigate to={from} replace />
+    return <Navigate to="/board" replace />
   }
 
   function handleSubmit(event: FormEvent) {

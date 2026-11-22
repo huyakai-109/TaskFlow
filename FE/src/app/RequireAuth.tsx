@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Navigate, Outlet, useLocation } from 'react-router-dom'
+import { Navigate, Outlet } from 'react-router-dom'
 
 import { hasAccessToken } from '../api/client'
 import { clearSession } from '../shared/lib/authSession'
@@ -21,7 +21,6 @@ const noteClass = 'text-[length:var(--font-size-sm)] text-text-muted'
  * read directly, no network call is ever made from this guard.
  */
 export function RequireAuth() {
-  const location = useLocation()
   const { status } = useAuthSession()
 
   useEffect(() => {
@@ -39,7 +38,7 @@ export function RequireAuth() {
   }
 
   if (status === 'unauthenticated') {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />
+    return <Navigate to="/login" replace />
   }
 
   return <Outlet />
