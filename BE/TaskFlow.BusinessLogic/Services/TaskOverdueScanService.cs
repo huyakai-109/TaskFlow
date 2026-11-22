@@ -5,6 +5,7 @@ using TaskFlow.DataAccess.Entities;
 using TaskFlow.Repositories.UoW;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using MySqlConnector;
 
 namespace TaskFlow.BusinessLogic.Services
 {
@@ -116,7 +117,7 @@ namespace TaskFlow.BusinessLogic.Services
                 logger.LogWarning(ex, "Overdue scan hit a concurrency conflict flagging task {TaskId}; skipped", id);
                 result.Skipped++;
             }
-            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            catch (Exception ex) when (IsDeadlock(ex))
             {
                 // Same MySQL 1213 lock-upgrade deadlock Move/Reopen/Assign hit
                 // under concurrent writers (ROADMAP R13) - the scan's victim
@@ -137,6 +138,21 @@ namespace TaskFlow.BusinessLogic.Services
                 // candidate's load - each row gets a clean tracked state.
                 unitOfWork.DbContext.ChangeTracker.Clear();
             }
+        }
+
+        // f01-workflow.md T2, ROADMAP R13: same MySQL 1213 lock-upgrade
+        // deadlock check as TaskService's write paths.
+        private static bool IsDeadlock(Exception ex)
+        {
+            for (var current = ex; current != null; current = current.InnerException)
+            {
+                if (current is MySqlException { ErrorCode: MySqlErrorCode.LockDeadlock })
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

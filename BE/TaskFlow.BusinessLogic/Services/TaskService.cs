@@ -9,6 +9,7 @@ using TaskFlow.Repositories.UoW;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using MySqlConnector;
 
 namespace TaskFlow.BusinessLogic.Services
 {
@@ -318,7 +319,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return (TaskControllerMS.Move.Conflict, null, null);
             }
-            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            catch (Exception ex) when (IsDeadlock(ex))
             {
                 // Two real concurrent writers can make InnoDB pick a deadlock
                 // victim instead of cleanly affecting 0 rows (confirmed
@@ -431,7 +432,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return (TaskControllerMS.Reopen.Conflict, null);
             }
-            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            catch (Exception ex) when (IsDeadlock(ex))
             {
                 // Same MySQL 1213 lock-upgrade deadlock Move hits under
                 // concurrent writers (ROADMAP R13); reopen inserts into
@@ -482,7 +483,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return (TaskControllerMS.Update.Conflict, null);
             }
-            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            catch (Exception ex) when (IsDeadlock(ex))
             {
                 logger.LogWarning(ex, "Update task {Id} hit a MySQL deadlock (1213); treated as Task.Update.Conflict", id);
                 return (TaskControllerMS.Update.Conflict, null);
@@ -538,7 +539,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return (TaskControllerMS.UpdatePriority.Conflict, null);
             }
-            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            catch (Exception ex) when (IsDeadlock(ex))
             {
                 logger.LogWarning(ex, "Update priority of task {Id} hit a MySQL deadlock (1213); treated as Task.UpdatePriority.Conflict", id);
                 return (TaskControllerMS.UpdatePriority.Conflict, null);
@@ -605,7 +606,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return (TaskControllerMS.UpdateDueDate.Conflict, null);
             }
-            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            catch (Exception ex) when (IsDeadlock(ex))
             {
                 logger.LogWarning(ex, "Update due date of task {Id} hit a MySQL deadlock (1213); treated as Task.UpdateDueDate.Conflict", id);
                 return (TaskControllerMS.UpdateDueDate.Conflict, null);
@@ -739,7 +740,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return (TaskControllerMS.Assign.Conflict, null, null);
             }
-            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            catch (Exception ex) when (IsDeadlock(ex))
             {
                 // Same R13 lock-upgrade deadlock Move hits (f02-capacity.md
                 // Technical contract T2): the capacity write's UPDATE Users
@@ -790,7 +791,7 @@ namespace TaskFlow.BusinessLogic.Services
             {
                 return TaskControllerMS.Delete.Conflict;
             }
-            catch (Exception ex) when (TaskConcurrencyHelper.IsDeadlock(ex))
+            catch (Exception ex) when (IsDeadlock(ex))
             {
                 logger.LogWarning(ex, "Delete task {Id} hit a MySQL deadlock (1213); treated as Task.Delete.Conflict", id);
                 return TaskControllerMS.Delete.Conflict;
@@ -1105,6 +1106,21 @@ namespace TaskFlow.BusinessLogic.Services
             }
 
             return callerPermissions.Contains(Permissions.Tasks.AssignAnyone);
+        }
+
+        // f01-workflow.md T2, ROADMAP R13: retry the MySQL 1213 lock-upgrade
+        // deadlock the same way on every write path below.
+        private static bool IsDeadlock(Exception ex)
+        {
+            for (var current = ex; current != null; current = current.InnerException)
+            {
+                if (current is MySqlException { ErrorCode: MySqlErrorCode.LockDeadlock })
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private DateOnly TodayInZone()
