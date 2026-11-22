@@ -135,6 +135,13 @@ namespace TaskFlow.BusinessLogic.Services
                 .ThenBy(m => m.User.Id)
                 .ToList();
 
+            // R8: team Load is the mean of the listed members' own values -
+            // never pooled like every other TeamTotals field (R12). Overrides
+            // the BuildMetricSet(teamScope: true, ...) load above, which pools
+            // every member's InProgress time into one shared window and would
+            // report the sum of the team's concurrent load, not its average.
+            teamTotals.Load = BuildTeamLoad(members, _limit);
+
             var unassignedOverdueMarked = facts.SelectMany(f => f.OverdueMarks)
                 .Count(o => o.HolderId == null && InLocalRange(o.AtUtc, from, to));
 
@@ -498,6 +505,25 @@ namespace TaskFlow.BusinessLogic.Services
 
         private static ReportTeamMedianDto BuildTeamMedianFromMembers(List<ReportTeamMemberDto> members) =>
             BuildTeamMedianFromMetricSets(members.Select(m => m.Totals).ToList());
+
+        // R8: `avgInProgress` = mean of the listed members' values; capacityUtilization
+        // follows from that mean (limit is the same for every member, so this
+        // is equivalent to averaging each member's own utilization).
+        private static ReportLoadDto? BuildTeamLoad(List<ReportTeamMemberDto> members, int limit)
+        {
+            var memberLoads = members.Select(m => m.Totals.Load).Where(l => l != null).Select(l => l!.AvgInProgress).ToList();
+            if (memberLoads.Count == 0)
+            {
+                return null;
+            }
+
+            var mean = memberLoads.Average();
+            return new ReportLoadDto
+            {
+                AvgInProgress = Math.Round(mean, 2),
+                CapacityUtilization = limit > 0 ? Math.Round(mean / limit, 4) : 0,
+            };
+        }
 
         private static ReportTeamMedianDto BuildTeamMedianFromMetricSets(List<MetricSetDto> members)
         {

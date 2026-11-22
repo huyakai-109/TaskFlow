@@ -375,6 +375,54 @@ namespace TaskFlow.Tests.Http
             Assert.Equal(2, m2Row.Totals.Delivery.Done);
         }
 
+        // ---- R8: team Load is the mean of the listed members' values,
+        // never pooled like every other TeamTotals field (R12 is the pooled
+        // rule; R8 explicitly carves Load out of it) ----
+
+        [Fact]
+        public async Task GetTeam_Load_IsMeanOfMembersAvgInProgress_NotPooledSum()
+        {
+            var manager = await CreateUserAndLoginAsync("Manager");
+            var m1 = await CreateUserAndLoginAsync("Member", displayName: "M1");
+            var m2 = await CreateUserAndLoginAsync("Member", displayName: "M2");
+
+            // m1: InProgress for the whole measured week (2026-03-02 00:00
+            // local .. 2026-03-09 00:00 local, still open) -> avgInProgress 1.0.
+            var taskA = await SeedTaskAsync("Task A", assigneeId: m1.UserId, dueDate: null);
+            await SeedHistoryAsync(taskA.Id, TaskHistoryEvent.Created, Local(2026, 3, 1, 8, 0));
+            await SeedHistoryAsync(taskA.Id, TaskHistoryEvent.StatusChanged, Local(2026, 3, 2, 0, 0), "Todo", "InProgress");
+
+            // m2: InProgress for exactly half the week (84 of 168 hours) ->
+            // avgInProgress 0.5.
+            var taskB = await SeedTaskAsync("Task B", assigneeId: m2.UserId, dueDate: null);
+            await SeedHistoryAsync(taskB.Id, TaskHistoryEvent.Created, Local(2026, 3, 1, 8, 0));
+            await SeedHistoryAsync(taskB.Id, TaskHistoryEvent.StatusChanged, Local(2026, 3, 2, 0, 0), "Todo", "InProgress");
+            await SeedHistoryAsync(taskB.Id, TaskHistoryEvent.StatusChanged, Local(2026, 3, 5, 12, 0), "InProgress", "Review");
+
+            var response = await manager.Client.GetAsync("api/v1/reports/team?from=2026-03-02&to=2026-03-08");
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<ReportTeamRes>>(JsonOptions);
+
+            Assert.True(response.IsSuccessStatusCode && body!.Success, body?.Error);
+
+            var m1Row = body.Result!.Members.Single(m => m.User.Id == m1.UserId);
+            var m2Row = body.Result.Members.Single(m => m.User.Id == m2.UserId);
+            Assert.Equal(1.0, m1Row.Totals.Load!.AvgInProgress);
+            Assert.Equal(0.5, m2Row.Totals.Load!.AvgInProgress);
+
+            // Team value = mean of the listed members' own values (R8). The
+            // roster (R11, every active user) is not reset between test
+            // classes (Users persists, unlike Tasks/TaskHistories - AC22
+            // precedent), so the roster size is not asserted; instead, the
+            // expected mean is computed from the full Members list the
+            // response itself returned, over the same values the test just
+            // asserted for m1 and m2. A pooled/summed team value (the
+            // regression this test guards against) would not satisfy this -
+            // it would equal the sum, not the mean, of those same values.
+            var expectedMean = body.Result.Members.Average(m => m.Totals.Load!.AvgInProgress);
+            Assert.Equal(Math.Round(expectedMean, 2), body.Result.Team.Totals.Load!.AvgInProgress);
+            Assert.Equal(Math.Round(expectedMean / body.Result.Meta.InProgressLimit, 4), body.Result.Team.Totals.Load!.CapacityUtilization);
+        }
+
         // ---- AC19: export ----
 
         [Fact]
