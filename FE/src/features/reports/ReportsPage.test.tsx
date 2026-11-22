@@ -212,3 +212,53 @@ describe('ReportsPage — error state', () => {
     expect(screen.getByRole('alert').textContent).toContain('You can only view your own report.')
   })
 })
+
+describe('ReportsPage — team scope reads the scorecard endpoint for its charts (f09 endpoint 1: userId absent = team)', () => {
+  it('renders both On-time vs late and Cycle time trend from a team-scope scorecard fixture (subject null), and keeps "You vs team median" hidden', () => {
+    setCommonMocks({ viewReports: true, exportReports: false })
+
+    const teamScorecard = fixtureScorecard({
+      meta: { ...baseMeta(), scope: 'Team', userId: null },
+      subject: null,
+      teamMedian: null,
+    })
+    useReportScorecardQuery.mockReturnValue({ isPending: false, isError: false, isSuccess: true, isFetching: false, data: teamScorecard, refetch: vi.fn() })
+
+    const team: ReportTeam = {
+      meta: { ...baseMeta(), scope: 'Team', userId: null },
+      team: { totals: emptyTotals(), contributors: 0, unassignedOverdueMarked: 0 },
+      teamMedian: {
+        contributors: 0,
+        done: null,
+        cycleTimeMedianSeconds: null,
+        leadTimeMedianSeconds: null,
+        reviewWaitMedianSeconds: null,
+        onTimeRate: null,
+        overdueMarked: null,
+        reworkRate: null,
+        avgInProgress: null,
+        capacityUtilization: null,
+      },
+      members: [],
+      heatmap: { weeks: [], rows: [] },
+    }
+    useReportTeamQuery.mockReturnValue({ isPending: false, isError: false, isSuccess: true, isFetching: false, data: team, refetch: vi.fn() })
+
+    renderAt('/reports/team')
+
+    expect(screen.getByText('On-time vs late')).not.toBeNull()
+    expect(screen.getByText('Cycle time trend')).not.toBeNull()
+    expect(screen.queryByText('You vs team median')).toBeNull()
+  })
+
+  it('stays in the loading state until both the scorecard and the team-report query have resolved', () => {
+    setCommonMocks({ viewReports: true, exportReports: false })
+    useReportScorecardQuery.mockReturnValue({ isPending: true, isError: false, isSuccess: false, isFetching: true, data: undefined, refetch: vi.fn() })
+    useReportTeamQuery.mockReturnValue({ isPending: false, isError: false, isSuccess: true, isFetching: false, data: undefined, refetch: vi.fn() })
+
+    renderAt('/reports/team')
+
+    expect(screen.getByRole('status').textContent).toMatch(/loading report/i)
+    expect(screen.queryByText('On-time vs late')).toBeNull()
+  })
+})

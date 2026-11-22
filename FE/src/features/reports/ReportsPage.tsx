@@ -40,6 +40,16 @@ interface DrillDownState {
  * `ViewReports`/`ExportReports` policies are the real boundary;
  * `RequirePermission` (router.tsx) already keeps a Member from reaching
  * `/reports/team` or someone else's `/reports/members/:id` at all.
+ *
+ * Team scope reads **two** endpoints: `GET /reports/scorecard` with no
+ * `userId` (f09-reports.md endpoint 1 — "userId absent = team"), whose
+ * `buckets[]` drive the (a) on-time/late and (b) cycle-time-trend charts
+ * exactly like the member scope's own buckets (§11.2 point 5 lists both
+ * charts "for the pooled team" too — there was never a contract gap, only a
+ * missed call); and `GET /reports/team`, kept for the members table, pooled
+ * team totals/teamMedian and the heatmap, none of which the scorecard
+ * endpoint returns. `scorecardQuery.data.subject` is `null` at team scope
+ * (documented on the contract) and is never read for it.
  */
 export function ReportsPage() {
   const { userId: routeUserIdParam } = useParams<{ userId?: string }>()
@@ -56,13 +66,15 @@ export function ReportsPage() {
   const isOwnIdInUrl = !isTeamScope && routeUserId !== undefined && ownUserId !== null && routeUserId === ownUserId
   const targetUserId = isTeamScope ? undefined : (routeUserId ?? ownUserId ?? undefined)
 
-  // Hooks run unconditionally (rules-of-hooks) — the own-id redirect is a
-  // render-time branch below instead, same as the two queries' own
-  // `from`/`to` scope switch ('' disables the one not in use this render).
+  // The scorecard query always runs — `userId` absent is itself the team
+  // scope (f09 endpoint 1), so this is the one query that ever supplies
+  // `buckets[]`, in either scope. The team-report query additionally runs
+  // only at team scope, for the data the scorecard doesn't carry (roster,
+  // pooled totals/teamMedian, heatmap).
   const scorecardQuery = useReportScorecardQuery({
     userId: targetUserId,
-    from: isTeamScope ? '' : range.from,
-    to: isTeamScope ? '' : range.to,
+    from: range.from,
+    to: range.to,
     granularity: range.granularity,
   })
 
@@ -72,7 +84,21 @@ export function ReportsPage() {
     return <Navigate to="/reports/me" replace />
   }
 
-  const query = isTeamScope ? teamQuery : scorecardQuery
+  // At team scope both queries must resolve before the page is "ready" —
+  // the scorecard for the charts, the team report for everything else.
+  const isPending = isTeamScope ? scorecardQuery.isPending || teamQuery.isPending : scorecardQuery.isPending
+  const isError = isTeamScope ? scorecardQuery.isError || teamQuery.isError : scorecardQuery.isError
+  const error = isTeamScope ? (scorecardQuery.error ?? teamQuery.error) : scorecardQuery.error
+  const isSuccess = isTeamScope ? scorecardQuery.isSuccess && teamQuery.isSuccess : scorecardQuery.isSuccess
+  const isFetching = isTeamScope ? scorecardQuery.isFetching || teamQuery.isFetching : scorecardQuery.isFetching
+
+  function refetchAll() {
+    void scorecardQuery.refetch()
+    if (isTeamScope) {
+      void teamQuery.refetch()
+    }
+  }
+
   const meta = isTeamScope ? teamQuery.data?.meta : scorecardQuery.data?.meta
   const subjectName = isTeamScope
     ? 'Team'
@@ -82,9 +108,9 @@ export function ReportsPage() {
     setDrillDown({ title, metric, userId, from, to })
   }
 
-  const buckets = !isTeamScope ? (scorecardQuery.data?.buckets ?? []) : []
+  const buckets = scorecardQuery.data?.buckets ?? []
   const noHistory = meta !== undefined && meta.dataAvailableSince === null
-  const rangeBeforeData = !isTeamScope && buckets.length > 0 && buckets.every((bucket) => !bucket.hasData)
+  const rangeBeforeData = buckets.length > 0 && buckets.every((bucket) => !bucket.hasData)
   const memberNoActivity =
     !isTeamScope &&
     scorecardQuery.isSuccess &&
@@ -131,7 +157,7 @@ export function ReportsPage() {
         />
       )}
 
-      {query.isPending && (
+      {isPending && (
         <div className="flex flex-col gap-[var(--space-3)]" aria-busy="true">
           <p role="status" className="text-[length:var(--font-size-sm)] text-text-muted">
             Loading report…
@@ -144,13 +170,13 @@ export function ReportsPage() {
         </div>
       )}
 
-      {query.isError && (
+      {isError && (
         <div role="alert" className="flex flex-col items-start gap-[var(--space-3)] rounded-md border border-danger-border bg-danger-surface p-[var(--space-4)] text-danger">
-          <p className="m-0">{describeError(query.error)}</p>
+          <p className="m-0">{describeError(error)}</p>
           <button
             type="button"
             className="min-h-9 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-3)] text-text"
-            onClick={() => void query.refetch()}
+            onClick={refetchAll}
           >
             Try again
           </button>
@@ -160,16 +186,16 @@ export function ReportsPage() {
       {/* §11.6 "Refetch" — a filter change refetches with data already on screen; dimmed, not re-skeletoned. */}
       <div
         className="flex flex-col gap-[var(--space-4)] transition-opacity"
-        aria-busy={query.isFetching && !query.isPending}
-        style={query.isFetching && !query.isPending ? { opacity: 0.6 } : undefined}
+        aria-busy={isFetching && !isPending}
+        style={isFetching && !isPending ? { opacity: 0.6 } : undefined}
       >
-        {query.isSuccess && noHistory && (
+        {isSuccess && noHistory && (
           <p className="rounded-card-lg border border-border bg-surface p-[var(--space-4)] text-text-muted">
             No task history recorded yet. Reports appear once tasks start moving.
           </p>
         )}
 
-        {query.isSuccess && !noHistory && rangeBeforeData && meta?.dataAvailableSince != null && (
+        {isSuccess && !noHistory && rangeBeforeData && meta?.dataAvailableSince != null && (
           <div className="flex flex-col items-start gap-[var(--space-2)] rounded-card-lg border border-border bg-surface p-[var(--space-4)]">
             <p className="m-0 text-text-muted">No data in this range. Data is available from {meta.dataAvailableSince}.</p>
             <button
@@ -182,13 +208,13 @@ export function ReportsPage() {
           </div>
         )}
 
-        {query.isSuccess && !noHistory && !rangeBeforeData && memberNoActivity && (
+        {isSuccess && !noHistory && !rangeBeforeData && memberNoActivity && (
           <p className="rounded-card-lg border border-border bg-surface p-[var(--space-4)] text-text-muted">
             No recorded activity for {subjectName} in this period.
           </p>
         )}
 
-        {query.isSuccess && !noHistory && !rangeBeforeData && !isTeamScope && scorecardQuery.data !== undefined && (
+        {isSuccess && !noHistory && !rangeBeforeData && !isTeamScope && scorecardQuery.data !== undefined && (
           <>
             <ScorecardGrid
               totals={scorecardQuery.data.totals}
@@ -197,49 +223,61 @@ export function ReportsPage() {
               smallSampleThreshold={scorecardQuery.data.meta.smallSampleThreshold}
             />
 
-          <div className="grid grid-cols-1 gap-[var(--space-3)] min-[1440px]:grid-cols-2">
-            <OnTimeStackedBarChart
-              buckets={scorecardQuery.data.buckets}
-              height={280}
-              onViewTasks={(bucketStart, bucketEnd, metric) => {
-                openDrillDown(
-                  `${metric === 'OnTime' ? 'On time' : 'Late'} · ${subjectName} · ${bucketStart}–${bucketEnd}`,
-                  metric,
-                  bucketStart,
-                  bucketEnd,
-                  targetUserId,
-                )
-              }}
+            <div className="grid grid-cols-1 gap-[var(--space-3)] min-[1440px]:grid-cols-2">
+              <OnTimeStackedBarChart
+                buckets={scorecardQuery.data.buckets}
+                height={280}
+                onViewTasks={(bucketStart, bucketEnd, metric) => {
+                  openDrillDown(
+                    `${metric === 'OnTime' ? 'On time' : 'Late'} · ${subjectName} · ${bucketStart}–${bucketEnd}`,
+                    metric,
+                    bucketStart,
+                    bucketEnd,
+                    targetUserId,
+                  )
+                }}
+              />
+              <CycleTimeTrendChart buckets={scorecardQuery.data.buckets} height={280} />
+            </div>
+
+            {/* §11.2 point 5 lists "You vs team median" for the member view only — never shown at team scope. */}
+            {scorecardQuery.data.teamMedian !== null && (
+              <MemberVsTeamChart totals={scorecardQuery.data.totals} teamMedian={scorecardQuery.data.teamMedian} height={280} />
+            )}
+          </>
+        )}
+
+        {isSuccess && !noHistory && !rangeBeforeData && isTeamScope && teamQuery.data !== undefined && scorecardQuery.data !== undefined && (
+          <>
+            <ScorecardGrid
+              totals={teamQuery.data.team.totals}
+              teamMedian={teamQuery.data.teamMedian}
+              inProgressLimit={teamQuery.data.meta.inProgressLimit}
+              smallSampleThreshold={teamQuery.data.meta.smallSampleThreshold}
             />
-            <CycleTimeTrendChart buckets={scorecardQuery.data.buckets} height={280} />
-          </div>
 
-          {scorecardQuery.data.teamMedian !== null && (
-            <MemberVsTeamChart totals={scorecardQuery.data.totals} teamMedian={scorecardQuery.data.teamMedian} height={280} />
-          )}
-        </>
-      )}
+            <div className="grid grid-cols-1 gap-[var(--space-3)] min-[1440px]:grid-cols-2">
+              <OnTimeStackedBarChart
+                buckets={scorecardQuery.data.buckets}
+                height={280}
+                onViewTasks={(bucketStart, bucketEnd, metric) => {
+                  openDrillDown(
+                    `${metric === 'OnTime' ? 'On time' : 'Late'} · Team · ${bucketStart}–${bucketEnd}`,
+                    metric,
+                    bucketStart,
+                    bucketEnd,
+                    undefined,
+                  )
+                }}
+              />
+              <CycleTimeTrendChart buckets={scorecardQuery.data.buckets} height={280} />
+            </div>
 
-      {query.isSuccess && !noHistory && !rangeBeforeData && isTeamScope && teamQuery.data !== undefined && (
-        <>
-          <ScorecardGrid
-            totals={teamQuery.data.team.totals}
-            teamMedian={teamQuery.data.teamMedian}
-            inProgressLimit={teamQuery.data.meta.inProgressLimit}
-            smallSampleThreshold={teamQuery.data.meta.smallSampleThreshold}
-          />
+            <WorkloadHeatmap heatmap={teamQuery.data.heatmap} members={teamQuery.data.members} inProgressLimit={teamQuery.data.meta.inProgressLimit} />
 
-          <WorkloadHeatmap heatmap={teamQuery.data.heatmap} members={teamQuery.data.members} inProgressLimit={teamQuery.data.meta.inProgressLimit} />
-
-          {/*
-           * §11.2 point 5 lists (c) "You vs team median" for the member view
-           * only ("Team view: (a), (b) for the pooled team. (d) Workload
-           * heatmap (e) Workload vs rework") — a team has no single "you" to
-           * compare, so this chart never renders on the team scope.
-           */}
-          <WorkloadReworkScatter members={teamQuery.data.members} height={280} />
-        </>
-      )}
+            <WorkloadReworkScatter members={teamQuery.data.members} height={280} />
+          </>
+        )}
       </div>
 
       {drillDown !== null && (
