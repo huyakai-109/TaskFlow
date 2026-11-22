@@ -2,19 +2,6 @@ import { useState } from 'react'
 
 const dateFormatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' })
 
-const STORAGE_KEY = 'taskflow.reports.caveatsExpanded'
-
-function readStoredExpanded(): boolean {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    // No stored choice yet (first visit) → expanded, so §11.2's "always
-    // visible" still holds the first time anyone sees this page.
-    return raw === null ? true : raw === 'true'
-  } catch {
-    return true
-  }
-}
-
 function ChevronIcon({ expanded }: { expanded: boolean }) {
   return (
     <svg
@@ -43,29 +30,19 @@ interface CaveatsPanelProps {
 
 /**
  * §11.5 caveats, copied verbatim (the reopened-work line especially — "can
- * change, including a period you've already looked at"). Expanded by
- * default on first visit, so §11.2's "always visible" holds the first time
- * anyone opens the page — the live dark-theme check found the 7 paragraphs
- * pushing the scorecard below the fold at 1440×698, so a collapse choice is
- * now offered (same "Show table" disclosure pattern as `ChartFigure`,
- * persisted the same way `useSidebarCollapse` persists its own choice) —
- * not a reason to delete or reword a single sentence.
+ * change, including a period you've already looked at"). §C.4 (2026-11-22
+ * brief) — collapsed by default on every visit (no longer "always visible
+ * the first time": the 7 paragraphs pushed the scorecard below the fold),
+ * behind the same "Show table" disclosure pattern `ChartFigure` already
+ * uses — not a reason to delete or reword a single sentence.
+ * `dataAvailableSince` is shown separately, outside this panel, under the
+ * filters (`ReportsPage`), so it stays visible without expanding anything.
  */
 export function CaveatsPanel({ timeZone, inProgressLimit, dataAvailableSince, smallSampleThreshold }: CaveatsPanelProps) {
-  const [expanded, setExpanded] = useState(readStoredExpanded)
+  const [expanded, setExpanded] = useState(false)
 
   function toggle() {
-    setExpanded((previous) => {
-      const next = !previous
-
-      try {
-        window.localStorage.setItem(STORAGE_KEY, String(next))
-      } catch {
-        // storage unavailable — the choice just won't survive a reload
-      }
-
-      return next
-    })
+    setExpanded((previous) => !previous)
   }
 
   return (

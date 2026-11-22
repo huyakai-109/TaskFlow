@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../api/client'
-import type { ReportMetricSet, ReportScorecard, ReportTeam } from '../../api/types'
+import type { ReportMetricSet, ReportScorecard, ReportTeam, ReportTeamMedian } from '../../api/types'
 
 import { ReportsPage } from './ReportsPage'
 
@@ -51,6 +51,19 @@ function emptyTotals(): ReportMetricSet {
   }
 }
 
+function emptyTeamMedian(): ReportTeamMedian {
+  return {
+    contributors: 0,
+    done: null,
+    cycleTimeMedianSeconds: null,
+    leadTimeMedianSeconds: null,
+    reviewWaitMedianSeconds: null,
+    onTimeRate: null,
+    overdueMarked: null,
+    reworkRate: null,
+  }
+}
+
 function baseMeta() {
   return {
     scope: 'Member' as const,
@@ -74,6 +87,17 @@ function fixtureScorecard(overrides: Partial<ReportScorecard> = {}): ReportScore
     totals: emptyTotals(),
     teamMedian: null,
     buckets: [{ start: '2026-03-02', end: '2026-03-08', isPartial: false, hasData: true, metrics: emptyTotals() }],
+    ...overrides,
+  }
+}
+
+function fixtureTeam(overrides: Partial<ReportTeam> = {}): ReportTeam {
+  return {
+    meta: { ...baseMeta(), scope: 'Team', userId: null },
+    team: { totals: emptyTotals(), contributors: 0, unassignedOverdueMarked: 0 },
+    teamMedian: emptyTeamMedian(),
+    members: [],
+    heatmap: { weeks: [], rows: [] },
     ...overrides,
   }
 }
@@ -115,26 +139,15 @@ describe('ReportsPage — permission gating (Member vs Manager), per RequirePerm
 
   it('Manager/Admin: scope picker and Export button are visible on the team scope', () => {
     setCommonMocks({ viewReports: true, exportReports: true })
-    const team: ReportTeam = {
-      meta: { ...baseMeta(), scope: 'Team', userId: null },
-      team: { totals: emptyTotals(), contributors: 0, unassignedOverdueMarked: 0 },
-      teamMedian: {
-        contributors: 0,
-        done: null,
-        cycleTimeMedianSeconds: null,
-        leadTimeMedianSeconds: null,
-        reviewWaitMedianSeconds: null,
-        onTimeRate: null,
-        overdueMarked: null,
-        reworkRate: null,
-        avgInProgress: null,
-        capacityUtilization: null,
-      },
-      members: [],
-      heatmap: { weeks: [], rows: [] },
-    }
-    useReportTeamQuery.mockReturnValue({ isPending: false, isError: false, isSuccess: true, isFetching: false, data: team, refetch: vi.fn() })
-    useReportScorecardQuery.mockReturnValue({ isPending: true, isError: false, isSuccess: false, isFetching: true, data: undefined, refetch: vi.fn() })
+    useReportTeamQuery.mockReturnValue({ isPending: false, isError: false, isSuccess: true, isFetching: false, data: fixtureTeam(), refetch: vi.fn() })
+    useReportScorecardQuery.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+      isFetching: false,
+      data: fixtureScorecard({ meta: { ...baseMeta(), scope: 'Team', userId: null }, subject: null, teamMedian: null }),
+      refetch: vi.fn(),
+    })
 
     renderAt('/reports/team')
 
@@ -214,7 +227,7 @@ describe('ReportsPage — error state', () => {
 })
 
 describe('ReportsPage — team scope reads the scorecard endpoint for its charts (f09 endpoint 1: userId absent = team)', () => {
-  it('renders both On-time vs late and Cycle time trend from a team-scope scorecard fixture (subject null), and keeps "You vs team median" hidden', () => {
+  it('renders On-time vs late and Tickets by priority from a team-scope scorecard fixture (subject null); the removed cycle-time chart and the "You vs team" comparison never show', () => {
     setCommonMocks({ viewReports: true, exportReports: false })
 
     const teamScorecard = fixtureScorecard({
@@ -223,32 +236,14 @@ describe('ReportsPage — team scope reads the scorecard endpoint for its charts
       teamMedian: null,
     })
     useReportScorecardQuery.mockReturnValue({ isPending: false, isError: false, isSuccess: true, isFetching: false, data: teamScorecard, refetch: vi.fn() })
-
-    const team: ReportTeam = {
-      meta: { ...baseMeta(), scope: 'Team', userId: null },
-      team: { totals: emptyTotals(), contributors: 0, unassignedOverdueMarked: 0 },
-      teamMedian: {
-        contributors: 0,
-        done: null,
-        cycleTimeMedianSeconds: null,
-        leadTimeMedianSeconds: null,
-        reviewWaitMedianSeconds: null,
-        onTimeRate: null,
-        overdueMarked: null,
-        reworkRate: null,
-        avgInProgress: null,
-        capacityUtilization: null,
-      },
-      members: [],
-      heatmap: { weeks: [], rows: [] },
-    }
-    useReportTeamQuery.mockReturnValue({ isPending: false, isError: false, isSuccess: true, isFetching: false, data: team, refetch: vi.fn() })
+    useReportTeamQuery.mockReturnValue({ isPending: false, isError: false, isSuccess: true, isFetching: false, data: fixtureTeam(), refetch: vi.fn() })
 
     renderAt('/reports/team')
 
     expect(screen.getByText('On-time vs late')).not.toBeNull()
-    expect(screen.getByText('Cycle time trend')).not.toBeNull()
-    expect(screen.queryByText('You vs team median')).toBeNull()
+    expect(screen.getByText('Tickets by priority')).not.toBeNull()
+    expect(screen.queryByText('Cycle time trend')).toBeNull()
+    expect(screen.queryByText(/vs team average/)).toBeNull()
   })
 
   it('stays in the loading state until both the scorecard and the team-report query have resolved', () => {
@@ -260,5 +255,40 @@ describe('ReportsPage — team scope reads the scorecard endpoint for its charts
 
     expect(screen.getByRole('status').textContent).toMatch(/loading report/i)
     expect(screen.queryByText('On-time vs late')).toBeNull()
+  })
+})
+
+describe('ReportsPage — "% vs team" comparison (§E)', () => {
+  it('a Member without ViewReports sees no team comparison chart', () => {
+    setCommonMocks({ viewReports: false, exportReports: false })
+    useReportScorecardQuery.mockReturnValue({ isPending: false, isError: false, isSuccess: true, isFetching: false, data: fixtureScorecard(), refetch: vi.fn() })
+    useReportTeamQuery.mockReturnValue({ isPending: true, isError: false, isSuccess: false, isFetching: true, data: undefined, refetch: vi.fn() })
+
+    renderAt('/reports/me')
+
+    expect(screen.queryByText('You vs team average')).toBeNull()
+  })
+
+  it('a Manager/Admin viewing their own report sees the comparison once both queries resolve', () => {
+    setCommonMocks({ viewReports: true, exportReports: false })
+    const totals = emptyTotals()
+    totals.delivery.done = 5
+    useReportScorecardQuery.mockReturnValue({ isPending: false, isError: false, isSuccess: true, isFetching: false, data: fixtureScorecard({ totals }), refetch: vi.fn() })
+
+    const teamTotals = emptyTotals()
+    teamTotals.delivery.done = 20
+    useReportTeamQuery.mockReturnValue({
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+      isFetching: false,
+      data: fixtureTeam({ team: { totals: teamTotals, contributors: 5, unassignedOverdueMarked: 0 } }),
+      refetch: vi.fn(),
+    })
+
+    renderAt('/reports/me')
+
+    expect(screen.getByText('You vs team average')).not.toBeNull()
+    expect(screen.getByText('Compared with the average member who delivered in this period.')).not.toBeNull()
   })
 })

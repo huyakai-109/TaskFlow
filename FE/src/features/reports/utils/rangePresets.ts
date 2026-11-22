@@ -77,8 +77,32 @@ export function rangePresets(todayIso: string): Record<RangePresetKey, DateRange
   }
 }
 
+/** Inclusive day count of a `from`..`to` range. */
+export function rangeLengthDays(range: DateRange): number {
+  return Math.round((parseIso(range.to).getTime() - parseIso(range.from).getTime()) / 86_400_000) + 1
+}
+
 /** R14: `Day` granularity is only offered when the range is 92 days or fewer. */
 export function isDayGranularityAllowed(range: DateRange): boolean {
-  const days = Math.round((parseIso(range.to).getTime() - parseIso(range.from).getTime()) / 86_400_000) + 1
-  return days <= 92
+  return rangeLengthDays(range) <= 92
+}
+
+/**
+ * §B.5 (2026-11-22 brief) — granularity is chosen automatically from the
+ * range length, never left to default to a fixed value regardless of span:
+ * ≤31 days = Day, ≤92 days = Week, otherwise Month. A "Group by" control
+ * still lets the user override this manually; this is only the default.
+ */
+export function autoGranularity(range: DateRange): 'Day' | 'Week' | 'Month' {
+  const days = rangeLengthDays(range)
+
+  if (days <= 31) {
+    return 'Day'
+  }
+
+  if (days <= 92) {
+    return 'Week'
+  }
+
+  return 'Month'
 }

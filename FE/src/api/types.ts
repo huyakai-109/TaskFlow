@@ -283,12 +283,12 @@ export interface ReportMetricSet {
     reworkRate: ReportRate
     reopenedAfterDone: number
   }
-  /** `null` when the bucket's `hasData` is false. */
-  load: { avgInProgress: number; capacityUtilization: number } | null
+  /** `null` when the bucket's `hasData` is false. Replaces `avgInProgress`/`capacityUtilization` (2026-11-22, R8 — user decision: ticket counts, not time-weighted averages). */
+  load: { ticketsWorked: number } | null
   attribution: { takeOvers: number; takenFrom: number }
 }
 
-/** `TeamMedian` — the per-member comparison line, `null` for team scope and for a caller without `ViewReports` (f09 Q3). */
+/** `TeamMedian` — the per-member comparison line, `null` for team scope and for a caller without `ViewReports` (f09 Q3). No `avgInProgress`/`capacityUtilization` (2026-11-22, R8 — moot, there is nothing to average or divide by the limit any more). */
 export interface ReportTeamMedian {
   contributors: number
   done: number | null
@@ -298,8 +298,6 @@ export interface ReportTeamMedian {
   onTimeRate: number | null
   overdueMarked: number | null
   reworkRate: number | null
-  avgInProgress: number | null
-  capacityUtilization: number | null
 }
 
 export interface ReportSubject {
@@ -349,7 +347,8 @@ export interface ReportTeam {
   members: { user: ReportSubject; totals: ReportMetricSet }[]
   heatmap: {
     weeks: { start: string; end: string; isPartial: boolean }[]
-    rows: { userId: number; avgInProgress: (number | null)[] }[]
+    /** Integer ticket counts per week, `null` = no data (2026-11-22, R8 — replaces `avgInProgress`). */
+    rows: { userId: number; ticketsWorked: (number | null)[] }[]
   }
 }
 

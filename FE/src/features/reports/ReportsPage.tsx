@@ -2,24 +2,26 @@ import { useState } from 'react'
 import { Navigate, useLocation, useParams } from 'react-router-dom'
 
 import { describeError } from '../../api/errorMessages'
-import type { ReportTaskMetric } from '../../api/types'
+import type { ReportTaskMetric, ReportTeam } from '../../api/types'
 import { useAuthSession } from '../../shared/hooks/useAuthSession'
 import { useHasPermission } from '../../shared/hooks/useHasPermission'
 import { useUsersQuery } from '../../shared/hooks/useUsersQuery'
 
 import { CaveatsPanel } from './components/CaveatsPanel'
-import { CycleTimeTrendChart } from './components/CycleTimeTrendChart'
 import { DrillDownDialog } from './components/DrillDownDialog'
 import { ExportMenu } from './components/ExportMenu'
-import { MemberVsTeamChart } from './components/MemberVsTeamChart'
 import { OnTimeStackedBarChart } from './components/OnTimeStackedBarChart'
 import { ReportFilterBar } from './components/ReportFilterBar'
 import { ScorecardGrid } from './components/ScorecardGrid'
+import type { ScorecardTeamComparison } from './components/ScorecardGrid'
+import { TeamComparisonChart } from './components/TeamComparisonChart'
+import { TicketsByPriorityChart } from './components/TicketsByPriorityChart'
 import { WorkloadHeatmap } from './components/WorkloadHeatmap'
 import { WorkloadReworkScatter } from './components/WorkloadReworkScatter'
 import { useReportRange } from './hooks/useReportRange'
 import { useReportScorecardQuery } from './hooks/useReportScorecardQuery'
 import { useReportTeamQuery } from './hooks/useReportTeamQuery'
+import { percentVsTeam } from './utils/reportComparison'
 
 const granularityLabel: Record<string, string> = { Day: 'Daily', Week: 'Weekly', Month: 'Monthly', Quarter: 'Quarterly' }
 
@@ -29,6 +31,11 @@ interface DrillDownState {
   metric: ReportTaskMetric
   from: string
   to: string
+}
+
+/** §E — count of roster members with `ticketsWorked >= 1` (the equivalent of R12's `contributors`, which the contract only defines for `done`). */
+function ticketsContributors(members: ReportTeam['members']): number {
+  return members.filter((member) => (member.totals.load?.ticketsWorked ?? 0) >= 1).length
 }
 
 /**
@@ -43,13 +50,14 @@ interface DrillDownState {
  *
  * Team scope reads **two** endpoints: `GET /reports/scorecard` with no
  * `userId` (f09-reports.md endpoint 1 — "userId absent = team"), whose
- * `buckets[]` drive the (a) on-time/late and (b) cycle-time-trend charts
- * exactly like the member scope's own buckets (§11.2 point 5 lists both
- * charts "for the pooled team" too — there was never a contract gap, only a
- * missed call); and `GET /reports/team`, kept for the members table, pooled
+ * `buckets[]` drive the on-time/late chart exactly like the member scope's
+ * own buckets; and `GET /reports/team`, kept for the members table, pooled
  * team totals/teamMedian and the heatmap, none of which the scorecard
- * endpoint returns. `scorecardQuery.data.subject` is `null` at team scope
- * (documented on the contract) and is never read for it.
+ * endpoint returns. A member scope with `ViewReports` also reads
+ * `GET /reports/team` a second time (same range) purely for the "% vs team
+ * average" comparison (§E) — fetched opportunistically, never gating the
+ * page's own loading/error state, since the scorecard alone is enough to
+ * show the report.
  */
 export function ReportsPage() {
   const { userId: routeUserIdParam } = useParams<{ userId?: string }>()
@@ -68,9 +76,7 @@ export function ReportsPage() {
 
   // The scorecard query always runs — `userId` absent is itself the team
   // scope (f09 endpoint 1), so this is the one query that ever supplies
-  // `buckets[]`, in either scope. The team-report query additionally runs
-  // only at team scope, for the data the scorecard doesn't carry (roster,
-  // pooled totals/teamMedian, heatmap).
+  // `buckets[]`, in either scope.
   const scorecardQuery = useReportScorecardQuery({
     userId: targetUserId,
     from: range.from,
@@ -78,14 +84,19 @@ export function ReportsPage() {
     granularity: range.granularity,
   })
 
-  const teamQuery = useReportTeamQuery({ from: isTeamScope ? range.from : '', to: isTeamScope ? range.to : '' })
+  // Runs at team scope (for the roster/heatmap/pooled totals) and, with
+  // `ViewReports`, at member scope too (for the "% vs team" comparison) —
+  // never for a Member without the permission (§E: "none for a Member
+  // without ViewReports").
+  const teamQuery = useReportTeamQuery({ from: canViewReports ? range.from : '', to: canViewReports ? range.to : '' })
 
   if (isOwnIdInUrl) {
     return <Navigate to="/reports/me" replace />
   }
 
   // At team scope both queries must resolve before the page is "ready" —
-  // the scorecard for the charts, the team report for everything else.
+  // the scorecard for the charts, the team report for everything else. At
+  // member scope the team query is opportunistic only (see above).
   const isPending = isTeamScope ? scorecardQuery.isPending || teamQuery.isPending : scorecardQuery.isPending
   const isError = isTeamScope ? scorecardQuery.isError || teamQuery.isError : scorecardQuery.isError
   const error = isTeamScope ? (scorecardQuery.error ?? teamQuery.error) : scorecardQuery.error
@@ -119,13 +130,25 @@ export function ReportsPage() {
     scorecardQuery.data.totals.attribution.takeOvers === 0 &&
     scorecardQuery.data.totals.attribution.takenFrom === 0
 
+  const teamComparison: ScorecardTeamComparison | null =
+    !isTeamScope && canViewReports && scorecardQuery.data !== undefined && teamQuery.data !== undefined
+      ? {
+          done: percentVsTeam(scorecardQuery.data.totals.delivery.done, teamQuery.data.team.totals.delivery.done, teamQuery.data.team.contributors),
+          ticketsWorked: percentVsTeam(
+            scorecardQuery.data.totals.load?.ticketsWorked ?? 0,
+            teamQuery.data.team.totals.load?.ticketsWorked ?? 0,
+            ticketsContributors(teamQuery.data.members),
+          ),
+        }
+      : null
+
   return (
     <section className="mx-auto flex w-full max-w-[1680px] flex-col gap-[var(--space-4)]">
       <div className="flex flex-wrap items-center justify-between gap-[var(--space-3)]">
         <div>
           <h1 className="m-0 text-[length:var(--font-size-xl)] font-semibold">Reports</h1>
           <p className="m-0 mt-[var(--space-1)] text-[length:var(--font-size-sm)] text-text-muted">
-            {subjectName} · {range.from}–{range.to} · {isTeamScope ? 'Weekly' : (granularityLabel[range.granularity] ?? range.granularity)}
+            {subjectName} · {range.from}–{range.to} · {granularityLabel[range.granularity] ?? range.granularity}
           </p>
         </div>
         {canExport && meta !== undefined && (
@@ -140,6 +163,8 @@ export function ReportsPage() {
         ownUserId={ownUserId ?? 0}
         range={{ from: range.from, to: range.to }}
         today={range.today}
+        dataAvailableSince={meta?.dataAvailableSince ?? null}
+        generatedAt={meta?.generatedAt ?? null}
         granularity={range.granularity}
         isTeamScope={isTeamScope}
         dayGranularityAllowed={range.dayGranularityAllowed}
@@ -219,8 +244,8 @@ export function ReportsPage() {
             <ScorecardGrid
               totals={scorecardQuery.data.totals}
               teamMedian={scorecardQuery.data.teamMedian}
-              inProgressLimit={scorecardQuery.data.meta.inProgressLimit}
               smallSampleThreshold={scorecardQuery.data.meta.smallSampleThreshold}
+              teamComparison={teamComparison}
             />
 
             <div className="grid grid-cols-1 gap-[var(--space-3)] min-[1440px]:grid-cols-2">
@@ -237,12 +262,22 @@ export function ReportsPage() {
                   )
                 }}
               />
-              <CycleTimeTrendChart buckets={scorecardQuery.data.buckets} height={280} />
+              <TicketsByPriorityChart
+                urgent={scorecardQuery.data.totals.delivery.byPriority.urgent}
+                high={scorecardQuery.data.totals.delivery.byPriority.high}
+                normal={scorecardQuery.data.totals.delivery.byPriority.normal}
+                height={280}
+              />
             </div>
 
-            {/* §11.2 point 5 lists "You vs team median" for the member view only — never shown at team scope. */}
-            {scorecardQuery.data.teamMedian !== null && (
-              <MemberVsTeamChart totals={scorecardQuery.data.totals} teamMedian={scorecardQuery.data.teamMedian} height={280} />
+            {/* §E — a team's own report has no single "you" to compare, so this never renders at team scope; a Member without ViewReports never gets `teamComparison` at all. */}
+            {teamComparison !== null && (
+              <>
+                <TeamComparisonChart done={teamComparison.done} ticketsWorked={teamComparison.ticketsWorked} height={220} />
+                <p className="m-0 text-[length:var(--font-size-2xs)] text-text-muted">
+                  Compared with the average member who delivered in this period.
+                </p>
+              </>
             )}
           </>
         )}
@@ -252,8 +287,8 @@ export function ReportsPage() {
             <ScorecardGrid
               totals={teamQuery.data.team.totals}
               teamMedian={teamQuery.data.teamMedian}
-              inProgressLimit={teamQuery.data.meta.inProgressLimit}
               smallSampleThreshold={teamQuery.data.meta.smallSampleThreshold}
+              teamComparison={null}
             />
 
             <div className="grid grid-cols-1 gap-[var(--space-3)] min-[1440px]:grid-cols-2">
@@ -270,10 +305,15 @@ export function ReportsPage() {
                   )
                 }}
               />
-              <CycleTimeTrendChart buckets={scorecardQuery.data.buckets} height={280} />
+              <TicketsByPriorityChart
+                urgent={teamQuery.data.team.totals.delivery.byPriority.urgent}
+                high={teamQuery.data.team.totals.delivery.byPriority.high}
+                normal={teamQuery.data.team.totals.delivery.byPriority.normal}
+                height={280}
+              />
             </div>
 
-            <WorkloadHeatmap heatmap={teamQuery.data.heatmap} members={teamQuery.data.members} inProgressLimit={teamQuery.data.meta.inProgressLimit} />
+            <WorkloadHeatmap heatmap={teamQuery.data.heatmap} members={teamQuery.data.members} />
 
             <WorkloadReworkScatter members={teamQuery.data.members} height={280} />
           </>

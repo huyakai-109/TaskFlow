@@ -16,7 +16,7 @@ interface WorkloadReworkScatterProps {
 
 const SMALL_SAMPLE_DENOMINATOR_THRESHOLD = 5
 
-/** §11.2 chart (e), team view only — one point per member, x = average in progress, y = rework rate. */
+/** §11.2 chart (e), team view only — one point per member, x = tickets worked (integer, §D.3 — replaces average in progress), y = rework rate. */
 export function WorkloadReworkScatter({ members, height }: WorkloadReworkScatterProps) {
   const navigate = useNavigate()
   const reducedMotion = useReducedMotion()
@@ -26,7 +26,7 @@ export function WorkloadReworkScatter({ members, height }: WorkloadReworkScatter
     .map((member) => ({
       userId: member.user.id,
       name: member.user.displayName ?? member.user.userName,
-      x: member.totals.load!.avgInProgress,
+      x: member.totals.load!.ticketsWorked,
       y: member.totals.quality.reworkRate.value ?? 0,
       lowSample: member.totals.quality.reworkRate.denominator < SMALL_SAMPLE_DENOMINATOR_THRESHOLD,
     }))
@@ -42,7 +42,7 @@ export function WorkloadReworkScatter({ members, height }: WorkloadReworkScatter
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart accessibilityLayer margin={{ left: 8, bottom: 8 }}>
             <CartesianGrid stroke="var(--color-border)" />
-            <XAxis type="number" dataKey="x" name="Avg in progress" stroke="var(--color-text-muted)" fontSize={11} />
+            <XAxis type="number" dataKey="x" name="Tickets worked" stroke="var(--color-text-muted)" fontSize={11} allowDecimals={false} />
             <YAxis
               type="number"
               dataKey="y"
@@ -84,11 +84,11 @@ export function WorkloadReworkScatter({ members, height }: WorkloadReworkScatter
       }
       table={
         <table className="w-full min-w-[420px] border-collapse text-[length:var(--font-size-sm)]">
-          <caption className="sr-only">Average in-progress load vs rework rate per member</caption>
+          <caption className="sr-only">Tickets worked vs rework rate per member</caption>
           <thead>
             <tr className="border-b border-border text-left text-text-muted">
               <th scope="col" className="py-[var(--space-1)]">Member</th>
-              <th scope="col" className="py-[var(--space-1)]">Avg in progress</th>
+              <th scope="col" className="py-[var(--space-1)]">Tickets worked</th>
               <th scope="col" className="py-[var(--space-1)]">Rework rate</th>
               <th scope="col" className="py-[var(--space-1)]">View</th>
             </tr>
@@ -100,7 +100,7 @@ export function WorkloadReworkScatter({ members, height }: WorkloadReworkScatter
                   {row.name}
                   {row.lowSample && <span className="text-text-muted"> (few data)</span>}
                 </th>
-                <td className="py-[var(--space-1)]">{row.x.toFixed(1)}</td>
+                <td className="py-[var(--space-1)]">{row.x}</td>
                 <td className="py-[var(--space-1)]">{formatRate(row.y)}</td>
                 <td className="py-[var(--space-1)]">
                   <button

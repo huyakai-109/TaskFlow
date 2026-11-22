@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { isDayGranularityAllowed, rangePresets } from './rangePresets'
+import { autoGranularity, isDayGranularityAllowed, rangePresets } from './rangePresets'
 
 const TODAY = '2026-03-11' // Wednesday
 
@@ -24,5 +24,23 @@ describe('isDayGranularityAllowed', () => {
 
   it('disables Day for a 93-day range', () => {
     expect(isDayGranularityAllowed({ from: '2026-01-01', to: '2026-04-03' })).toBe(false)
+  })
+})
+
+describe('autoGranularity — thresholds at 31/32/92/93 days (§B.5)', () => {
+  it('Day for a 31-day range (the inclusive boundary)', () => {
+    expect(autoGranularity({ from: '2026-01-01', to: '2026-01-31' })).toBe('Day')
+  })
+
+  it('Week for a 32-day range (just over the Day boundary)', () => {
+    expect(autoGranularity({ from: '2026-01-01', to: '2026-02-01' })).toBe('Week')
+  })
+
+  it('Week for a 92-day range (the inclusive boundary)', () => {
+    expect(autoGranularity({ from: '2026-01-01', to: '2026-04-02' })).toBe('Week')
+  })
+
+  it('Month for a 93-day range (just over the Week boundary)', () => {
+    expect(autoGranularity({ from: '2026-01-01', to: '2026-04-03' })).toBe('Month')
   })
 })
