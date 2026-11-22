@@ -265,7 +265,7 @@ namespace TaskFlow.BusinessLogic.Services
                 var activeCount = await CountActiveInProgress(targetAssignee!.Id, task.Id);
                 if (activeCount >= _maxInProgressPerAssignee)
                 {
-                    var message = string.Format(TaskControllerMS.Templates.CapacityReached, targetAssignee.UserName, _maxInProgressPerAssignee);
+                    var message = string.Format(TaskControllerMS.Templates.CapacityReached, DisplayNameOrUserName(targetAssignee), _maxInProgressPerAssignee);
                     return (TaskControllerMS.Move.CapacityReached, null, message);
                 }
 
@@ -711,7 +711,7 @@ namespace TaskFlow.BusinessLogic.Services
                 var activeCount = await CountActiveInProgress(targetAssignee!.Id, task.Id);
                 if (activeCount >= _maxInProgressPerAssignee)
                 {
-                    var message = string.Format(TaskControllerMS.Templates.CapacityReached, targetAssignee.UserName, _maxInProgressPerAssignee);
+                    var message = string.Format(TaskControllerMS.Templates.CapacityReached, DisplayNameOrUserName(targetAssignee), _maxInProgressPerAssignee);
                     return (TaskControllerMS.Assign.CapacityReached, null, message);
                 }
 
@@ -1126,6 +1126,14 @@ namespace TaskFlow.BusinessLogic.Services
         private DateOnly TodayInZone()
         {
             return DateTimeHelper.GetDtOffset().ToDateInZone(_timeZone);
+        }
+
+        // User-facing messages name people by DisplayName, falling back to
+        // UserName when it is unset or blank - a changed display name must
+        // not leave a stale username in a dialog the user already saw once.
+        private static string DisplayNameOrUserName(User user)
+        {
+            return string.IsNullOrWhiteSpace(user.DisplayName) ? user.UserName : user.DisplayName;
         }
 
         private static TaskDetailResDto BuildDetail(TaskItem task, string? assigneeUserName, long actorUserId, string[] callerPermissions)

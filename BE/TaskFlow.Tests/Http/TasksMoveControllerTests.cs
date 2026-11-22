@@ -663,6 +663,37 @@ namespace TaskFlow.Tests.Http
         }
 
         [Fact]
+        public async Task Move_Refuses_FourthTask_WhenAssigneeHasThreeInProgress_NamesAssigneeByDisplayName_WhenSet()
+        {
+            // Bug fix: the capacity message must follow a changed display name,
+            // not keep showing the (stale) username.
+            var mover = await CreateAuthenticatedClientAsync("Manager");
+            var assignee = await CreateAuthenticatedClientAsync("Member");
+            for (var i = 0; i < 3; i++)
+            {
+                await CreateInProgressTaskAsync(mover.Client, assignee);
+            }
+
+            const string displayName = "Renamed Member";
+            await using (var context = _dbFixture.CreateContext())
+            {
+                var assigneeUser = await context.Set<User>().SingleAsync(u => u.Id == assignee.UserId);
+                assigneeUser.DisplayName = displayName;
+                await context.SaveChangesAsync();
+            }
+
+            var fourth = await CreateTaskAsync(mover.Client, assignee.UserId);
+            var atTodo = await MoveAsync(mover.Client, fourth.Id, TaskWorkflowStatus.Todo, fourth.Version);
+
+            var response = await assignee.Client.PutAsJsonAsync($"api/v1/tasks/{fourth.Id}/status", new { status = "InProgress", version = atTodo.Version });
+            var body = await response.Content.ReadFromJsonAsync<ResultRes<TaskDetailRes>>(JsonOptions);
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            Assert.Equal(TaskControllerMS.Move.CapacityReached, body!.ErrorCode);
+            Assert.Equal($"{displayName} already has 3 tasks in progress, which is the limit.", body.Error);
+        }
+
+        [Fact]
         public async Task Move_Allows_WhenAssigneeHasNoTasksAtAll()
         {
             // AC3
