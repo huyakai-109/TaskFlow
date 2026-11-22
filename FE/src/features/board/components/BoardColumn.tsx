@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import type { ReactNode } from 'react'
 
 import type { PaginationRes, TaskStatus, TaskSummary } from '../../../api/types'
+import { Button } from '../../../shared/components/Button'
 
 import { TaskCard } from './TaskCard'
 
@@ -91,14 +92,9 @@ export function BoardColumn({
         items.map((task) => <TaskCard key={task.id} task={task} onMove={onMove} onTakeOver={onTakeOver} />)
       )}
       {hasMore && (
-        <button
-          type="button"
-          className="mt-[var(--space-2)] min-h-10 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-3)] text-[length:var(--font-size-sm)] font-medium text-text hover:border-accent hover:bg-accent-soft hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60"
-          onClick={onLoadMore}
-          disabled={isLoadingMore}
-        >
+        <Button type="button" className="mt-[var(--space-2)]" loading={isLoadingMore} onClick={onLoadMore}>
           {isLoadingMore ? 'Loading…' : `Show more (${items.length} of ${totalItems})`}
-        </button>
+        </Button>
       )}
     </section>
   )

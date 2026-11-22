@@ -4,6 +4,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 
 import { ApiError } from '../../api/client'
 import { describeLoginError, LOGIN_INVALID_CREDENTIAL, LOGIN_WILL_LOCK_OUT } from '../../api/errorMessages'
+import { Button } from '../../shared/components/Button'
 import { useAuthSession } from '../../shared/hooks/useAuthSession'
 import { consumeLogoutReason } from '../../shared/lib/authSession'
 
@@ -178,13 +179,9 @@ export function LoginPage() {
           />
         </div>
 
-        <button
-          type="submit"
-          className="min-h-11 cursor-pointer rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={mutation.isPending}
-        >
+        <Button type="submit" variant="primary" size="lg" loading={mutation.isPending}>
           {mutation.isPending ? 'Signing in…' : 'Sign in'}
-        </button>
+        </Button>
       </form>
     </div>
   )

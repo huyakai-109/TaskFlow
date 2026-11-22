@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 
 import { describeError } from '../../../api/errorMessages'
 import type { ReportTaskMetric } from '../../../api/types'
+import { Button } from '../../../shared/components/Button'
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 
@@ -69,9 +70,9 @@ export function DrillDownDialog({ title, userId, from, to, metric, onClose }: Dr
         {query.isError && (
           <div role="alert" className="flex flex-col items-start gap-[var(--space-2)] rounded-md border border-danger-border bg-danger-surface p-[var(--space-3)] text-danger">
             <p className="m-0">{describeError(query.error)}</p>
-            <button type="button" className="cursor-pointer underline" onClick={() => void query.refetch()}>
+            <Button type="button" size="sm" onClick={() => void query.refetch()}>
               Try again
-            </button>
+            </Button>
           </div>
         )}
 
@@ -108,14 +109,9 @@ export function DrillDownDialog({ title, userId, from, to, metric, onClose }: Dr
         )}
 
         {query.hasNextPage === true && (
-          <button
-            type="button"
-            className="min-h-9 cursor-pointer self-start rounded-md border border-border bg-surface px-[var(--space-3)] text-[length:var(--font-size-sm)] text-text hover:bg-column disabled:opacity-60"
-            disabled={query.isFetchingNextPage}
-            onClick={() => void query.fetchNextPage()}
-          >
+          <Button type="button" size="sm" className="self-start" loading={query.isFetchingNextPage} onClick={() => void query.fetchNextPage()}>
             {query.isFetchingNextPage ? 'Loading…' : 'Show more'}
-          </button>
+          </Button>
         )}
       </aside>
     </div>

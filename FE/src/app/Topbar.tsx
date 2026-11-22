@@ -6,6 +6,7 @@ import { BOARD_COLUMNS } from '../api/types'
 import { NewTaskDialog } from '../features/board/components/NewTaskDialog'
 import { BoardSearch } from '../features/board/components/BoardSearch'
 import { NotificationBell } from '../features/notifications/components/NotificationBell'
+import { Button } from '../shared/components/Button'
 import { ThemeToggle } from '../shared/components/ThemeToggle'
 import { useAuthSession } from '../shared/hooks/useAuthSession'
 import { useBoardQuery } from '../shared/hooks/useBoardQuery'
@@ -132,9 +133,11 @@ export function Topbar({ onOpenMobileMenu, mobileMenuButtonRef }: TopbarProps) {
         <div className="max-[440px]:hidden">
           <BoardSearch tasks={tasks} mayBeIncomplete={mayBeIncomplete} />
         </div>
-        <button
+        <Button
           type="button"
-          className="inline-flex min-h-9 cursor-pointer items-center gap-[var(--space-2)] rounded-control-lg border-0 bg-accent px-[var(--space-3)] font-semibold text-on-accent hover:bg-accent-hover max-[600px]:px-[var(--space-2)]"
+          variant="primary"
+          size="sm"
+          className="max-[600px]:px-[var(--space-2)]"
           onClick={() => setCreateOpen(true)}
         >
           <span className="max-[480px]:hidden">New task</span>
@@ -144,7 +147,7 @@ export function Topbar({ onOpenMobileMenu, mobileMenuButtonRef }: TopbarProps) {
           >
             C
           </kbd>
-        </button>
+        </Button>
         <ThemeToggle />
         <NotificationBell />
       </div>

@@ -3,6 +3,7 @@ import { Navigate, useLocation, useParams } from 'react-router-dom'
 
 import { describeError } from '../../api/errorMessages'
 import type { ReportTaskMetric, ReportTeam } from '../../api/types'
+import { Button } from '../../shared/components/Button'
 import { useAuthSession } from '../../shared/hooks/useAuthSession'
 import { useHasPermission } from '../../shared/hooks/useHasPermission'
 import { useUsersQuery } from '../../shared/hooks/useUsersQuery'
@@ -209,13 +210,9 @@ export function ReportsPage() {
       {isError && (
         <div role="alert" className="flex flex-col items-start gap-[var(--space-3)] rounded-md border border-danger-border bg-danger-surface p-[var(--space-4)] text-danger">
           <p className="m-0">{describeError(error)}</p>
-          <button
-            type="button"
-            className="min-h-9 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-3)] text-text"
-            onClick={refetchAll}
-          >
+          <Button type="button" size="sm" onClick={refetchAll}>
             Try again
-          </button>
+          </Button>
         </div>
       )}
 
@@ -234,13 +231,9 @@ export function ReportsPage() {
         {isSuccess && !noHistory && rangeBeforeData && meta?.dataAvailableSince != null && (
           <div className="flex flex-col items-start gap-[var(--space-2)] rounded-card-lg border border-border bg-surface p-[var(--space-4)]">
             <p className="m-0 text-text-muted">No data in this range. Data is available from {meta.dataAvailableSince}.</p>
-            <button
-              type="button"
-              className="cursor-pointer rounded-md border border-border bg-column px-[var(--space-3)] py-[var(--space-2)] text-text"
-              onClick={() => range.setRange({ from: meta.dataAvailableSince!, to: range.to })}
-            >
+            <Button type="button" size="sm" onClick={() => range.setRange({ from: meta.dataAvailableSince!, to: range.to })}>
               Start from {meta.dataAvailableSince}
-            </button>
+            </Button>
           </div>
         )}
 

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { describeError } from '../../api/errorMessages'
 import { ComingSoon } from '../../shared/components/ComingSoon'
 import { Avatar } from '../../shared/components/Avatar'
+import { Button } from '../../shared/components/Button'
 import { PriorityIcon } from '../../shared/components/PriorityIcon'
 import { useComingSoon } from '../../shared/hooks/useComingSoon'
 import { useUsersQuery } from '../../shared/hooks/useUsersQuery'
@@ -99,9 +100,9 @@ export function OverdueListPage() {
           role="alert"
         >
           <p>{describeError(query.error)}</p>
-          <button type="button" onClick={() => query.refetch()}>
+          <Button type="button" onClick={() => query.refetch()}>
             Try again
-          </button>
+          </Button>
         </div>
       )}
 
@@ -199,14 +200,9 @@ export function OverdueListPage() {
           </p>
 
           {hasMore && (
-            <button
-              type="button"
-              className="min-h-10 cursor-pointer self-start rounded-md border border-border bg-surface px-[var(--space-3)] text-[length:var(--font-size-sm)] font-medium text-text hover:border-accent hover:bg-accent-soft hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60"
-              onClick={() => query.fetchNextPage()}
-              disabled={query.isFetchingNextPage}
-            >
+            <Button type="button" className="self-start" loading={query.isFetchingNextPage} onClick={() => query.fetchNextPage()}>
               {query.isFetchingNextPage ? 'Loading…' : `Show more (${items.length} of ${totalItems})`}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -288,16 +284,16 @@ export function OverdueListPage() {
         )}
 
         {dueTodayHasMoreToScan && (
-          <button
+          <Button
             type="button"
-            className="min-h-10 cursor-pointer self-start rounded-md border border-border bg-surface px-[var(--space-3)] text-[length:var(--font-size-sm)] font-medium text-text hover:border-accent hover:bg-accent-soft hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60"
+            className="self-start"
+            loading={dueTodayQuery.isFetchingNextPage}
             onClick={() => dueTodayQuery.fetchNextPage()}
-            disabled={dueTodayQuery.isFetchingNextPage}
           >
             {dueTodayQuery.isFetchingNextPage
               ? 'Checking…'
               : `Check more non-overdue tasks for "due today" (checked ${nonOverdueScanned.length} of ${nonOverdueTotal})`}
-          </button>
+          </Button>
         )}
       </div>
 

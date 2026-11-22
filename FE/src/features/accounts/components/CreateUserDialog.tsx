@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { ApiError } from '../../../api/client'
 import { describeErrorCode } from '../../../api/errorMessages'
 import type { AccountRole } from '../../../api/types'
+import { Button } from '../../../shared/components/Button'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 import { fieldErrorMap } from '../../../shared/lib/fieldErrors'
 
@@ -124,21 +125,12 @@ export function CreateUserDialog({ onClose, onCreated }: CreateUserDialogProps) 
         </div>
 
         <div className="flex gap-[var(--space-3)]">
-          <button
-            type="submit"
-            className="min-h-11 cursor-pointer rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={mutation.isPending}
-          >
+          <Button type="submit" variant="primary" size="lg" loading={mutation.isPending}>
             {mutation.isPending ? 'Creating…' : 'Create account'}
-          </button>
-          <button
-            type="button"
-            className="min-h-11 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-4)] font-medium text-text"
-            onClick={onClose}
-            disabled={mutation.isPending}
-          >
+          </Button>
+          <Button type="button" size="lg" onClick={onClose} disabled={mutation.isPending}>
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
     </div>

@@ -4,6 +4,7 @@ import { describeError } from '../../api/errorMessages'
 import type { AccountRole, UserListItem } from '../../api/types'
 import type { CreatedUser } from '../../api/users'
 import { Avatar } from '../../shared/components/Avatar'
+import { Button } from '../../shared/components/Button'
 import { useAuthSession } from '../../shared/hooks/useAuthSession'
 import { useUsersQuery } from '../../shared/hooks/useUsersQuery'
 import { MoveToast } from '../../shared/components/MoveToast'
@@ -18,9 +19,6 @@ import {
 } from './hooks/useAccountMutations'
 
 const ROLES: AccountRole[] = ['Member', 'Manager', 'Admin']
-
-const buttonClass =
-  'min-h-9 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-3)] text-[length:var(--font-size-sm)] font-medium text-text hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-60'
 
 /**
  * Admin-only account administration (`docs/features/f08-accounts-profile.md`
@@ -82,9 +80,9 @@ export function AccountsPage() {
     <section className="flex flex-col gap-[var(--space-4)]">
       <div className="flex items-center justify-between gap-[var(--space-3)]">
         <h1 className="m-0 text-[length:var(--font-size-display)] font-semibold">Accounts</h1>
-        <button type="button" className="min-h-10 cursor-pointer rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent" onClick={() => setCreateOpen(true)}>
+        <Button type="button" variant="primary" onClick={() => setCreateOpen(true)}>
           New account
-        </button>
+        </Button>
       </div>
 
       {usersQuery.isPending && (
@@ -96,9 +94,9 @@ export function AccountsPage() {
       {usersQuery.isError && (
         <div role="alert" className="flex flex-col items-start gap-[var(--space-3)] rounded-md border border-danger-border bg-danger-surface p-[var(--space-4)] text-danger">
           <p className="m-0">{describeError(usersQuery.error)}</p>
-          <button type="button" className={buttonClass} onClick={() => usersQuery.refetch()}>
+          <Button type="button" size="sm" onClick={() => usersQuery.refetch()}>
             Try again
-          </button>
+          </Button>
         </div>
       )}
 
@@ -152,18 +150,18 @@ export function AccountsPage() {
                   </td>
                   <td className="py-[var(--space-2)]">
                     <span className="flex flex-wrap gap-[var(--space-2)]">
-                      <button
+                      <Button
                         type="button"
-                        className={buttonClass}
+                        size="sm"
                         disabled={isRowPending || isSelf}
                         title={isSelf ? 'You cannot deactivate your own account' : undefined}
                         onClick={() => handleToggleActive(user)}
                       >
                         {user.isActive ? 'Deactivate' : 'Reactivate'}
-                      </button>
-                      <button type="button" className={buttonClass} disabled={isRowPending} onClick={() => handleResetPassword(user)}>
+                      </Button>
+                      <Button type="button" size="sm" disabled={isRowPending} onClick={() => handleResetPassword(user)}>
                         Reset password
-                      </button>
+                      </Button>
                     </span>
                   </td>
                 </tr>

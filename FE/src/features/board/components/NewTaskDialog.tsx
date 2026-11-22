@@ -7,6 +7,7 @@ import { describeError } from '../../../api/errorMessages'
 import type { CreateTaskInput } from '../../../api/tasks'
 import type { TaskPriority } from '../../../api/types'
 import { AssigneeSelect } from '../../../shared/components/AssigneeSelect'
+import { Button } from '../../../shared/components/Button'
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { useAuthSession } from '../../../shared/hooks/useAuthSession'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
@@ -271,18 +272,15 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
 
         <div className="flex flex-wrap items-center gap-[var(--space-3)]">
           <span className={hintClass}>New tasks start in Backlog</span>
-          <button
-            type="button"
-            className="min-h-11 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-4)] font-medium text-text disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={onClose}
-            disabled={mutation.isPending}
-          >
+          <Button type="button" size="lg" onClick={onClose} disabled={mutation.isPending}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            className="ml-auto inline-flex min-h-11 cursor-pointer items-center gap-[var(--space-2)] rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60 max-[600px]:ml-0"
-            disabled={mutation.isPending}
+            variant="primary"
+            size="lg"
+            className="ml-auto max-[600px]:ml-0"
+            loading={mutation.isPending}
           >
             {mutation.isPending ? 'Creating…' : 'Create task'}
             {!mutation.isPending && (
@@ -293,7 +291,7 @@ export function NewTaskDialog({ onClose, onCreated }: NewTaskDialogProps) {
                 ⌘↵
               </kbd>
             )}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

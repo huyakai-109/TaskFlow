@@ -8,6 +8,7 @@ import { BOARD_COLUMNS } from '../../api/types'
 import type { BoardSort, TaskStatus, TaskSummary } from '../../api/types'
 import { describeError, describeErrorCode } from '../../api/errorMessages'
 import { AssignAndMoveDialog } from '../../shared/components/AssignAndMoveDialog'
+import { Button } from '../../shared/components/Button'
 import { MoveRefusalDialog } from '../../shared/components/MoveRefusalDialog'
 import { MoveToast } from '../../shared/components/MoveToast'
 import { useAssignAndMoveTaskMutation } from '../../shared/hooks/useAssignAndMoveTaskMutation'
@@ -388,9 +389,9 @@ export function BoardPage() {
           role="alert"
         >
           <p>{describeError(boardQuery.error)}</p>
-          <button type="button" onClick={() => boardQuery.refetch()}>
+          <Button type="button" onClick={() => boardQuery.refetch()}>
             Try again
-          </button>
+          </Button>
         </div>
       )}
 

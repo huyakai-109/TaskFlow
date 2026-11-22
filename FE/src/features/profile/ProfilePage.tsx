@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { describeErrorCode } from '../../api/errorMessages'
+import { Button } from '../../shared/components/Button'
 import { fieldErrorMap } from '../../shared/lib/fieldErrors'
 
 import { AvatarUploadCard } from './components/AvatarUploadCard'
@@ -16,8 +17,6 @@ const inputClass =
   'min-h-10 rounded-md border border-border bg-surface px-[var(--space-3)] text-text [font:inherit] disabled:cursor-not-allowed disabled:opacity-60 focus:outline-2 focus:outline-offset-2 focus:outline-focus'
 const fieldErrorClass = 'm-0 text-[length:var(--font-size-xs)] text-danger'
 const sectionClass = 'flex flex-col gap-[var(--space-3)] rounded-xl border border-border bg-surface-raised p-[var(--space-5)]'
-const primaryButtonClass =
-  'min-h-10 cursor-pointer rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60'
 
 /**
  * Self-service profile (`docs/features/f08-accounts-profile.md` "Self API").
@@ -149,9 +148,9 @@ export function ProfilePage() {
             Saved.
           </p>
         )}
-        <button type="submit" className={`${primaryButtonClass} self-start`} disabled={updateMeMutation.isPending}>
+        <Button type="submit" variant="primary" className="self-start" loading={updateMeMutation.isPending}>
           {updateMeMutation.isPending ? 'Saving…' : 'Save'}
-        </button>
+        </Button>
       </form>
 
       <form className={sectionClass} onSubmit={handlePasswordSubmit}>
@@ -198,9 +197,9 @@ export function ProfilePage() {
             Password changed.
           </p>
         )}
-        <button type="submit" className={`${primaryButtonClass} self-start`} disabled={changePasswordMutation.isPending}>
+        <Button type="submit" variant="primary" className="self-start" loading={changePasswordMutation.isPending}>
           {changePasswordMutation.isPending ? 'Changing…' : 'Change password'}
-        </button>
+        </Button>
       </form>
     </section>
   )

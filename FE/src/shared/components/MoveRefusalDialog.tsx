@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react'
 import { describeErrorCode } from '../../api/errorMessages'
 import { DEFAULT_REFUSAL_TITLE, MOVE_REFUSAL_TITLES } from '../lib/moveRefusalTitles'
 
+import { Button } from './Button'
+
 function ArrowIcon() {
   return (
     <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -78,14 +80,9 @@ export function MoveRefusalDialog({ code, taskTitle, message = null, onClose }: 
         <p id="move-refusal-description" className="text-text-muted [line-height:var(--line-height)]">
           &ldquo;{taskTitle}&rdquo; — {describeErrorCode(code, message)}
         </p>
-        <button
-          type="button"
-          ref={closeButtonRef}
-          className="min-h-10 cursor-pointer self-start rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
-          onClick={onClose}
-        >
+        <Button type="button" ref={closeButtonRef} variant="primary" className="self-start" onClick={onClose}>
           Close
-        </button>
+        </Button>
       </div>
     </div>
   )

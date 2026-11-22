@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 
 import { ApiError } from '../../../api/client'
 import { describeErrorCode } from '../../../api/errorMessages'
+import { Button } from '../../../shared/components/Button'
 import { fieldErrorMap } from '../../../shared/lib/fieldErrors'
 import { useChangeRequiredPasswordMutation } from '../hooks/useChangeRequiredPasswordMutation'
 
@@ -127,21 +128,19 @@ export function ChangeRequiredPasswordForm({ username, currentPassword, onCancel
         />
       </div>
 
-      <button
-        type="submit"
-        className="min-h-11 cursor-pointer rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={mutation.isPending}
-      >
+      <Button type="submit" variant="primary" size="lg" loading={mutation.isPending}>
         {mutation.isPending ? 'Changing password…' : 'Change password and sign in'}
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
-        className="min-h-9 cursor-pointer border-0 bg-transparent text-[length:var(--font-size-sm)] text-text-muted underline"
+        variant="ghost"
+        size="sm"
+        className="self-start underline"
         disabled={mutation.isPending}
         onClick={onCancel}
       >
         Back to sign in
-      </button>
+      </Button>
     </form>
   )
 }

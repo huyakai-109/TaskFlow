@@ -1,5 +1,7 @@
 import { useRouteError } from 'react-router-dom'
 
+import { Button } from '../../shared/components/Button'
+
 /**
  * Route-level `errorElement` (bug fix, 2026-11-22) for the three Reports
  * routes (`router.tsx`) — any render error that still manages to escape the
@@ -19,13 +21,9 @@ export function ReportsErrorBoundary() {
       <p className="m-0 max-w-[480px] text-[length:var(--font-size-md)] text-text-muted">
         This report couldn&rsquo;t be displayed. Reloading the page usually fixes it.
       </p>
-      <button
-        type="button"
-        className="mt-[var(--space-2)] inline-flex min-h-9 cursor-pointer items-center gap-[var(--space-2)] rounded-control-lg border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
-        onClick={() => window.location.reload()}
-      >
+      <Button type="button" variant="primary" size="sm" className="mt-[var(--space-2)]" onClick={() => window.location.reload()}>
         Reload
-      </button>
+      </Button>
     </section>
   )
 }

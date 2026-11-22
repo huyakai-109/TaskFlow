@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 
+import { Button } from '../../../shared/components/Button'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 
 interface TemporaryPasswordDialogProps {
@@ -38,14 +39,9 @@ export function TemporaryPasswordDialog({ userName, temporaryPassword, onClose }
         <code className="rounded-md border border-border bg-column p-[var(--space-3)] text-[length:var(--font-size-md)] font-semibold select-all">
           {temporaryPassword}
         </code>
-        <button
-          ref={closeButtonRef}
-          type="button"
-          className="min-h-11 cursor-pointer self-start rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent"
-          onClick={onClose}
-        >
+        <Button ref={closeButtonRef} type="button" variant="primary" size="lg" className="self-start" onClick={onClose}>
           Done
-        </button>
+        </Button>
       </div>
     </div>
   )

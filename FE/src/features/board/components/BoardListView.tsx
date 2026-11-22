@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { BOARD_COLUMNS } from '../../../api/types'
 import type { PaginationRes, TaskStatus, TaskSummary } from '../../../api/types'
 import { Avatar } from '../../../shared/components/Avatar'
+import { Button } from '../../../shared/components/Button'
 import { DueChip, OverdueChip } from '../../../shared/components/DueDateChips'
 import { PriorityIcon } from '../../../shared/components/PriorityIcon'
 import { useUsersQuery } from '../../../shared/hooks/useUsersQuery'
@@ -115,14 +116,9 @@ export function BoardListView({ itemsByStatus, paginationByStatus, onLoadMore, i
               rows.push(
                 <tr key={`${status}-more`} className="border-t border-border">
                   <td className={cellClass} colSpan={5}>
-                    <button
-                      type="button"
-                      className="min-h-8 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-3)] text-[length:var(--font-size-xs)] font-medium text-text hover:border-accent hover:bg-accent-soft hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60"
-                      onClick={() => onLoadMore(status)}
-                      disabled={isLoadingMore(status)}
-                    >
+                    <Button type="button" size="sm" loading={isLoadingMore(status)} onClick={() => onLoadMore(status)}>
                       {isLoadingMore(status) ? 'Loading…' : `Show more ${STATUS_LABELS[status]} (${items.length} of ${totalItems})`}
-                    </button>
+                    </Button>
                   </td>
                 </tr>,
               )

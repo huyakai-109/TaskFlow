@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 
 import { describeError } from '../../../api/errorMessages'
 import type { ReportExportDataset, ReportGranularity } from '../../../api/types'
+import { Button } from '../../../shared/components/Button'
 import { useDialogA11y } from '../../../shared/hooks/useDialogA11y'
 
 import { useReportExport } from '../hooks/useReportExport'
@@ -35,16 +36,16 @@ export function ExportMenu({ userId, from, to, granularity, isTeamScope }: Expor
 
   return (
     <div className="relative">
-      <button
+      <Button
         type="button"
-        className="min-h-9 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-3)] text-[length:var(--font-size-sm)] font-medium text-text hover:bg-column disabled:cursor-not-allowed disabled:opacity-60"
+        size="sm"
         aria-expanded={open}
         aria-haspopup="menu"
-        disabled={exportMutation.isPending}
+        loading={exportMutation.isPending}
         onClick={() => setOpen((value) => !value)}
       >
         {exportMutation.isPending ? 'Exporting…' : 'Export CSV'}
-      </button>
+      </Button>
 
       {open && (
         <div role="menu" aria-label="Export CSV" className="absolute right-0 z-10 mt-[var(--space-1)] flex w-[180px] flex-col gap-[2px] rounded-md border border-border bg-surface-raised p-[var(--space-1)] shadow-raised">

@@ -2,6 +2,7 @@ import clsx from 'clsx'
 
 import { BOARD_COLUMNS } from '../../../api/types'
 import type { AllowedTransition, TaskStatus } from '../../../api/types'
+import { Button } from '../../../shared/components/Button'
 import { moveButtonLabel } from '../../../shared/lib/moveButtonLabel'
 import { STATUS_LABELS } from '../../../shared/lib/statusLabels'
 
@@ -92,12 +93,7 @@ export function WorkflowStrip({
 
       <div className="flex flex-wrap items-center gap-[var(--space-3)]">
         {moves.map((move, index) => (
-          <button
-            key={move.status}
-            type="button"
-            className="inline-flex min-h-11 cursor-pointer items-center gap-[var(--space-2)] rounded-md border-0 bg-accent px-[var(--space-4)] font-semibold text-on-accent hover:bg-accent-hover"
-            onClick={() => onMove(move.status)}
-          >
+          <Button key={move.status} type="button" variant="primary" size="lg" onClick={() => onMove(move.status)}>
             {moveButtonLabel(status, move)}
             {/* `⌘↵` acts on the first allowed move (`docs/design/SPEC.md` §5.3/§6 point 7, built 2026-11-11). */}
             {index === 0 && (
@@ -108,29 +104,20 @@ export function WorkflowStrip({
                 ⌘↵
               </kbd>
             )}
-          </button>
+          </Button>
         ))}
 
         {reopen !== undefined && (
-          <button
-            type="button"
-            className="inline-flex min-h-11 cursor-pointer items-center rounded-md border border-border bg-surface px-[var(--space-4)] font-medium text-text hover:bg-column"
-            onClick={onReopenRequested}
-          >
+          <Button type="button" size="lg" onClick={onReopenRequested}>
             Reopen
-          </button>
+          </Button>
         )}
 
         {/* Revision R2 (D11/D12): rendered strictly from `canTakeOver` — never inferred from role/status client-side. */}
         {showTakeOver && (
-          <button
-            type="button"
-            className="inline-flex min-h-11 cursor-pointer items-center rounded-md border border-border bg-surface px-[var(--space-4)] font-medium text-text hover:bg-column disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isTakeOverPending}
-            onClick={onTakeOver}
-          >
+          <Button type="button" size="lg" loading={isTakeOverPending} onClick={onTakeOver}>
             {isTakeOverPending ? 'Taking over…' : 'Take over'}
-          </button>
+          </Button>
         )}
 
         {moves.length === 0 && reopen === undefined && !showTakeOver && (

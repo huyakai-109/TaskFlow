@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '../../../api/client'
 import { describeErrorCode } from '../../../api/errorMessages'
 import { Avatar } from '../../../shared/components/Avatar'
+import { Button } from '../../../shared/components/Button'
 import { useUploadAvatarMutation } from '../hooks/useUploadAvatarMutation'
 import { AVATAR_ALLOWED_TYPES, formatFileSize, validateAvatarFile } from '../lib/validateAvatarFile'
 
@@ -17,24 +18,6 @@ interface AvatarUploadCardProps {
 
 const sectionClass = 'flex flex-col gap-[var(--space-3)] rounded-xl border border-border bg-surface-raised p-[var(--space-5)]'
 const fieldErrorClass = 'm-0 text-[length:var(--font-size-xs)] text-danger'
-
-function SpinnerIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      width="14"
-      height="14"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      className="motion-safe:animate-spin"
-    >
-      <path d="M8 1.5a6.5 6.5 0 1 1-6.5 6.5" />
-    </svg>
-  )
-}
 
 /**
  * Avatar upload, redesigned (follow-up task): a styled "Choose photo" button
@@ -199,34 +182,18 @@ export function AvatarUploadCard({ userId, name, avatarUrl }: AvatarUploadCardPr
           />
 
           <div className="flex flex-wrap gap-[var(--space-2)]">
-            <button
-              type="button"
-              className="min-h-9 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-3)] text-[length:var(--font-size-sm)] font-medium text-text hover:bg-column disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isBusy}
-              onClick={() => fileInputRef.current?.click()}
-            >
+            <Button type="button" size="sm" disabled={isBusy} onClick={() => fileInputRef.current?.click()}>
               Choose photo
-            </button>
+            </Button>
 
             {pendingFile !== null && (
               <>
-                <button
-                  type="button"
-                  className="min-h-9 inline-flex cursor-pointer items-center gap-[var(--space-2)] rounded-md border-0 bg-accent px-[var(--space-3)] text-[length:var(--font-size-sm)] font-semibold text-on-accent hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={isBusy}
-                  onClick={handleUpload}
-                >
-                  {isBusy && <SpinnerIcon />}
+                <Button type="button" variant="primary" size="sm" loading={isBusy} onClick={handleUpload}>
                   {isBusy ? 'Uploading…' : 'Upload'}
-                </button>
-                <button
-                  type="button"
-                  className="min-h-9 cursor-pointer rounded-md border border-border bg-surface px-[var(--space-3)] text-[length:var(--font-size-sm)] font-medium text-text hover:bg-column disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={isBusy}
-                  onClick={handleCancel}
-                >
+                </Button>
+                <Button type="button" size="sm" disabled={isBusy} onClick={handleCancel}>
                   Cancel
-                </button>
+                </Button>
               </>
             )}
           </div>
